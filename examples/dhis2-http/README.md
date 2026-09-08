@@ -50,6 +50,7 @@ curl -sSI https://play.dhis2.org/demo
 | [dhis2-export-data-elements.yaml](dhis2-export-data-elements.yaml) | A metadata export with `fields=:owner`, and the import vocabulary -- `importStrategy`, `atomicMode`, `importMode=VALIDATE`. |
 | [dhis2-fhir-to-data-values.yaml](dhis2-fhir-to-data-values.yaml) | A FHIR `QuestionnaireResponse` translated into a `/api/dataValueSets` import, link id by link id. |
 | [dhis2-export-data-values-csv.yaml](dhis2-export-data-values-csv.yaml) | A data value set as CSV rather than JSON -- the extension is the content negotiation -- streamed to storage. |
+| [dhis2-data-values-validated.yaml](dhis2-data-values-validated.yaml) | A data value set fetched and validated against the pack's `dhis2-uid` and `dhis2-period` formats. |
 | [dhis2-export-data-values-range.yaml](dhis2-export-data-values-range.yaml) | Every period inside a `startDate`/`endDate` window in one call, instead of a period at a time. |
 | [dhis2-mark-data-set-complete.yaml](dhis2-mark-data-set-complete.yaml) | Reading a completion registration, and the POST that signs a period off. |
 | [dhis2-mark-data-set-incomplete.yaml](dhis2-mark-data-set-incomplete.yaml) | Both ways of reopening a signed-off period: `completed: false`, and the outright DELETE. |
