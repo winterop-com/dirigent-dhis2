@@ -5,7 +5,7 @@ its dirigent packages at the tagged commit, moves to the same number, and is tag
 with a GitHub release of its own. So `dirigent-dhis2` 0.9.0 is the pack built against dirigent
 0.9.0, and the two numbers are never read as independent.
 
-The current version is **0.8.1**.
+The current version is **0.9.0**.
 
 Every release, with its notes, is on
 [the pack's releases page](https://github.com/winterop-com/dirigent-dhis2/releases). What

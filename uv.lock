@@ -295,16 +295,20 @@ wheels = [
 [[package]]
 name = "dirigent-common"
 version = "0.9.0"
-source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-common&branch=main#9247fd9101c3a19cb34d32573f2b73bbad48a9bd" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx2" },
     { name = "jsonschema", extra = ["format-nongpl"] },
     { name = "pydantic" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/40/8d/17a2cc6bdd55181722cd8bcf72e2756782d4ecbc488e036a6f849effe171/dirigent_common-0.9.0.tar.gz", hash = "sha256:b58ba75f26c462ffbdeb6dd7f839f7e43be40b5475c493a1bd49283f0fb736e0", size = 11656, upload-time = "2026-09-08T22:26:04.477Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bd/c6/bfd4d3c2412f2c593a6a350e41ccb9d02a4d15e437e7bdb6a1d9323913fe/dirigent_common-0.9.0-py3-none-any.whl", hash = "sha256:10d9d3a2a3dc8b554e783cc414eb8f5b9ccf424e7b0ab0cc0698c1ec82f70021", size = 17448, upload-time = "2026-09-08T22:26:03.392Z" },
+]
 
 [[package]]
 name = "dirigent-dhis2"
-version = "0.8.1"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "dhis2w-client" },
@@ -333,14 +337,14 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dhis2w-client", specifier = ">=1.13.4,<2" },
-    { name = "dirigent-common", git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-common&branch=main" },
-    { name = "dirigent-plugin", git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-plugin&branch=main" },
+    { name = "dirigent-common", specifier = "==0.9.0" },
+    { name = "dirigent-plugin", specifier = "==0.9.0" },
     { name = "httpx", specifier = ">=0.28" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "dirigent-testing", git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-testing&branch=main" },
+    { name = "dirigent-testing", specifier = "==0.9.0" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-material", specifier = ">=9.7.7" },
     { name = "mypy", specifier = ">=1.19" },
@@ -358,18 +362,22 @@ dev = [
 [[package]]
 name = "dirigent-plugin"
 version = "0.9.0"
-source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-plugin&branch=main#9247fd9101c3a19cb34d32573f2b73bbad48a9bd" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dirigent-common" },
     { name = "httpx2" },
     { name = "pluginkit" },
     { name = "pydantic" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/ce/c1/adfbc7a18455590e3fb4b2f566d41559b11a8a5d42e5040dd8071d73d699/dirigent_plugin-0.9.0.tar.gz", hash = "sha256:d726987bd2dc976255df8e67008298b0cbd23fdf04fc2b6644cb64fcc98dacc9", size = 15559, upload-time = "2026-09-08T22:25:57.184Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/53/11/7910e92e53952964e7d852ba2ae5f848b6d2bdb680704d6352078543cf4a/dirigent_plugin-0.9.0-py3-none-any.whl", hash = "sha256:8c8fcb15c3f7847b1b7000eaa09115372330e6b4fa2f41549027bd8c6af82586", size = 18286, upload-time = "2026-09-08T22:25:56.121Z" },
+]
 
 [[package]]
 name = "dirigent-testing"
 version = "0.9.0"
-source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-testing&branch=main#9247fd9101c3a19cb34d32573f2b73bbad48a9bd" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dirigent-common" },
     { name = "dirigent-plugin" },
@@ -377,6 +385,10 @@ dependencies = [
     { name = "pydantic" },
     { name = "pytest" },
     { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7a/6a/b3089a97c073d725ca1e70b2de91cf030186ede7d705a3168042ac805f12/dirigent_testing-0.9.0.tar.gz", hash = "sha256:900bd4a702c352ae76e01543c21e39af4d9f0225cbc673bc17991159fc528972", size = 9870, upload-time = "2026-09-08T22:40:38.792Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/28/713d9015e1941f68487c7f9f2a1180b0d5f37d0a44166563b3aa8efba524/dirigent_testing-0.9.0-py3-none-any.whl", hash = "sha256:1811824b5310fa83d54abdd58d2db8c160eef89ca3ca5a88f6742e50a0b48af5", size = 13088, upload-time = "2026-09-08T22:40:37.462Z" },
 ]
 
 [[package]]
