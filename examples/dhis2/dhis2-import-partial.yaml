@@ -1,0 +1,76 @@
+# Let the good values through and report the bad ones, instead of refusing the batch.
+#
+# atomic_mode is the other half of an import's contract, and it decides what one bad row
+# does to the other rows. ALL, the default, is all-or-nothing: a single conflict and DHIS2
+# writes none of it, so the instance never holds half a submission. NONE takes every value
+# it can and reports the rest as conflicts.
+#
+# NONE is for a feed you do not control -- a district's monthly file, a survey export, an
+# upstream system with its own idea of an uid. Refusing three hundred good values because
+# one row names a data element that was retired last year serves nobody; taking the 299 and
+# naming the one is the behaviour worth having, as long as something reads the conflicts
+# afterwards.
+#
+# The block only fails the step on a summary DHIS2 itself calls ERROR. Under NONE a partial
+# import is a WARNING with a non-zero ignored count and a populated conflicts list, and the
+# step succeeds -- so the conflicts are yours to act on. steps.take.output.conflicts is
+# where a downstream step reads them, each entry naming the object and what was wrong with
+# it.
+#
+# The second row below names an uid that does not exist, so the summary has something real
+# to report.
+#
+#   dg run --local examples/dhis2/dhis2-import-partial.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-import-partial
+name: Import what is valid, report what is not
+description: Take every acceptable data value and report the refused ones as conflicts.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_import
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period the values belong to.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  take:
+    block: dhis2.data_value_set_import
+    config:
+      connection: dhis2-demo
+      data_values:
+        dataSet: BfMAe6Itzgt
+        period: "${params.period}"
+        orgUnit: DiszpKrYNg8
+        dataValues:
+          - dataElement: s46m5MS0hxu
+            categoryOptionCombo: Prlt0C1RF0s
+            attributeOptionCombo: HllvX50cXC0
+            value: "12"
+          # A well-formed uid that names nothing on this instance: the shape passes, the
+          # lookup does not, and the row lands in conflicts rather than failing the batch.
+          - dataElement: aaaaaaaaaaa
+            categoryOptionCombo: Prlt0C1RF0s
+            attributeOptionCombo: HllvX50cXC0
+            value: "4"
+      # Take what is valid; under the default, ALL, the row above would refuse the batch.
+      atomic_mode: NONE
+      dry_run: true

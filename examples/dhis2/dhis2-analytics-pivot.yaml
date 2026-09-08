@@ -1,0 +1,64 @@
+# The pivot table shape: one axis down, one across, everything else pinned.
+#
+# This is the query a person means when they say "a report". dimension carries the axes the
+# answer is broken down by -- here the indicator and the period, so the grid has a row per
+# indicator per quarter -- and filter carries the axis that is fixed rather than shown, so
+# the whole grid is about one organisation unit that never appears in a row.
+#
+# Which axis goes where is the entire design of an analytics query, and it is worth being
+# deliberate: move ou from filter into dimension and the same read returns a value per
+# indicator per quarter per district, which is a different report and a far larger one. Ask
+# for fewer axes than you need and the numbers silently become totals over what you left out.
+#
+# The rows come back as strings in axis order, followed by the value: [dx, pe, value] here.
+# The grid's headers block names the columns in the same order, and metaData names every uid
+# appearing in it.
+#
+# The periods are written out rather than given as a relative window like LAST_4_QUARTERS,
+# because the demo's data era moves and a relative window walks off the end of it. Against
+# an instance with current data, a relative period is the better default: it makes the same
+# document mean "the last four quarters" every time it runs.
+#
+#   dg run --local examples/dhis2/dhis2-analytics-pivot.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-analytics-pivot
+name: An indicator by quarter
+description: Break one indicator down by quarter for a single organisation unit.
+
+tags: [dhis2, analytics]
+
+requires:
+  blocks:
+    - dhis2.analytics_query
+
+params:
+  type: object
+  properties:
+    org_unit:
+      type: string
+      default: ImspTQPwCqd
+      description: The uid of the organisation unit the whole grid is about.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  pivot:
+    block: dhis2.analytics_query
+    config:
+      connection: dhis2-demo
+      mode: aggregate
+      dimension:
+        - dx:Uvn6LCg7dVU
+        - pe:2026Q1;2026Q2
+      filter:
+        - "ou:${params.org_unit}"
+      output_id_scheme: NAME

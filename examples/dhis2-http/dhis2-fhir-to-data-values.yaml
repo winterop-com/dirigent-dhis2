@@ -1,0 +1,195 @@
+# A FHIR capture translated into a DHIS2 aggregate import, with the mapping written out.
+#
+# A common integration: data is captured on a FHIR form and has to land in DHIS2 as aggregate
+# values. The FHIR side calls a filled-in form a QuestionnaireResponse; the DHIS2 side wants a
+# dataValueSets envelope. Nothing in either standard knows about the other, so the mapping is
+# the integration, and it is five rules:
+#
+#   the questionnaire the response answers  ->  dataSet
+#       Off the form, never off the response: the response names the form, and the form is
+#       what carries the DHIS2 identifier. A response cannot be trusted to name a data set.
+#   the period extension                    ->  period
+#       An ISO period string, "202607", which is DHIS2's own vocabulary and not a date range.
+#   the Location the response is about      ->  orgUnit
+#       FHIR points at Location/<uid>; DHIS2 wants the bare uid.
+#   one answered item                       ->  one data value
+#       THE LINK ID IS THE KEY. A plain linkId is a data element uid. A dotted one,
+#       <dataElement>.<categoryOptionCombo>, is a single disaggregated cell -- one column of
+#       a category combination. That grammar is the whole of the disaggregation mapping.
+#   status = completed                      ->  a completeDataSetRegistration
+#       Written AFTER the values, never with them. Completeness means "these values are in",
+#       so registering it first claims something that is not true yet, and a run that fails
+#       between the two has told DHIS2 the form is done when it is not.
+#
+# The response below is inline so this document runs with nothing set up. In a real forwarder
+# it arrives on a webhook -- webhook-trigger.yaml is that half -- or is read from a spool
+# directory a FHIR facade writes into.
+#
+# Note what the translation does NOT do: it does not invent values for unanswered items. An
+# absent answer and a zero are different facts, and a form that skipped a question must not
+# import a 0 for it.
+#
+# Both POSTs go to Postman Echo, with the request shaped exactly as DHIS2 wants it. The
+# import is staged as a dry run, and on /api/dataValueSets a dry run is `dryRun=true` --
+# /api/metadata spells the same intention `importMode=VALIDATE`, which is the mismatch
+# dhis2-export-data-elements.yaml marks. Repoint the `dhis2-target` connection and drop the
+# dry run to make it real -- or hand the translated payload to `dhis2.data_value_set_import`,
+# which makes the same call natively and answers with the summary parsed;
+# dhis2-rehearse-import.yaml is that block against a live instance.
+#
+#   dg run --local examples/dhis2-http/dhis2-fhir-to-data-values.yaml
+#   dg run --local examples/dhis2-http/dhis2-fhir-to-data-values.yaml -p period=202608
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-fhir-to-data-values
+name: FHIR capture to DHIS2 data values
+description: |
+  Translate a FHIR `QuestionnaireResponse` into a DHIS2 `/api/dataValueSets` import.
+
+  The mapping is the integration:
+
+  | FHIR | DHIS2 |
+  | --- | --- |
+  | the questionnaire answered | `dataSet` |
+  | the period extension | `period` |
+  | `subject` -> `Location/<uid>` | `orgUnit` |
+  | one answered item | one `dataValue` |
+  | `status = completed` | a `completeDataSetRegistration`, written **after** |
+
+  The link id is the key. `cZnQDuF3IDz` is a data element; `cZnQDuF3IDz.fsFN9T4ck3E` is one
+  disaggregated cell of it.
+
+tags: [dhis2, http, transform]
+
+requires:
+  blocks:
+    - http.request
+    - transform.jq
+
+connections:
+  dhis2-target:
+    kind: http
+    config:
+      # Stands in for the DHIS2 being imported into. The public demo is for reading, so this
+      # points at a service that exists to be posted to; repoint it and nothing else changes.
+      base_url: https://postman-echo.com
+      timeout: 30s
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      description: The ISO period the capture belongs to, in DHIS2's own vocabulary.
+      default: "202607"
+
+steps:
+  # The capture, as a FHIR facade would hand it over. Two extensions carry what FHIR has no
+  # field for -- the DHIS2 period and the attribute option combo -- which is how FHIR is
+  # meant to be profiled: the base resource stays standard and the local additions are named.
+  receive_capture:
+    block: transform.jq
+    config:
+      input:
+        period: "${params.period}"
+        response:
+          resourceType: QuestionnaireResponse
+          id: TuL8IOPzpHh-example-2
+          status: completed
+          authored: "2026-08-08T15:00:00Z"
+          questionnaire: "http://example.org/fhir/Questionnaire/TuL8IOPzpHh"
+          subject:
+            reference: Location/ImspTQPwCqd
+          extension:
+            - url: "http://example.org/fhir/StructureDefinition/d2-form-type"
+              valueCode: aggregate
+            - url: "http://example.org/fhir/StructureDefinition/d2-attribute-option-combo"
+              valueCoding:
+                code: BqblOcSwGey
+                display: Provide access to primary health care
+          item:
+            # A group whose children are the disaggregated cells of one data element.
+            - linkId: cZnQDuF3IDz
+              text: Measles doses given
+              item:
+                - linkId: cZnQDuF3IDz.fsFN9T4ck3E
+                  text: "Fixed, <1y"
+                  answer:
+                    - valueDecimal: 45.5
+                - linkId: cZnQDuF3IDz.pn1upwnbxfn
+                  text: "Outreach, <1y"
+                  answer:
+                    - valueDecimal: 94.2
+            # A plain data element, with no disaggregation at all.
+            - linkId: p1MDHOT6ENy
+              text: BCG doses given
+              answer:
+                - valueDecimal: 7.7
+            # Asked and not answered. It must not become a zero.
+            - linkId: s1MDHOT6ENz
+              text: Yellow fever doses given
+      program: |
+        {period: .period, response: .response}
+
+  # The translation. One program, because the mapping needs to see the whole response at once
+  # -- the data values come from the items, and the envelope around them comes from the
+  # extensions and the subject.
+  translate_to_data_values:
+    block: transform.jq
+    depends_on: [receive_capture]
+    config:
+      input: "${steps.receive_capture.output.value}"
+      program: |
+        .period as $period
+        | .response as $r
+        # Items nest, so the leaves are found by recursion rather than by one level of
+        # indexing. An item with no answer is not a leaf that answered: it is skipped here,
+        # which is what keeps an unanswered question out of the import entirely.
+        | [$r.item[] | recurse(.item[]?) | select(.answer != null and (.answer | length) > 0)]
+        | map(
+            (.linkId | split(".")) as $key
+            | (.answer[0] | (.valueDecimal // .valueInteger // .valueString // .valueBoolean)) as $value
+            | {dataElement: $key[0], value: ($value | tostring)}
+              + (if ($key | length) > 1 then {categoryOptionCombo: $key[1]} else {} end)
+          ) as $values
+        | {dataSet: ($r.questionnaire | split("/") | last),
+           period: $period,
+           orgUnit: ($r.subject.reference | ltrimstr("Location/")),
+           attributeOptionCombo: (
+             [$r.extension[] | select(.url | endswith("d2-attribute-option-combo"))][0].valueCoding.code),
+           completeDate: (if $r.status == "completed" then ($r.authored | split("T") | first) else null end),
+           dataValues: $values}
+
+  import_data_values:
+    block: http.request
+    depends_on: [translate_to_data_values]
+    config:
+      connection: dhis2-target
+      path: /post
+      method: POST
+      query:
+        # A dry run on THIS endpoint is dryRun. On /api/metadata the same intention is
+        # spelled importMode=VALIDATE, and the two are not interchangeable.
+        dryRun: true
+        importStrategy: CREATE_AND_UPDATE
+      body: "${steps.translate_to_data_values.output.value}"
+
+  # Second, and only second. The values have landed by the time this runs, so the
+  # registration is true when it is written. The default all_success edge is what enforces
+  # that: an import that failed leaves this step skipped rather than lying.
+  register_completeness:
+    block: http.request
+    depends_on: [import_data_values]
+    config:
+      connection: dhis2-target
+      path: /post
+      method: POST
+      body:
+        completeDataSetRegistrations:
+          - dataSet: "${steps.translate_to_data_values.output.value.dataSet}"
+            period: "${steps.translate_to_data_values.output.value.period}"
+            organisationUnit: "${steps.translate_to_data_values.output.value.orgUnit}"
+            attributeOptionCombo: "${steps.translate_to_data_values.output.value.attributeOptionCombo}"
+            date: "${steps.translate_to_data_values.output.value.completeDate}"
+            completed: true

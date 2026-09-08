@@ -1,0 +1,64 @@
+# List the organisation units directly under one parent.
+#
+# dhis2.metadata reads any DHIS2 metadata collection through the accessor the instance's own
+# version publishes. resource is the collection name exactly as it appears in the API path --
+# organisationUnits, dataElements, dataSets, indicators, programs, optionSets -- and the
+# version is resolved when the connection is made, so the same document reads a 2.42 or a
+# 2.43 instance without an edit.
+#
+# The hierarchy is walked with a filter rather than a special endpoint. parent.id:eq:<uid>
+# is DHIS2's filter syntax over a nested property: a property path, an operator, and a value,
+# joined by colons. That gives one level down. level:eq:3 gives a whole level across the
+# country; path:like:<uid> gives an entire subtree, because every unit's path carries the
+# uids of all its ancestors.
+#
+# fields decides how much of each unit comes back. Asking for path as well as id and name is
+# what makes the answer usable on its own: a downstream step can work out the hierarchy from
+# the paths without a second read per unit.
+#
+# paging is off by default on this block, because a metadata read almost always wants the
+# whole collection rather than the first page of it. dhis2-metadata-paged.yaml is the read
+# that wants a page.
+#
+#   dg run --local examples/dhis2/dhis2-metadata-org-units.yaml
+#   dg run --local examples/dhis2/dhis2-metadata-org-units.yaml -p parent=ImspTQPwCqd
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-metadata-org-units
+name: Organisation units under a parent
+description: Read the organisation units directly beneath one unit, with their hierarchy paths.
+
+tags: [dhis2, metadata]
+
+requires:
+  blocks:
+    - dhis2.metadata
+
+params:
+  type: object
+  properties:
+    parent:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: O6uvpzGd5pu
+      description: The uid of the parent whose children are listed. Bo district by default.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  read:
+    block: dhis2.metadata
+    config:
+      connection: dhis2-demo
+      resource: organisationUnits
+      fields: id,name,level,path,openingDate
+      filter: "parent.id:eq:${params.parent}"
+      order: [name:asc]

@@ -1,0 +1,61 @@
+# Revise values that are already recorded, and refuse to create any.
+#
+# UPDATE is CREATE's mirror: it writes a value where the cell already holds one, and ignores
+# it where the cell is empty. Nothing new appears in the instance, so an uid typo or a period
+# nobody has reported cannot quietly invent data -- it lands in the ignored count instead.
+#
+# That is the strategy for a correction run. A district sends a revised return for a month
+# already reported; the import replaces the values that exist and, by refusing to create,
+# proves the revision is a revision rather than a second, differently-shaped submission.
+#
+# Read the summary the same way as always: updated counts the cells that had a value,
+# ignored counts the cells that did not.
+#
+#   dg run --local examples/dhis2/dhis2-import-update.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-import-update
+name: Import with the UPDATE strategy
+description: Revise data values already recorded, refusing to create any that are missing.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_import
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period the revised values belong to.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  revise:
+    block: dhis2.data_value_set_import
+    config:
+      connection: dhis2-demo
+      data_values:
+        dataSet: BfMAe6Itzgt
+        period: "${params.period}"
+        orgUnit: DiszpKrYNg8
+        dataValues:
+          - dataElement: s46m5MS0hxu
+            categoryOptionCombo: Prlt0C1RF0s
+            attributeOptionCombo: HllvX50cXC0
+            value: "15"
+      # Revise what is there, invent nothing.
+      import_strategy: UPDATE
+      dry_run: true

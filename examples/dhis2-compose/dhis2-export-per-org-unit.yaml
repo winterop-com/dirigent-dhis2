@@ -1,0 +1,85 @@
+# Run the same export once per organisation unit, each its own attempt.
+#
+# One district's export failing should not cost the other twelve their exports, and a single
+# step reading thirteen districts at once cannot offer that: it either succeeds or it does
+# not. for_each is what splits it into thirteen, each with its own attempt, its own retry
+# budget and its own place in the run.
+#
+# The list is expanded when the run is created, which is why it reads params rather than
+# another step's output: the run's item grid has to exist from the moment the run is visible,
+# and that is what makes an item's progress something a person can watch. Fanning out over
+# something only a previous step knows -- the org units a metadata read returned -- is a
+# different shape: the reading pipeline triggers the fanning-out one, or the list is passed
+# in as a param.
+#
+# items: continue is the policy that makes the fan-out worth having. Under the default,
+# fail_fast, one district refusing fails the whole step. Under continue the failure is
+# recorded against that item, the rest finish, and the run reports completed_with_errors --
+# an honest ending, neither a green run that hid a gap nor a red one that threw away twelve
+# good exports.
+#
+# What that costs downstream is worth knowing before relying on it: the step still counts as
+# succeeded, and its output is the list of its items' outputs with the failed ones absent --
+# not null, absent. A step reading the batch therefore sees only what worked, and has to
+# treat a short list as the normal case.
+#
+# Each item writes its own file, keyed by the org unit, because a save_to that did not vary
+# per item would have thirteen exports overwriting one another.
+#
+#   dg run --local examples/dhis2-compose/dhis2-export-per-org-unit.yaml
+#   dg run --local examples/dhis2-compose/dhis2-export-per-org-unit.yaml \
+#     -p org_units='["O6uvpzGd5pu","fdc6uOvgoji"]'
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-per-org-unit
+name: One export per organisation unit
+description: Fan a data value set export out over several organisation units, one run item each.
+
+tags: [dhis2, storage]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period each item exports.
+    org_units:
+      type: array
+      items:
+        type: string
+        pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: [O6uvpzGd5pu, fdc6uOvgoji, lc3eMKXaEfw]
+      description: The uids to export, one run item each. Bo, Bombali and Bonthe by default.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    for_each: "${params.org_units}"
+    items: continue
+    # Per item, not per step: one district timing out costs that district a retry and leaves
+    # the others alone.
+    retry:
+      max_attempts: 3
+      backoff: 30s
+    config:
+      connection: dhis2-demo
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: "${item}"
+      children: true
+      save_to: "${run.scratch}/dhis2/${params.period}-${item}.json"

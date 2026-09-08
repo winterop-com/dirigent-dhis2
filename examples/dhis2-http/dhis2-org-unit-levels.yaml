@@ -1,0 +1,38 @@
+# List the organisation-unit levels configured by the public DHIS2 demo.
+#
+# DHIS2 metadata collections are ordinary HTTP resources. fields keeps the response focused,
+# while paging: false asks for the complete four-level hierarchy definition in one response.
+#
+#   dg run --local examples/dhis2-http/dhis2-org-unit-levels.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-org-unit-levels
+name: Org unit levels
+description: List the levels that give the DHIS2 organisation-unit hierarchy its shape.
+
+tags: [dhis2, http]
+
+requires:
+  blocks:
+    - http.request
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  list_levels:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/organisationUnitLevels.json
+      method: GET
+      query:
+        fields: id,name,level
+        paging: false

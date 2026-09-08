@@ -1,0 +1,50 @@
+# Read one organisation unit and its immediate children from the public DHIS2 demo.
+#
+# The default id is Sierra Leone, the root of the demo hierarchy. Override it with any DHIS2
+# organisation-unit uid to inspect another branch. The id is substituted into the request
+# path as one value; it is not interpreted as an expression or executable URL fragment.
+#
+#   dg run --local examples/dhis2-http/dhis2-org-unit-detail.yaml
+#
+#   dg run --local examples/dhis2-http/dhis2-org-unit-detail.yaml -p org_unit=O6uvpzGd5pu
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-org-unit-detail
+name: Org unit detail
+description: Read one DHIS2 organisation unit, its hierarchy path, and its immediate children.
+
+tags: [dhis2, http]
+
+requires:
+  blocks:
+    - http.request
+
+params:
+  type: object
+  additionalProperties: false
+  properties:
+    org_unit:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: ImspTQPwCqd
+      description: The uid of the organisation unit to inspect.
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  read_org_unit:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: "/api/organisationUnits/${params.org_unit}.json"
+      method: GET
+      query:
+        fields: id,displayName,level,path,children[id,displayName]

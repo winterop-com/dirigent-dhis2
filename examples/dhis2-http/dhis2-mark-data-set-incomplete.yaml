@@ -1,0 +1,111 @@
+# Reopen a signed-off period: unmake a completion registration.
+#
+# A month gets signed off and then a correction arrives. Reopening the window is a real
+# operation with two spellings on the DHIS2 API, and which one an instance honours depends
+# on its version, so a pipeline that reopens windows should know both.
+#
+# The first is a POST of the same registration with completed: false. The record stays and
+# carries a flag saying the sign-off was withdrawn, which is the version worth preferring:
+# something remains to say the window was once closed, and the native
+# dhis2.data_set_complete sensor reads that flag and goes on waiting rather than treating
+# the leftover record as a completion.
+#
+# The second is DELETE /api/completeDataSetRegistrations with ds, pe and ou as query
+# parameters, which removes the registration outright. It leaves the cleanest state and the
+# least history: afterwards nothing distinguishes a window that was reopened from one nobody
+# ever signed off.
+#
+# This document builds both, in that order, so the shapes sit side by side. Both go to
+# Postman Echo: this directory does not write to the shared play demo. Repoint the reporting
+# connection and change each path to /api/completeDataSetRegistrations to perform the real
+# thing -- and send one of the two, not both.
+#
+#   dg run --local examples/dhis2-http/dhis2-mark-data-set-incomplete.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-mark-data-set-incomplete
+name: Reopen a signed-off period
+description: Build both ways of unmaking a DHIS2 completion registration, withdrawn and deleted.
+
+tags: [dhis2, http]
+
+requires:
+  blocks:
+    - http.request
+
+params:
+  type: object
+  properties:
+    data_set:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: BfMAe6Itzgt
+      description: The uid of the data set being reopened.
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period being reopened.
+    org_unit:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: vSbt6cezomG
+      description: The uid of the organisation unit whose sign-off is withdrawn.
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+  reporting:
+    kind: http
+    config:
+      base_url: https://postman-echo.com
+      timeout: 30s
+
+steps:
+  read_registration:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/completeDataSetRegistrations
+      method: GET
+      query:
+        dataSet: "${params.data_set}"
+        period: "${params.period}"
+        orgUnit: "${params.org_unit}"
+
+  # The record kept, the sign-off withdrawn: the same POST body as a completion with the
+  # flag inverted.
+  withdraw:
+    block: http.request
+    depends_on: [read_registration]
+    config:
+      connection: reporting
+      path: /post
+      method: POST
+      body:
+        completeDataSetRegistrations:
+          - dataSet: "${params.data_set}"
+            period: "${params.period}"
+            organisationUnit: "${params.org_unit}"
+            attributeOptionCombo: HllvX50cXC0
+            completed: false
+
+  # The record removed. No body: the registration is addressed entirely by the query, the
+  # same three parameters the read above uses.
+  erase:
+    block: http.request
+    depends_on: [withdraw]
+    config:
+      connection: reporting
+      path: /delete
+      method: DELETE
+      query:
+        ds: "${params.data_set}"
+        pe: "${params.period}"
+        ou: "${params.org_unit}"
+        cc: HllvX50cXC0

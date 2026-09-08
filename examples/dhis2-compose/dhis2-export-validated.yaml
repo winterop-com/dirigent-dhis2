@@ -1,0 +1,74 @@
+# Export a data value set and refuse it if its shape has moved.
+#
+# The pack's blocks read DHIS2; the engine's own blocks are what a document composes them
+# with. This is the smallest useful pair: dhis2.data_value_set_export reads the values, and
+# validate.schema holds the answer to a shape written down in advance. A gate like this is
+# what turns "the payload changed and everything downstream quietly did the wrong thing"
+# into a run that stops at the step where the change arrived.
+#
+# The schema is not carried in the document. It lives in ../schemas/dhis2-data-value-set.json
+# and the instance holds it under the code the file's $id declares, so several pipelines can
+# gate on the same shape and it is corrected in one place. requires.schemas is what refuses
+# the document on an instance that does not hold it, before a run rather than during one.
+#
+# What the schema pins is not just the presence of dataValues. Every identifier is held to
+# format: dhis2-uid and every period to format: dhis2-period, and those two formats are
+# contributed by this pack -- so an id that is not an 11-character DHIS2 uid, or a period
+# that is not a DHIS2 ISO period, fails the gate on an instance where the pack is installed.
+# A JSON Schema format is inert unless something implements it, which is why the check is
+# worth having here and would pass silently anywhere else.
+#
+# A local run has no instance to hold the schema, so hand it the file:
+#
+#   dg run --local --schema examples/schemas/dhis2-data-value-set.json \
+#     examples/dhis2-compose/dhis2-export-validated.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-validated
+name: Export, then check the shape
+description: Export a data value set and validate it against the schema the instance holds.
+
+tags: [dhis2, validate]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+    - validate.schema
+  schemas:
+    - dhis2-data-value-set
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2-demo
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: DiszpKrYNg8
+
+  gate:
+    block: validate.schema
+    depends_on: [export]
+    config:
+      # The export's parsed body, not the file: a gate reads the value, so an export that
+      # streamed to storage with save_to would be checked after being read back instead.
+      input: ${steps.export.output.json_body}
+      schema: dhis2-data-value-set

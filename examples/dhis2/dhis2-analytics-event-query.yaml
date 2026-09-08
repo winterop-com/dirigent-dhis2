@@ -1,0 +1,73 @@
+# Query the event analytics: one row per event, not one number per cell.
+#
+# mode: event moves the query off /api/analytics and onto
+# /api/analytics/events/query/{program}, and changes what an analytics answer is. Aggregate
+# analytics gives totals in cells; an event query gives the events themselves, one row each,
+# already resolved against the analytics tables. It is what a line list is.
+#
+# A program is required and it is part of the path rather than a dimension: an event only
+# means anything inside the program that defines it, so the block refuses an event or
+# enrollment query with no program when the document is applied.
+#
+# The axes work as they do everywhere else -- ou for where, pe for when -- and a program's
+# own data elements can be named on the dimension axis too, which is how a line list gains
+# a column for a captured value or filters on one.
+#
+# start_date and end_date are the other way to bound the window, and they are about the
+# event's own date rather than a reporting period. Use one or the other: an explicit window
+# with a pe axis as well is two answers to the same question.
+#
+# An event query pages, because a line list has no natural size. page and page_size are the
+# controls, and the grid's own metaData carries the total so a reader knows whether one page
+# was the whole answer.
+#
+#   dg run --local examples/dhis2/dhis2-analytics-event-query.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-analytics-event-query
+name: An event analytics line list
+description: Read a page of events for one program from the event analytics endpoint.
+
+tags: [dhis2, analytics]
+
+requires:
+  blocks:
+    - dhis2.analytics_query
+
+params:
+  type: object
+  properties:
+    program:
+      type: string
+      default: IpHINAT79UW
+      description: The uid of the program the line list is drawn from. Child Programme by default.
+    org_unit:
+      type: string
+      default: ImspTQPwCqd
+      description: The uid of the organisation unit the events are read under.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  line_list:
+    block: dhis2.analytics_query
+    config:
+      connection: dhis2-demo
+      mode: event
+      program: "${params.program}"
+      dimension:
+        - "ou:${params.org_unit}"
+      # The window as an event date range rather than a period axis, which is how a line
+      # list is usually asked for: everything that happened between two dates.
+      start_date: "2026-01-01"
+      end_date: "2026-06-30"
+      page: 1
+      page_size: 50

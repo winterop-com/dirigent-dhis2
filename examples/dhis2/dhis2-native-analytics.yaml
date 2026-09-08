@@ -1,0 +1,43 @@
+# Rebuild the demo's analytics tables and watch the job tell its story.
+#
+# dhis2.analytics_run submits the job once and then follows its task notifications,
+# streaming each new line into the run's log as it lands -- open the run while this is
+# going and read the rebuild as the instance reports it. A terminal ERROR notification
+# fails the step; anything else settles it when the task says it is done.
+#
+# One recent year with the event tables skipped keeps the demo's rebuild to a couple of
+# minutes; a full rebuild is this document with the flags removed.
+#
+#   dg run --local examples/dhis2/dhis2-native-analytics.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-native-analytics
+name: Rebuild the analytics tables
+description: Run the analytics tables job and follow its notifications to the end.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.analytics_run
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  rebuild:
+    block: dhis2.analytics_run
+    timeout: 30m
+    config:
+      connection: dhis2-demo
+      last_years: 1
+      skip_events: true
+      skip_enrollment: true
+      skip_org_unit_ownership: true

@@ -1,0 +1,63 @@
+# Read what a data set is made of, before reading what it holds.
+#
+# A data value set export answers with uids and nothing else: a dataElement, a
+# categoryOptionCombo, a value. Turning that into something a person can read, or validating
+# an import before sending it, means knowing the data set's own structure -- which data
+# elements belong to it, how each is disaggregated, and what period type its periods are in.
+# That is one metadata read, and this is it.
+#
+# The nesting in fields is what does the work. dataSetElements is the join between a data set
+# and its data elements, so the projection reaches through it into the data element and then
+# through that into its category combination and the option combos beneath -- the exact set of
+# categoryOptionCombo uids that may legally appear in a value for that element. An import
+# built against this cannot invent a disaggregation cell that does not exist.
+#
+# periodType is the other thing worth carrying: it is what says whether this data set's
+# periods are written 202507, 2025Q3 or 2025, and a period in the wrong format is the most
+# common reason an export comes back empty.
+#
+# A filter on the id is how a single object is read through a collection accessor. Reading
+# /api/dataSets/<uid> directly is the generic-HTTP shelf's shape; this block reads
+# collections, and a collection of one is the same answer.
+#
+#   dg run --local examples/dhis2/dhis2-metadata-data-set.yaml
+#   dg run --local examples/dhis2/dhis2-metadata-data-set.yaml -p data_set=pBOMPrpg1QX
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-metadata-data-set
+name: A data set's structure
+description: Read one data set's period type, data elements, and their disaggregations.
+
+tags: [dhis2, metadata]
+
+requires:
+  blocks:
+    - dhis2.metadata
+
+params:
+  type: object
+  properties:
+    data_set:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: BfMAe6Itzgt
+      description: The uid of the data set to describe. Child Health by default.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  describe:
+    block: dhis2.metadata
+    config:
+      connection: dhis2-demo
+      resource: dataSets
+      filter: "id:eq:${params.data_set}"
+      fields: id,name,periodType,timelyDays,dataSetElements[dataElement[id,name,valueType,categoryCombo[id,name,categoryOptionCombos[id,name]]]]

@@ -1,0 +1,64 @@
+# Read a data set for an organisation unit and the units below it.
+#
+# children is the one flag that changes the shape of the answer. Without it the export is
+# the values recorded at the named org unit itself; with it, DHIS2 also returns the values
+# of every unit under it in the hierarchy. The values stay separate -- each data value still
+# names its own orgUnit -- so this is a wider read, not an aggregation. Rolling up is what
+# the analytics blocks do.
+#
+# The rest of the answer is unchanged: one envelope, one dataValues array, and each value
+# carrying its dataElement, categoryOptionCombo, value and audit fields.
+#
+# Reading a district or the root pulls back every facility beneath it, so this is the export
+# that grows fastest as the org unit moves up the hierarchy. When the answer stops being
+# something to hold in memory, the same read with save_to streams it to storage instead --
+# dhis2-export-to-storage.yaml is that document.
+#
+#   dg run --local examples/dhis2/dhis2-export-with-children.yaml
+#   dg run --local examples/dhis2/dhis2-export-with-children.yaml -p org_unit=ImspTQPwCqd
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-with-children
+name: Export a data value set with descendants
+description: Read one data set for one period at an organisation unit and everything below it.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read.
+    org_unit:
+      type: string
+      default: O6uvpzGd5pu
+      description: The uid of the subtree root to read. Bo district by default.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      # A subtree read is a bigger query than a facility read, and the demo is a shared
+      # instance under other people's load.
+      timeout: 120s
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2-demo
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: "${params.org_unit}"
+      # The whole subtree under the named unit, each facility's values still its own.
+      children: true

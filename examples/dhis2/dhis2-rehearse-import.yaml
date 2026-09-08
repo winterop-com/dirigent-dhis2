@@ -1,0 +1,59 @@
+# Export one month of a data set, then hand it straight back as a dry run.
+#
+# This is the native round trip: dhis2.data_value_set_export reads the values and
+# dhis2.data_value_set_import rehearses writing them, with dry_run keeping the instance
+# untouched. The import summary comes back parsed -- status, counts, conflicts -- so a
+# real import is this document with dry_run turned off and a target connection that is
+# not the shared demo.
+#
+# The demo shifts its data era: if the export comes back empty, ask a nearby period.
+#
+#   dg run --local examples/dhis2/dhis2-rehearse-import.yaml
+#   dg run --local examples/dhis2/dhis2-rehearse-import.yaml -p period=202506
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-rehearse-import
+name: Rehearse an import
+description: Export one month of a data set, then hand it straight back as a dry run.
+
+tags: [dhis2]
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read and rehearse, such as 202507.
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+    - dhis2.data_value_set_import
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2-demo
+      data_set: pBOMPrpg1QX
+      period: ${params.period}
+      org_unit: ImspTQPwCqd
+      children: true
+  rehearse:
+    block: dhis2.data_value_set_import
+    depends_on: [export]
+    config:
+      connection: dhis2-demo
+      data_values: ${steps.export.output.json_body}
+      dry_run: true

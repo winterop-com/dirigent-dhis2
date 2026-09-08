@@ -1,0 +1,70 @@
+# Read the people enrolled in a program, across a whole subtree.
+#
+# The tracker model has three collections and dhis2.tracker reads any of them: a tracked
+# entity is the thing being followed -- usually a person -- an enrollment is that entity's
+# participation in one program, and an event is one thing that happened during an
+# enrollment. kind is which of the three this step reads.
+#
+# ou_mode is how the org unit is interpreted, and it matters more here than anywhere else in
+# the API. SELECTED, the default, means the named unit alone -- a facility read. DESCENDANTS
+# means the unit and everything beneath it, which is what a district- or country-level read
+# needs; CHILDREN is one level down only. Asking at the root without DESCENDANTS is the
+# classic empty answer: the country office itself registers nobody, so the honest answer to
+# the question asked is nothing at all.
+#
+# fields is worth setting on every tracker read. The default projection carries a great deal
+# per entity -- attributes, enrollments, relationships -- and naming the columns is the
+# difference between a page and a payload.
+#
+# The answer comes back inline as the collection under its own key, with a page block
+# alongside it carrying the paging state.
+#
+#   dg run --local examples/dhis2/dhis2-tracker-entities.yaml
+#   dg run --local examples/dhis2/dhis2-tracker-entities.yaml -p org_unit=O6uvpzGd5pu
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-tracker-entities
+name: Read tracked entities
+description: Read the tracked entities enrolled in one program across an organisation unit subtree.
+
+tags: [dhis2, tracker]
+
+requires:
+  blocks:
+    - dhis2.tracker
+
+params:
+  type: object
+  properties:
+    program:
+      type: string
+      default: IpHINAT79UW
+      description: The uid of the program whose enrollees are read.
+    org_unit:
+      type: string
+      default: ImspTQPwCqd
+      description: The uid of the subtree root to read within.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  read:
+    block: dhis2.tracker
+    config:
+      connection: dhis2-demo
+      kind: trackedEntities
+      program: "${params.program}"
+      org_unit: "${params.org_unit}"
+      # The whole subtree. Without this the read is the root office alone, which enrolls
+      # nobody.
+      ou_mode: DESCENDANTS
+      fields: trackedEntity,trackedEntityType,orgUnit,createdAt,updatedAt
+      page_size: 50

@@ -1,0 +1,79 @@
+# Read the open enrollments in a program.
+#
+# An enrollment is one tracked entity's participation in one program: when it began, where,
+# and whether it is still going. Reading enrollments rather than entities is the right shape
+# for a caseload question -- who is currently in this program -- because the status lives on
+# the enrollment, not on the person.
+#
+# status is the filter that makes it a caseload rather than a history. ACTIVE is an
+# enrollment still in progress; COMPLETED is one that reached its end; CANCELLED is one
+# abandoned. An entity can hold several enrollments in the same program over time, so
+# reading entities and reading enrollments give different counts, and the enrollment count
+# is the one that answers "how many episodes".
+#
+# updated_after is the other half of the same pattern. A pipeline that runs nightly and
+# reads the whole program every night gets slower every night; reading only what changed
+# since the last run keeps the read proportional to the change rather than to the history.
+# The value is an ISO instant, and in a scheduled pipeline it is usually the previous run's
+# window rather than a literal.
+#
+#   dg run --local examples/dhis2/dhis2-tracker-enrollments.yaml
+#   dg run --local examples/dhis2/dhis2-tracker-enrollments.yaml -p status=COMPLETED
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-tracker-enrollments
+name: Read program enrollments
+description: Read the enrollments in one program with a given status across a subtree.
+
+tags: [dhis2, tracker]
+
+requires:
+  blocks:
+    - dhis2.tracker
+
+params:
+  type: object
+  properties:
+    program:
+      type: string
+      default: IpHINAT79UW
+      description: The uid of the program whose enrollments are read.
+    org_unit:
+      type: string
+      default: ImspTQPwCqd
+      description: The uid of the subtree root to read within.
+    status:
+      type: string
+      enum: [ACTIVE, COMPLETED, CANCELLED]
+      default: ACTIVE
+      description: Which enrollments to read.
+    changed_since:
+      type: string
+      default: "2015-01-01T00:00:00"
+      description: |
+        Read only enrollments touched at or after this ISO instant. The demo's tracker
+        records were last written in 2018, so a recent cutoff answers with nothing.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  read:
+    block: dhis2.tracker
+    config:
+      connection: dhis2-demo
+      kind: enrollments
+      program: "${params.program}"
+      org_unit: "${params.org_unit}"
+      ou_mode: DESCENDANTS
+      status: "${params.status}"
+      updated_after: "${params.changed_since}"
+      fields: enrollment,trackedEntity,program,orgUnit,status,enrolledAt,updatedAt
+      page_size: 50

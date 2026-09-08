@@ -1,0 +1,99 @@
+# Fetch a useful slice of DHIS2 organisation units, reshape it, and send it downstream.
+#
+# DHIS2 performs the initial filtering and field projection. transform.jq then maps every
+# item into a smaller downstream shape, and the forwarding step composes the envelope in its
+# own typed body, where a reference belongs: the reshaped list, the DHIS2 version, and the
+# level all arrive as ${...} references rather than shell interpolation.
+#
+# The jq program contains no references, so a typo in it is refused at apply with jq's own
+# message. Nothing here executes code on the worker: no allowlist entry, and no jq or curl
+# installed on the worker either.
+#
+# Postman Echo returns the JSON it received, so the receipt is the final step's output.
+#
+# Level 2 is the thirteen districts beneath Sierra Leone in the public demo. Choose another
+# configured level to send a different slice:
+#
+#   dg run --local examples/dhis2-http/dhis2-forward-org-units.yaml
+#
+#   dg run --local examples/dhis2-http/dhis2-forward-org-units.yaml -p level=3
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-forward-org-units
+name: Forward org units to a webhook
+description: Select DHIS2 organisation units, reshape the batch, and send it to Postman Echo.
+
+tags: [dhis2, http, transform]
+
+requires:
+  blocks:
+    - http.request
+    - transform.jq
+
+params:
+  type: object
+  additionalProperties: false
+  properties:
+    level:
+      type: integer
+      minimum: 1
+      maximum: 4
+      default: 2
+      description: The DHIS2 organisation-unit level to send downstream.
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  read_system_info:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/system/info
+      method: GET
+
+  select_org_units:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/organisationUnits.json
+      method: GET
+      query:
+        fields: id,displayName,level,parent[id,displayName]
+        filter: "level:eq:${params.level}"
+        paging: false
+        order: displayName:asc
+      save_to: "${run.scratch}/dhis2/selected-org-units.json"
+
+  # The saved body streams straight into the transform through storage; it is never held
+  # whole by a shell, and the program is checked the moment the document is applied.
+  reshape:
+    block: transform.jq
+    depends_on: [select_org_units]
+    config:
+      input_uri: ${steps.select_org_units.output.body_uri}
+      program: >-
+        [.organisationUnits[]
+         | {uid: .id, name: .displayName, level: .level, parent: (.parent.displayName // null)}]
+
+  forward_org_units:
+    block: http.request
+    depends_on: [read_system_info, reshape]
+    config:
+      url: https://postman-echo.com/post
+      method: POST
+      headers:
+        X-Dirigent-Example: dhis2-forward-org-units
+      body:
+        source:
+          system: DHIS2
+          version: ${steps.read_system_info.output.json_body.version}
+          organisation_unit_level: ${params.level}
+        organisation_units: ${steps.reshape.output.value}

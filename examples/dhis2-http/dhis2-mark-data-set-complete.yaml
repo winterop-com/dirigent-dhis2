@@ -1,0 +1,106 @@
+# Sign a data set off: record a completion registration for a period and organisation unit.
+#
+# Completeness is not a property of the data. It is a separate record saying that a named
+# person, at a named facility, considers a data set's period finished -- and it is what
+# dhis2.data_set_complete waits for and what completeness reporting rates are computed from.
+# The values can all be present with no registration, and a registration can exist over an
+# empty month; the two are independent by design.
+#
+# Reading a registration is GET /api/completeDataSetRegistrations with ds, pe and ou as query
+# parameters, and that read is what the native sensor does. Making one is a POST to the same
+# resource with a completeDataSetRegistrations array in the body, each entry naming the data
+# set, period, organisation unit and attribute option combo, plus completed: true.
+#
+# Two fields deserve attention. attributeOptionCombo is required and is almost always the
+# default combo -- HllvX50cXC0 on a stock instance, including this demo -- unless the data
+# set is disaggregated by an attribute category combination, in which case there is one
+# registration per attribute combination rather than one per period. And completed is what
+# makes this a sign-off: posting the same entry with completed: false is how a window is
+# reopened, which is the whole of dhis2-mark-data-set-incomplete.yaml.
+#
+# The POST below goes to Postman Echo. This directory reads the shared play demo and writes
+# nowhere near it, so the document builds the real, correctly parameterised registration and
+# sends it somewhere harmless. Repoint the reporting connection at your own instance, change
+# the path to /api/completeDataSetRegistrations, and the same document performs the real
+# sign-off.
+#
+#   dg run --local examples/dhis2-http/dhis2-mark-data-set-complete.yaml
+#   dg run --local examples/dhis2-http/dhis2-mark-data-set-complete.yaml -p period=202506
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-mark-data-set-complete
+name: Mark a data set complete
+description: Read a data set's completion registration, then build the POST that signs the period off.
+
+tags: [dhis2, http]
+
+requires:
+  blocks:
+    - http.request
+
+params:
+  type: object
+  properties:
+    data_set:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: BfMAe6Itzgt
+      description: The uid of the data set being signed off.
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period being signed off.
+    org_unit:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: vSbt6cezomG
+      description: The uid of the organisation unit doing the signing off.
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+  reporting:
+    kind: http
+    config:
+      # Stands in for the instance being written to. Repoint this and the document performs
+      # the real registration, which is the argument for naming a connection rather than
+      # writing a URL into a step.
+      base_url: https://postman-echo.com
+      timeout: 30s
+
+steps:
+  # What is already recorded. A registration carrying completed: false is a window that was
+  # signed off and then reopened, which reads differently from no registration at all.
+  read_registration:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/completeDataSetRegistrations
+      method: GET
+      query:
+        dataSet: "${params.data_set}"
+        period: "${params.period}"
+        orgUnit: "${params.org_unit}"
+
+  sign_off:
+    block: http.request
+    depends_on: [read_registration]
+    config:
+      connection: reporting
+      path: /post
+      method: POST
+      body:
+        completeDataSetRegistrations:
+          - dataSet: "${params.data_set}"
+            period: "${params.period}"
+            organisationUnit: "${params.org_unit}"
+            # The default attribute option combo. A data set disaggregated by an attribute
+            # category combination is signed off once per combination instead.
+            attributeOptionCombo: HllvX50cXC0
+            completed: true

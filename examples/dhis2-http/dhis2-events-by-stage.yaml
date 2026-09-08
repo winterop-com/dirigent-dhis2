@@ -1,0 +1,97 @@
+# Read the events of one program stage, inside a date window.
+#
+# A program's events are not interchangeable. The Child Programme has a Birth stage and a
+# Baby Postnatal stage, and a question about birth weights is a question about one of them;
+# reading the program without naming the stage mixes two different forms into one answer.
+#
+# programStage is the parameter that scopes an event read to a single stage, and the native
+# dhis2.tracker block does not take one -- so a stage-scoped read is a generic-HTTP call, and
+# this is it. Everything else in it matches the block's own vocabulary, and moving a read
+# here should not mean relearning the endpoint.
+#
+# The one place the wire disagrees with itself is the organisation unit mode, and it is worth
+# knowing before an empty answer is mistaken for no data. On DHIS2 2.42 and 2.43 the events
+# endpoint reads orgUnitMode, while the tracked entities and enrollments endpoints beside it
+# read ouMode -- and each silently ignores the other spelling, falling back to SELECTED. A
+# read at the root of the hierarchy with the wrong spelling therefore answers with nothing,
+# correctly and unhelpfully, because the country office itself records no events.
+#
+# occurredAfter and occurredBefore bound the window by when the event happened, which is the
+# right control for a report about a period. updatedAfter bounds it by when the record was
+# last touched, which is the right control for an incremental extract: an event entered late
+# or corrected last week is caught by one and missed by the other.
+#
+# The demo's Child Programme events are dated 2026, so a window outside that answers with an
+# empty events array rather than an error.
+#
+#   dg run --local examples/dhis2-http/dhis2-events-by-stage.yaml
+#   dg run --local examples/dhis2-http/dhis2-events-by-stage.yaml -p stage=ZzYYXq4fJie
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-events-by-stage
+name: Events of one program stage
+description: Read a page of events for a single program stage inside an occurrence date window.
+
+tags: [dhis2, http, tracker]
+
+requires:
+  blocks:
+    - http.request
+
+params:
+  type: object
+  properties:
+    program:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: IpHINAT79UW
+      description: The uid of the program. Child Programme by default.
+    stage:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: A03MvHHogjR
+      description: The uid of the program stage. The Birth stage by default.
+    org_unit:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: ImspTQPwCqd
+      description: The uid of the subtree root to read within.
+    occurred_after:
+      type: string
+      format: date
+      default: "2026-01-01"
+      description: The first day of the occurrence window.
+    occurred_before:
+      type: string
+      format: date
+      default: "2026-12-31"
+      description: The last day of the occurrence window.
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  read_stage_events:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/tracker/events
+      method: GET
+      query:
+        program: "${params.program}"
+        programStage: "${params.stage}"
+        orgUnit: "${params.org_unit}"
+        # This endpoint's spelling. ouMode here is accepted, ignored, and answers as if
+        # SELECTED had been asked for.
+        orgUnitMode: DESCENDANTS
+        occurredAfter: "${params.occurred_after}"
+        occurredBefore: "${params.occurred_before}"
+        fields: "event,programStage,orgUnit,occurredAt,status,dataValues[dataElement,value]"
+        pageSize: 50

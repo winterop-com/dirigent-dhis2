@@ -1,0 +1,66 @@
+# Import only values that are not there yet, and report the rest as ignored.
+#
+# import_strategy is what an import is allowed to do to values already recorded. CREATE
+# writes a value where the cell -- data element, period, org unit, category option combo,
+# attribute option combo -- is empty, and ignores it where something is already there. The
+# existing value is not overwritten and not touched.
+#
+# The summary is how you tell what happened: imported counts the cells that were empty,
+# ignored counts the cells that were not. An import that reports everything ignored ran
+# perfectly and wrote nothing, which is exactly what CREATE means when the data is already
+# in. That is the strategy for a load that must never revise history -- an initial migration,
+# a backfill of periods the instance has never seen, an idempotent retry of a load that may
+# have half succeeded.
+#
+# The values below are already on the demo, so the summary reports them ignored rather than
+# imported. Ask for a period nobody has reported and the same document imports them.
+#
+#   dg run --local examples/dhis2/dhis2-import-create.yaml
+#   dg run --local examples/dhis2/dhis2-import-create.yaml -p period=202505
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-import-create
+name: Import with the CREATE strategy
+description: Import data values that are missing and leave every value already recorded alone.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_import
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period the values belong to.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  load:
+    block: dhis2.data_value_set_import
+    config:
+      connection: dhis2-demo
+      data_values:
+        dataSet: BfMAe6Itzgt
+        period: "${params.period}"
+        orgUnit: DiszpKrYNg8
+        dataValues:
+          - dataElement: s46m5MS0hxu
+            categoryOptionCombo: Prlt0C1RF0s
+            attributeOptionCombo: HllvX50cXC0
+            value: "12"
+      # Fill the gaps, revise nothing.
+      import_strategy: CREATE
+      dry_run: true

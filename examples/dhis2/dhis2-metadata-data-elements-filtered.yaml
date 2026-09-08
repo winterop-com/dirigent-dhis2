@@ -1,0 +1,64 @@
+# Narrow a metadata read to the rows and the columns a pipeline actually uses.
+#
+# The demo holds well over a thousand data elements. Reading them all to keep four of them
+# is the read every metadata pipeline starts as and should not stay as, and the two
+# parameters that fix it are filter and fields: one drops rows, the other drops columns.
+#
+# filter takes several expressions, and this block ANDs them. Each is a property, an
+# operator and a value: eq for exact, like for a substring, in for a set written [a,b,c],
+# and the comparisons for numbers and dates. domainType:eq:AGGREGATE keeps the elements that
+# hold aggregate data, leaving out the tracker ones; valueType:in:[NUMBER,INTEGER] keeps the
+# numeric ones.
+#
+# fields is the projection, and it nests: a bracketed list after a property name selects
+# inside the referenced object, so categoryCombo[id,name] brings back two fields of the
+# category combination rather than the whole of it. ":owner" and ":identifiable" are the
+# named projections DHIS2 defines, and ":owner" is the one a metadata migration wants.
+#
+# order sorts the answer server-side, so a diff between two runs is a diff about the data
+# rather than about the order rows happened to come back in.
+#
+#   dg run --local examples/dhis2/dhis2-metadata-data-elements-filtered.yaml
+#   dg run --local examples/dhis2/dhis2-metadata-data-elements-filtered.yaml -p domain=TRACKER
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-metadata-data-elements-filtered
+name: Data elements, filtered and projected
+description: Read the numeric aggregate data elements with a chosen set of fields.
+
+tags: [dhis2, metadata]
+
+requires:
+  blocks:
+    - dhis2.metadata
+
+params:
+  type: object
+  properties:
+    domain:
+      type: string
+      enum: [AGGREGATE, TRACKER]
+      default: AGGREGATE
+      description: Which domain of data elements to read.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  read:
+    block: dhis2.metadata
+    config:
+      connection: dhis2-demo
+      resource: dataElements
+      fields: id,name,shortName,valueType,domainType,categoryCombo[id,name]
+      filter:
+        - "domainType:eq:${params.domain}"
+        - "valueType:in:[NUMBER,INTEGER]"
+      order: [name:asc]

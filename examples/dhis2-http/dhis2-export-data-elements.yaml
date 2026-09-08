@@ -1,0 +1,168 @@
+# Exporting data-element metadata the way it is meant to travel, and staging the import.
+#
+# Data elements are what a DHIS2 value is a value OF, so moving a configuration between two
+# instances -- staging to production, a national server to a district one -- means moving
+# them. DHIS2 has a purpose-built pair of endpoints for that, and the vocabulary is worth
+# learning once because it is where the sharp edges are.
+#
+# THE EXPORT. GET /api/metadata takes one `<resource>=true` flag per type you want, and a
+# `fields` selector that decides how much of each object comes with it:
+#
+#   :owner        every field this object OWNS, and nothing it merely references.
+#                 The lossless cross-instance selector, and the one to use for a migration.
+#   :identifiable id, name, code -- enough to recognise an object, not to recreate it.
+#   :all          everything, including fields the target will reject on the way back in.
+#
+# skipSharing=true is the other half of portability: sharing rules name users and groups that
+# exist on the source and generally do not on the target, so carrying them turns an import
+# into a permissions puzzle.
+#
+# THE IMPORT. POST /api/metadata, and three parameters decide what it means:
+#
+#   importStrategy=CREATE_AND_UPDATE   create what is missing, update what is there
+#   atomicMode=ALL                     all of it lands or none of it does; NONE lets the
+#                                      good rows through and reports the bad ones
+#   importMode=VALIDATE                a dry run -- validate and report, write nothing
+#
+# That last one is the trap this example exists to mark. A dry run on /api/metadata is
+# importMode=VALIDATE. A dry run on /api/dataValueSets is dryRun=true. Same intention, two
+# different spellings on two endpoints of the same server, and reaching for the wrong one
+# does not fail -- it imports.
+#
+# The errors come back shaped differently too: /api/metadata answers with a three-level tree,
+# typeReports[] -> objectReports[] -> errorReports[], each error tagged with the resource type
+# and UID that caused it, while /api/dataValueSets answers with a flat conflicts[] list. A
+# pipeline that reads one shape will read nothing from the other.
+#
+# The POST below goes to Postman Echo. The document builds a real, correctly parameterised
+# import request and then sends it somewhere harmless: the shared demo is for reading. Point
+# `staging` at your own instance and the same document performs the real dry run.
+#
+#   dg run --local examples/dhis2-http/dhis2-export-data-elements.yaml
+#   dg run --local examples/dhis2-http/dhis2-export-data-elements.yaml -p group_filter=Anaemia
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-data-elements
+name: DHIS2 data-element export
+description: |
+  Export data-element metadata with `:owner`, inspect it, and stage a validate-only import.
+
+  Two endpoints, and the vocabulary that makes them safe:
+
+  | Parameter | Endpoint | Means |
+  | --- | --- | --- |
+  | `fields=:owner` | `GET /api/metadata` | every owned field -- the portable selector |
+  | `skipSharing=true` | `GET /api/metadata` | leave behind users the target does not have |
+  | `importStrategy=CREATE_AND_UPDATE` | `POST /api/metadata` | create the missing, update the rest |
+  | `atomicMode=ALL` | `POST /api/metadata` | all of it lands, or none of it does |
+  | `importMode=VALIDATE` | `POST /api/metadata` | **dry run** |
+
+  A dry run is `importMode=VALIDATE` here and `dryRun=true` on `/api/dataValueSets`. Reach
+  for the wrong one and nothing fails -- it imports.
+
+tags: [dhis2, http, transform]
+
+requires:
+  blocks:
+    - http.request
+    - transform.jq
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+  staging:
+    kind: http
+    config:
+      # Stands in for the instance being imported INTO. Repoint this connection and the
+      # document performs the real dry run without an edit -- which is the whole argument for
+      # naming a connection rather than writing a URL in a step.
+      base_url: https://postman-echo.com
+      timeout: 30s
+
+params:
+  type: object
+  properties:
+    group_filter:
+      type: string
+      description: A data-element group name to narrow the export to, matched with like.
+      default: Anaemia
+
+steps:
+  # The listing endpoint, for looking. It pages, and the pager is what says whether one page
+  # was the whole answer -- this instance holds over a thousand data elements, so it is not.
+  survey_data_elements:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/dataElements
+      method: GET
+      query:
+        fields: "id,name,shortName,valueType,domainType,aggregationType,categoryCombo[id,name],zeroIsSignificant"
+        filter: "domainType:eq:AGGREGATE"
+        pageSize: 50
+        page: 1
+
+  # The export endpoint, for moving. A different endpoint from the one above, answering a
+  # different question: not "what is there" but "what would I have to carry".
+  export_bundle:
+    block: http.request
+    depends_on: [survey_data_elements]
+    config:
+      connection: dhis2-demo
+      path: /api/metadata
+      method: GET
+      query:
+        dataElementGroups: true
+        # Per-resource filter, on DHIS2's own wire syntax: the resource name, a colon, then
+        # the parameter it applies to. This keeps the export to one group rather than the
+        # whole dictionary.
+        "dataElementGroups:filter": "name:like:${params.group_filter}"
+        fields: ":owner"
+        skipSharing: true
+      max_response: 16mb
+
+  # What a person needs to see before they authorise an import: how much is moving, and
+  # which server version it came off. A bundle carries a `system` block naming the instance
+  # and the version, and a target on an older version can reject fields the source emitted.
+  inspect_bundle:
+    block: transform.jq
+    depends_on: [survey_data_elements, export_bundle]
+    config:
+      input:
+        survey: "${steps.survey_data_elements.output.json_body}"
+        bundle: "${steps.export_bundle.output.json_body}"
+      program: |
+        {source_version: .bundle.system.version,
+         exported_at: .bundle.system.date,
+         groups_exported: (.bundle.dataElementGroups | length),
+         aggregate_data_elements_total: .survey.pager.total,
+         on_this_page: (.survey.dataElements | length),
+         pages_remaining: (.survey.pager.pageCount - .survey.pager.page),
+         value_types: ([.survey.dataElements[].valueType] | unique)}
+
+  # The import, staged as a dry run. Note that every dangerous parameter is written out
+  # rather than defaulted: an import request should say what it does at the call site, where
+  # the person reviewing it will read it.
+  validate_import:
+    block: http.request
+    depends_on: [export_bundle, inspect_bundle]
+    config:
+      connection: staging
+      path: /post
+      method: POST
+      query:
+        importStrategy: CREATE_AND_UPDATE
+        atomicMode: ALL
+        identifier: UID
+        # Writes nothing. Drop this one parameter and the same request is a real import,
+        # which is the argument for it being the last thing changed and never the default.
+        importMode: VALIDATE
+        skipSharing: true
+      body: "${steps.export_bundle.output.json_body}"
+      max_response: 16mb

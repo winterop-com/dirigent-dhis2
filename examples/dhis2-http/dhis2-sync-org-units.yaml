@@ -1,0 +1,170 @@
+# An organisation-unit sync: count first, read a bounded slice, project it, hand it on.
+#
+# This is the shape almost every DHIS2 integration starts with, and the one most often
+# written badly. The hierarchy is the spine every other DHIS2 payload hangs off -- a data
+# value names an orgUnit, an enrollment names an orgUnit -- so a downstream system usually
+# needs its own copy of it, refreshed on a clock.
+#
+# Four things here are the actual lessons, and none of them is dirigent-specific:
+#
+# 1. COUNT BEFORE YOU FETCH. `fields=id&pageSize=1` returns one row and a pager whose total
+#    is the real answer, for a few kilobytes. This demo holds 1336 organisation units. A
+#    sync that discovers that by downloading them has already downloaded them.
+#
+# 2. BOUND THE READ. `paging=false` is safe on a slice you have bounded -- here one level,
+#    thirteen rows -- and reckless on one you have not. The unbounded form of this request
+#    is the whole hierarchy in a single response. When the slice cannot be bounded, the
+#    honest form is a page walk, and the roadmap's pagination entry is what would let a
+#    pipeline express one; today a document that must page says so with several steps.
+#
+# 3. ASK FOR FIELDS. DHIS2 returns a fat default object per organisation unit. `fields=` cuts
+#    the response to the eleven that matter, and the difference is most of the payload.
+#
+# 4. ORDER BY path, NOT BY name. `order=path:asc` puts a parent before its children, which is
+#    the order an importer needs if it is going to create them in one pass: a child whose
+#    parent does not exist yet is a rejection. The `path` field is also what makes a
+#    hierarchy diffable without recursion -- it is the ancestry, written down.
+#
+# The forward at the end goes to Postman Echo and NOT to DHIS2. Everything in this directory
+# reads the shared demo and writes only to a service that exists to be written to; a public
+# demo is not somewhere to practise imports.
+#
+# The connection is carried here so the document runs standalone. A server refuses to store a
+# document that embeds a credential, which is why applying this one to an instance is refused
+# -- deliberately, and it is what makes `dg run --local` the way to run it.
+#
+#   dg run --local examples/dhis2-http/dhis2-sync-org-units.yaml
+#   dg run --local examples/dhis2-http/dhis2-sync-org-units.yaml -p level=3
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-sync-org-units
+name: DHIS2 organisation-unit sync
+description: |
+  Count the hierarchy, read one level of it, project it, and forward the batch.
+
+  The four habits this teaches are not DHIS2-specific:
+
+  1. **Count before you fetch** -- `fields=id&pageSize=1` buys the total for a few kilobytes.
+  2. **Bound the read** -- `paging=false` is safe on a slice you bounded and reckless
+     otherwise.
+  3. **Ask for fields** -- the default object is fat; `fields=` is most of the payload.
+  4. **Order by `path`** -- a parent sorts before its children, which is the order an
+     importer needs.
+
+  Reads the public demo, writes only to Postman Echo.
+
+tags: [dhis2, http, transform]
+
+requires:
+  blocks:
+    - http.request
+    - map.jq
+    - transform.jq
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+  postman-echo:
+    kind: http
+    config:
+      base_url: https://postman-echo.com
+      timeout: 30s
+
+params:
+  type: object
+  properties:
+    level:
+      type: integer
+      description: Which hierarchy level to sync. 1 is the country, 2 the districts.
+      default: 2
+      minimum: 1
+      maximum: 4
+
+steps:
+  # One row and a pager. The rows are thrown away; the total is the point, and it is what a
+  # sync should log before it decides whether the next request is reasonable.
+  count_units:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/organisationUnits
+      method: GET
+      query:
+        fields: id
+        pageSize: 1
+        paging: true
+
+  fetch_level:
+    block: http.request
+    depends_on: [count_units]
+    config:
+      connection: dhis2-demo
+      path: /api/organisationUnits
+      method: GET
+      query:
+        # Eleven fields instead of everything. parent[id,name] is DHIS2's nested selector:
+        # the brackets pick fields of the related object rather than fetching all of it.
+        fields: "id,name,shortName,code,level,path,parent[id,name],openingDate,closedDate,leaf"
+        filter: "level:eq:${params.level}"
+        # Parent before child, which is the order an importer can replay in one pass.
+        order: "path:asc"
+        # Safe here only because the filter above bounded the answer to one level.
+        paging: false
+
+  # Same length, smaller elements, so map is the verb. The projection is where a sync decides
+  # what the other system's record actually is, and it is worth being explicit: `parent_id`
+  # flattened out of the nested object, `depth` derived from the path rather than trusted
+  # from the level field, and a closed unit marked inactive rather than dropped -- a unit
+  # that disappears from a sync is indistinguishable from one that was never there.
+  project_units:
+    block: map.jq
+    depends_on: [fetch_level]
+    config:
+      input: "${steps.fetch_level.output.json_body.organisationUnits}"
+      program: |
+        {uid: .id,
+         name: .name,
+         short_name: .shortName,
+         code: (.code // null),
+         level: .level,
+         path: .path,
+         depth: ((.path | split("/") | length) - 1),
+         parent_uid: (.parent.id // null),
+         parent_name: (.parent.name // null),
+         leaf: (.leaf // false),
+         active: (.closedDate == null)}
+
+  # The batch a receiver would be handed, with the count from step one beside it so the
+  # receiver can tell a partial sync from a complete one. A sync that ships rows without
+  # saying how many there should have been cannot be audited.
+  build_batch:
+    block: transform.jq
+    depends_on: [count_units, project_units]
+    config:
+      input:
+        level: "${params.level}"
+        total_in_instance: "${steps.count_units.output.json_body.pager.total}"
+        units: "${steps.project_units.output.value}"
+      program: |
+        {source: "dhis2-play-demo",
+         level: .level,
+         total_in_instance: .total_in_instance,
+         synced: (.units | length),
+         roots: ([.units[] | select(.parent_uid == null)] | length),
+         inactive: ([.units[] | select(.active == false)] | length),
+         units: .units}
+
+  forward_batch:
+    block: http.request
+    depends_on: [build_batch]
+    config:
+      connection: postman-echo
+      path: /post
+      method: POST
+      body: "${steps.build_batch.output.value}"

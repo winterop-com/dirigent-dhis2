@@ -1,0 +1,61 @@
+# Rebuild the resource tables and nothing else.
+#
+# dhis2.analytics_run submits one job and then follows its notifications, and the skip flags
+# decide how much of the job there is. Every flag off is a full rebuild of everything, which
+# on a national instance is an overnight job.
+#
+# The resource tables are the flattened copies of metadata that the analytics tables are then
+# built against: the org unit hierarchy, the category structure, the data element groupings.
+# When metadata changes -- a facility opens, a data element joins a group, the hierarchy is
+# reorganised -- the resource tables are what has to catch up, and rebuilding them is minutes
+# rather than hours.
+#
+# Hence this document: the run to make after a metadata change, leaving the data-heavy
+# aggregate, event and enrollment tables alone. The nightly that rebuilds those is
+# dhis2-analytics.yaml.
+#
+# Every skip is written out rather than left to its default, because a flag that decides
+# hours of server work should be readable at the call site. skip_resource_tables stays false:
+# it is the one thing this run is for.
+#
+# The step's output carries the task id, when the instance said it was done, and the tail of
+# its notification messages; the whole story streams into the run's log while it happens.
+#
+#   dg run --local examples/dhis2/dhis2-analytics-resource-tables.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-analytics-resource-tables
+name: Rebuild the resource tables
+description: Run the analytics job with every data table skipped, rebuilding only the resource tables.
+
+tags: [dhis2, analytics]
+
+# The demo is shared and this is server-side work: one at a time, and a second run while
+# one is going is dropped rather than queued behind it.
+concurrency: skip
+
+requires:
+  blocks:
+    - dhis2.analytics_run
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  rebuild:
+    block: dhis2.analytics_run
+    timeout: 30m
+    config:
+      connection: dhis2-demo
+      skip_resource_tables: false
+      skip_aggregate: true
+      skip_events: true
+      skip_enrollment: true
+      skip_org_unit_ownership: true

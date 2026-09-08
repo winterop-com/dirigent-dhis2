@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dhis2-data-value-set",
+  "title": "DHIS2 data value set",
+  "description": "The envelope GET /api/dataValueSets answers with: the data set, period and organisation unit that were asked for, and the values recorded there. Every identifier is held to the DHIS2 uid format and every period to the DHIS2 period format, so a payload that has moved out from under a pipeline is refused at the gate rather than imported downstream.",
+  "type": "object",
+  "required": ["dataValues"],
+  "properties": {
+    "dataSet": { "type": "string", "format": "dhis2-uid" },
+    "period": { "type": "string", "format": "dhis2-period" },
+    "orgUnit": { "type": "string", "format": "dhis2-uid" },
+    "completeDate": { "type": "string" },
+    "dataValues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["dataElement", "value"],
+        "properties": {
+          "dataElement": { "type": "string", "format": "dhis2-uid" },
+          "period": { "type": "string", "format": "dhis2-period" },
+          "orgUnit": { "type": "string", "format": "dhis2-uid" },
+          "categoryOptionCombo": { "type": "string", "format": "dhis2-uid" },
+          "attributeOptionCombo": { "type": "string", "format": "dhis2-uid" },
+          "value": { "type": "string" },
+          "storedBy": { "type": "string" },
+          "created": { "type": "string" },
+          "lastUpdated": { "type": "string" },
+          "comment": { "type": ["string", "null"] },
+          "followup": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,61 @@
+# Stream a data value set into storage instead of carrying it in the output.
+#
+# save_to turns the export from a value into a file. The instance's answer goes to the
+# storage URI a chunk at a time and is never held whole, so the size of the export stops
+# being the size of what a worker can hold; the output then carries body_uri and body_bytes
+# rather than json_body. That is the trade: a step downstream reads the file rather than
+# referencing the values, and dhis2-import-from-storage.yaml is what reading it back looks
+# like.
+#
+# ${run.scratch} is this run's own scratch space, cleaned up when the run ends. A local run
+# deletes its artifacts on the way out, so pass --keep to leave them behind and be told
+# where they landed. An export that names a bucket URI instead writes there and outlives
+# the run.
+#
+# A failed export leaves nothing at save_to: the block deletes the object it opened rather
+# than leaving an empty or half-written file for the next step to read as data.
+#
+#   dg run --local examples/dhis2/dhis2-export-to-storage.yaml
+#   dg run --local examples/dhis2/dhis2-export-to-storage.yaml --keep
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-to-storage
+name: Export a data value set to storage
+description: Stream one data set's values to a storage URI rather than carrying them inline.
+
+tags: [dhis2, storage]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2-demo
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: O6uvpzGd5pu
+      children: true
+      # The period is in the file name so a run per month leaves one file per month rather
+      # than each overwriting the last.
+      save_to: "${run.scratch}/dhis2/child-health-${params.period}.json"

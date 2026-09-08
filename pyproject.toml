@@ -1,0 +1,85 @@
+[project]
+name = "dirigent-dhis2"
+version = "0.8.1"
+description = "The DHIS2 adapter pack for dirigent: a connection kind and the blocks for one instance."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
+dependencies = [
+    "dhis2w-client>=1.13.4,<2",
+    "dirigent-common",
+    "dirigent-plugin",
+    "httpx>=0.28",
+]
+
+[project.entry-points."dirigent.plugins.v1"]
+dhis2 = "dirigent_dhis2:plugin"
+
+[dependency-groups]
+dev = [
+    "dirigent-testing",
+    "mypy>=1.19",
+    "pyright>=1.1",
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "pyyaml>=6",
+    "respx>=0.21",
+    "ruff>=0.16",
+    "types-jsonschema>=4",
+    "types-pyyaml>=6",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+dirigent-plugin = { git = "https://github.com/winterop-com/dirigent", subdirectory = "packages/dirigent-plugin", branch = "main" }
+dirigent-common = { git = "https://github.com/winterop-com/dirigent", subdirectory = "packages/dirigent-common", branch = "main" }
+dirigent-testing = { git = "https://github.com/winterop-com/dirigent", subdirectory = "packages/dirigent-testing", branch = "main" }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "D", "SIM", "UP", "B", "TID"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D103", "D100", "D101", "D102", "D104"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["dirigent_common", "dirigent_dhis2", "dirigent_plugin", "dirigent_testing"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.13"
+disallow_untyped_defs = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+strict_equality = true
+plugins = ["pydantic.mypy"]
+files = ["src", "tests"]
+mypy_path = ["tests"]
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
+include = ["src", "tests"]
+extraPaths = ["tests"]
+reportMissingTypeStubs = false

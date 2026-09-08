@@ -1,0 +1,66 @@
+# Take the file as the truth: create what is missing, revise what is there.
+#
+# CREATE_AND_UPDATE is the block's default and the strategy a routine load wants. Every cell
+# in the document ends up holding the value the document gives it, whether or not something
+# was there before. Nothing is ignored for existing-or-not reasons, so the ignored count in
+# the summary means what it should: a value DHIS2 could not accept.
+#
+# It is spelled out here rather than left to the default, because the strategy is the single
+# parameter that decides what an import does to data already in the instance, and a person
+# reviewing the document should read it at the call site rather than look it up.
+#
+# The counts separate the two halves afterwards: imported is the cells that were empty,
+# updated is the cells that were not, and their sum is the document's size when the import
+# was clean.
+#
+#   dg run --local examples/dhis2/dhis2-import-create-and-update.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-import-create-and-update
+name: Import with the CREATE_AND_UPDATE strategy
+description: Load a data value set so every cell holds the value the document gives it.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_import
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period the values belong to.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  load:
+    block: dhis2.data_value_set_import
+    config:
+      connection: dhis2-demo
+      data_values:
+        dataSet: BfMAe6Itzgt
+        period: "${params.period}"
+        orgUnit: DiszpKrYNg8
+        dataValues:
+          - dataElement: s46m5MS0hxu
+            categoryOptionCombo: Prlt0C1RF0s
+            attributeOptionCombo: HllvX50cXC0
+            value: "12"
+          - dataElement: s46m5MS0hxu
+            categoryOptionCombo: hEFKSsPV5et
+            attributeOptionCombo: HllvX50cXC0
+            value: "3"
+      import_strategy: CREATE_AND_UPDATE
+      dry_run: true

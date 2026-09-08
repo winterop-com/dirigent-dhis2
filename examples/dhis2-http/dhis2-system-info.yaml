@@ -1,0 +1,35 @@
+# Authenticate to the public DHIS2 demo and read its system information.
+#
+# This is the smallest DHIS2 pipeline: one generic HTTP request through a named connection.
+# The response identifies the DHIS2 version, revision, server time, and database platform.
+#
+#   dg run --local examples/dhis2-http/dhis2-system-info.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-system-info
+name: DHIS2 system info
+description: Authenticate to DHIS2 and report the instance version and system information.
+
+tags: [dhis2, http]
+
+requires:
+  blocks:
+    - http.request
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  read_system_info:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/system/info
+      method: GET

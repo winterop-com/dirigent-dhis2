@@ -1,0 +1,95 @@
+# Start a DHIS2 analytics-table update, wait for its task, then fetch the final task log.
+#
+# WARNING: this starts real server-side work on the shared public demo. Do not run it merely
+# to test authentication; dhis2-system-info.yaml is the harmless connectivity check.
+#
+# The first request records the server version in the run. DHIS2 then returns a task id and
+# notifier endpoint immediately from POST /api/resourceTables/analytics. The sensor reads
+# that advertised endpoint and parks again until DHIS2 emits a notification with completed:
+# true. No worker is held while the analytics job runs.
+#
+# The same authenticated user must start and monitor the task, which is why both calls use
+# the same connection. lastYears: 1 bounds the aggregate work, while the event, enrollment,
+# and ownership table families are skipped to keep this shared-demo example restrained.
+#
+# dhis2.analytics_run does this natively -- dhis2-native-analytics.yaml is that document,
+# and it also turns a failed terminal notification into a failed step. This one stays as
+# the generic pattern: how to follow any system's asynchronous task with http.request and
+# http.ready when no adapter exists, preserving the complete task log for a person.
+#
+# That log is long -- 129 notifications and about 25kb on the demo -- so it is stored as an
+# artifact rather than inlined, and the run's closing record names it rather than holding it.
+# A local run deletes its artifacts on the way out, so read it back with --keep, which leaves
+# them in place and prints where:
+#
+#   dg run --local examples/dhis2-http/dhis2-run-analytics.yaml
+#   dg run --local examples/dhis2-http/dhis2-run-analytics.yaml --keep
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-run-analytics
+name: Run DHIS2 analytics
+description: Start a bounded DHIS2 analytics-table update and watch its asynchronous task complete.
+
+tags: [dhis2, http, sensor]
+
+concurrency: skip
+
+requires:
+  blocks:
+    - http.request
+    - http.ready
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  read_system_info:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/system/info
+      method: GET
+
+  start_analytics:
+    block: http.request
+    depends_on: [read_system_info]
+    config:
+      connection: dhis2-demo
+      path: /api/resourceTables/analytics
+      method: POST
+      # Verified on the public stable instances from DHIS2 2.40.12 through 2.43.1.
+      success_status: [200]
+      query:
+        lastYears: 1
+        skipResourceTables: true
+        skipAggregate: false
+        skipEvents: true
+        skipEnrollment: true
+        skipOrgUnitOwnership: true
+
+  wait_for_analytics:
+    block: http.ready
+    depends_on: [start_analytics]
+    poll: 10s
+    deadline: 2h
+    config:
+      connection: dhis2-demo
+      path: "${steps.start_analytics.output.json_body.response.relativeNotifierEndpoint}"
+      expect_status: [200]
+      contains: '"completed":true'
+
+  read_task_log:
+    block: http.request
+    depends_on: [wait_for_analytics]
+    config:
+      connection: dhis2-demo
+      path: "${steps.start_analytics.output.json_body.response.relativeNotifierEndpoint}"
+      method: GET
+      save_to: "${run.scratch}/dhis2/analytics-task.json"

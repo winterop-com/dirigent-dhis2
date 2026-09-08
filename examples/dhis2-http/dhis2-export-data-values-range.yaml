@@ -1,0 +1,87 @@
+# Export every period in a date range, in one call.
+#
+# The period parameter takes one period, and a year of monthly data asked for that way is
+# twelve calls. startDate and endDate are the other way to bound a data value set export:
+# DHIS2 works out which of the data set's periods fall inside the window and returns them
+# all together.
+#
+# The two are alternatives, not companions. A request carrying period as well as a date range
+# is asking two different questions, and which one the instance answers is not something to
+# rely on. Send one or the other.
+#
+# The answer changes shape slightly, and a pipeline reading it has to expect that: with a
+# single period the envelope names it once and the values inherit it, while over a range each
+# value carries its own period because they no longer share one. Anything grouping the result
+# reads .period off the value, not off the envelope.
+#
+# dataSet may be repeated to pull several data sets in one call, which is the other reason to
+# reach for this endpoint directly rather than a period at a time.
+#
+# The native dhis2.data_value_set_export block takes a single period, so a range export is a
+# generic-HTTP call; this is that call, with the window as parameters.
+#
+#   dg run --local examples/dhis2-http/dhis2-export-data-values-range.yaml
+#   dg run --local examples/dhis2-http/dhis2-export-data-values-range.yaml \
+#     -p start_date=2025-01-01 -p end_date=2025-12-31
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-data-values-range
+name: Data values over a date range
+description: Export every period of a data set that falls inside a start and end date.
+
+tags: [dhis2, http]
+
+requires:
+  blocks:
+    - http.request
+
+params:
+  type: object
+  properties:
+    data_set:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: BfMAe6Itzgt
+      description: The uid of the data set to export.
+    org_unit:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: DiszpKrYNg8
+      description: The uid of the organisation unit to export for.
+    start_date:
+      type: string
+      format: date
+      default: "2025-01-01"
+      description: The first day of the window; periods starting on or after it are included.
+    end_date:
+      type: string
+      format: date
+      default: "2025-03-31"
+      description: The last day of the window.
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  export_range:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/dataValueSets.json
+      method: GET
+      query:
+        dataSet: "${params.data_set}"
+        orgUnit: "${params.org_unit}"
+        # The window replaces period. Sending both asks two questions at once.
+        startDate: "${params.start_date}"
+        endDate: "${params.end_date}"
+      # A quarter of one facility is small; a year of a district is not, and this is the
+      # guard that refuses a body too large to parse rather than truncating it.
+      max_response: 64mb

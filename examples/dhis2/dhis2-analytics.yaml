@@ -1,0 +1,73 @@
+# The production-shaped composition: wait for the month to be signed off, rebuild the
+# analytics, then export the tables to storage -- with the deadlines, timeouts and retries a
+# nightly deserves. It carries a dhis2-production connection so it runs standalone; an
+# instance you own names its own connection instead. The demo-sized versions of each step
+# live beside it in this directory.
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-analytics
+name: DHIS2 analytics pull
+description: Wait for a data-set window to close, run analytics, then export the tables.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.analytics_run
+    - dhis2.data_value_set_export
+    - dhis2.data_set_complete
+  connections:
+    - dhis2-production
+
+connections:
+  dhis2-production:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+
+params:
+  type: object
+  required: [period]
+  properties:
+    period:
+      type: string
+      description: An ISO period identifier, such as 2026Q1.
+    org_unit:
+      type: string
+      default: ImspTQPwCqd
+
+steps:
+  wait_for_completion:
+    block: dhis2.data_set_complete
+    poll: 15m
+    deadline: 48h
+    on_timeout: skip
+    config:
+      connection: dhis2-production
+      data_set: pBOMPrpg1QX
+      period: "${params.period}"
+      org_unit: "${params.org_unit}"
+
+  run_analytics:
+    block: dhis2.analytics_run
+    depends_on: [wait_for_completion]
+    timeout: 4h
+    retry:
+      max_attempts: 2
+      backoff: 10m
+    config:
+      connection: dhis2-production
+      skip_resource_tables: false
+
+  export_tables:
+    block: dhis2.data_value_set_export
+    depends_on: [run_analytics]
+    config:
+      connection: dhis2-production
+      data_set: pBOMPrpg1QX
+      period: "${params.period}"
+      org_unit: "${params.org_unit}"
+      save_to: "${run.scratch}/dhis2/${params.period}.json"

@@ -1,0 +1,39 @@
+# Read a page of tracker events for one program out of the demo.
+#
+# dhis2.tracker reads /api/tracker/events scoped to a program and an org unit subtree. The
+# `kind` chooses the collection -- trackedEntities, enrollments, or events -- and the query
+# params narrow it the way the capture app does. The parsed page comes back inline.
+#
+#   dg run --local examples/dhis2/dhis2-tracker-events.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-tracker-events
+name: Read DHIS2 tracker events
+description: Read a page of tracker events for the child programme from the demo instance.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.tracker
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+
+steps:
+  read:
+    block: dhis2.tracker
+    config:
+      connection: dhis2-demo
+      kind: events
+      program: IpHINAT79UW
+      org_unit: ImspTQPwCqd
+      ou_mode: DESCENDANTS
+      fields: event,programStage,orgUnit,occurredAt,status
+      page_size: 50

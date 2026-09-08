@@ -1,0 +1,80 @@
+# Read one page of a collection too large to read whole.
+#
+# A tracker read is paged whether or not the document says so, and page_size is the setting
+# that decides how much of it arrives at once. The instance's own default is small; a
+# generous page size means fewer round trips and a larger response to hold, and there is a
+# ceiling above which the instance refuses or the read times out.
+#
+# This document reads one page deliberately, which is the honest shape of a paged read
+# inside a pipeline: a step is one call, and one call is one page. The page block that comes
+# back beside the collection is what tells a reader where they are -- whether a next page
+# exists, and on a request that asks for it, how many rows there are in total.
+#
+# Reading every page is a different pipeline rather than a different config. Two shapes work:
+# fan a step out over a list of page numbers, since for_each is expanded when the run is
+# created and a page count known in advance can be a param; or, better for a feed that keeps
+# growing, drop paging as the way through the collection and use updated_after to read only
+# what changed since the last run, which is bounded by the change rather than by the size of
+# the program.
+#
+# page_size is also the throttle on a shared instance. A nightly extract asking for ten
+# thousand rows at a time out of a national tracker program is a load decision, not a
+# formatting one.
+#
+#   dg run --local examples/dhis2/dhis2-tracker-paged.yaml
+#   dg run --local examples/dhis2/dhis2-tracker-paged.yaml -p page=2
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-tracker-paged
+name: Page through a tracker collection
+description: Read one page of tracker events, with the page number and size as parameters.
+
+tags: [dhis2, tracker]
+
+requires:
+  blocks:
+    - dhis2.tracker
+
+params:
+  type: object
+  properties:
+    program:
+      type: string
+      default: IpHINAT79UW
+      description: The uid of the program whose events are read.
+    page:
+      type: integer
+      minimum: 1
+      default: 1
+      description: The 1-based page to read.
+    page_size:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      default: 100
+      description: How many rows the page holds.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  read:
+    block: dhis2.tracker
+    config:
+      connection: dhis2-demo
+      kind: events
+      program: "${params.program}"
+      org_unit: ImspTQPwCqd
+      ou_mode: DESCENDANTS
+      # Naming the columns matters most on a large page: the default projection carries the
+      # whole event, data values included.
+      fields: event,programStage,orgUnit,occurredAt,status
+      page: "${params.page}"
+      page_size: "${params.page_size}"

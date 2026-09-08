@@ -1,0 +1,54 @@
+# Wait for a month to be signed off, then read it.
+#
+# dhis2.data_set_complete is a sensor: each poke is one read-only question to the
+# instance -- is this data set, for this period, at this organisation unit, marked
+# complete? -- and the run holds at the gate until the answer is yes. The export behind
+# it then reads a month somebody has stood behind, not a month still being typed in.
+#
+# The demo ships with this month already signed off at this facility, so the gate opens
+# on the first poke. Against a real instance the deadline is the interesting part: a
+# month nobody signs off inside two days skips the run rather than failing it.
+#
+#   dg run --local examples/dhis2/dhis2-complete-then-export.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-complete-then-export
+name: A signed-off month, then the data
+description: Wait for a data set to be marked complete, then export it.
+
+tags: [dhis2, sensor]
+
+requires:
+  blocks:
+    - dhis2.data_set_complete
+    - dhis2.data_value_set_export
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  signed_off:
+    block: dhis2.data_set_complete
+    poll: 1m
+    deadline: 48h
+    on_timeout: skip
+    config:
+      connection: dhis2-demo
+      data_set: BfMAe6Itzgt
+      period: "202507"
+      org_unit: vSbt6cezomG
+  read:
+    block: dhis2.data_value_set_export
+    depends_on: [signed_off]
+    config:
+      connection: dhis2-demo
+      data_set: BfMAe6Itzgt
+      period: "202507"
+      org_unit: vSbt6cezomG

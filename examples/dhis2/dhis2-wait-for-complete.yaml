@@ -1,0 +1,73 @@
+# Hold a run until a data set is signed off for a period.
+#
+# dhis2.data_set_complete is a sensor, not a reader: it answers a yes-or-no question about
+# one registration -- is this data set, for this period, at this organisation unit, marked
+# complete? -- and parks the run until the answer is yes. Each poke is a single read-only
+# GET on /api/completeDataSetRegistrations, and no worker is held between pokes, so a gate
+# that waits two days costs two days of nothing rather than two days of a held slot.
+#
+# When the wait ends the output says who ended it: completed_at, the instance's own
+# timestamp for the registration, and stored_by, the user who made it. That is the audit
+# trail a pipeline reporting on signed-off data usually wants to carry forward.
+#
+# A registration can be unmade. One carrying completed: false is a window somebody reopened,
+# and the sensor treats it as not yet rather than as done. Older instances write no flag at
+# all, and there the registration's existence is the completion.
+#
+# poll and deadline are the two settings that make a gate a policy rather than a loop: how
+# often to ask, and how long to keep asking. on_timeout: skip is what turns "nobody signed
+# off in time" into a skipped run rather than a failed one -- there is nothing wrong, the
+# data simply is not ready, and a failed run at the end of every unsigned month trains
+# people to ignore failures.
+#
+# The demo already has this month signed off at this facility, so the gate opens on the
+# first poke.
+#
+#   dg run --local examples/dhis2/dhis2-wait-for-complete.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-wait-for-complete
+name: Wait for a data set to be signed off
+description: Hold the run until a data set is marked complete for a period and organisation unit.
+
+tags: [dhis2, sensor]
+
+requires:
+  blocks:
+    - dhis2.data_set_complete
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period whose sign-off is being waited on.
+    org_unit:
+      type: string
+      default: vSbt6cezomG
+      description: The uid of the organisation unit that does the signing off.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  signed_off:
+    block: dhis2.data_set_complete
+    # Sign-off is a human act on a human timescale: asking every minute is already generous,
+    # and a two-day deadline is the shape of "the reporting window has closed".
+    poll: 1m
+    deadline: 48h
+    on_timeout: skip
+    config:
+      connection: dhis2-demo
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: "${params.org_unit}"

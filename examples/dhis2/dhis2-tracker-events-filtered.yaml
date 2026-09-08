@@ -1,0 +1,77 @@
+# Narrow an event read to a status, a window, and a captured value.
+#
+# The three ways to narrow a tracker read are different in kind, and this document uses all
+# three at once so the difference is visible.
+#
+# status is a property of the event: ACTIVE is under way, COMPLETED has been filled in and
+# signed, SCHEDULE is a future appointment that has not happened yet. A read that forgets it
+# counts appointments as if they were visits.
+#
+# updated_after is about when the record was last touched, not when the event happened. That
+# distinction is what makes it the right control for an incremental extract -- an event
+# recorded late, or corrected last week, is caught by updated_after and missed by any filter
+# on the event's own date.
+#
+# filter is on the program's data elements, in DHIS2's own wire syntax: the data element uid,
+# the operator, and the value, joined by colons. Several filters are ANDed. This is where a
+# question about what was captured goes -- a birth weight above a threshold, an outcome code,
+# a missing field.
+#
+# What this block has no parameter for is the program stage, and an event read scoped to one
+# stage goes through the generic-HTTP shelf instead: see
+# ../dhis2-http/dhis2-events-by-stage.yaml.
+#
+#   dg run --local examples/dhis2/dhis2-tracker-events-filtered.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-tracker-events-filtered
+name: Filter tracker events
+description: Read completed events changed since a date, narrowed by a captured data element value.
+
+tags: [dhis2, tracker]
+
+requires:
+  blocks:
+    - dhis2.tracker
+
+params:
+  type: object
+  properties:
+    program:
+      type: string
+      default: IpHINAT79UW
+      description: The uid of the program whose events are read.
+    changed_since:
+      type: string
+      default: "2015-01-01T00:00:00"
+      description: |
+        Read only events touched at or after this ISO instant. The demo's tracker records
+        were last written in 2018, so a recent cutoff answers with nothing.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  read:
+    block: dhis2.tracker
+    config:
+      connection: dhis2-demo
+      kind: events
+      program: "${params.program}"
+      org_unit: ImspTQPwCqd
+      ou_mode: DESCENDANTS
+      status: COMPLETED
+      updated_after: "${params.changed_since}"
+      filter:
+        # Infant weight in grams, above 2500: a live-birth threshold, written the way DHIS2
+        # spells a data element filter.
+        - "UXz7xuGCEhU:GT:2500"
+      fields: event,programStage,orgUnit,occurredAt,status,dataValues[dataElement,value]
+      page_size: 50

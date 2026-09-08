@@ -1,0 +1,37 @@
+# Read the data elements straight off the demo, through the version-bound accessor.
+#
+# dhis2.metadata resolves the instance's version on connect and reads the collection
+# named `resource` through that version's generic accessor, so the same document reads a
+# 2.42 or a 2.43 instance without a change. The whole collection comes back inline;
+# `fields` narrows each row to the columns a downstream step reads.
+#
+#   dg run --local examples/dhis2/dhis2-metadata-data-elements.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-metadata-data-elements
+name: Read DHIS2 data elements
+description: Read the dataElements metadata collection from the demo instance.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.metadata
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+
+steps:
+  read:
+    block: dhis2.metadata
+    config:
+      connection: dhis2-demo
+      resource: dataElements
+      fields: id,name,valueType,domainType
+      order: [name:asc]

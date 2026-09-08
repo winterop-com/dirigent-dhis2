@@ -1,0 +1,55 @@
+{
+  "$id": "dhis2-data-elements-v42",
+  "title": "DHIS2 data elements (v42-pinned)",
+  "description": "The shape a GET /api/dataElements.json?fields=id,name,valueType,domainType returns on a DHIS2 2.42 instance, pinned to that version's enumerations. The valueType list is the 2.42 set: 2.43 drops TRACKER_ASSOCIATE and adds YEAR_OVER_YEAR_LINE, so a value that moved under a version bump is refused at this gate rather than read downstream. additionalProperties is closed so a renamed or added field on a newer instance is caught the same way.",
+  "type": "object",
+  "required": ["dataElements"],
+  "properties": {
+    "dataElements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "valueType", "domainType"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]{10}$" },
+          "name": { "type": "string" },
+          "valueType": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "LONG_TEXT",
+              "MULTI_TEXT",
+              "LETTER",
+              "PHONE_NUMBER",
+              "EMAIL",
+              "BOOLEAN",
+              "TRUE_ONLY",
+              "DATE",
+              "DATETIME",
+              "TIME",
+              "NUMBER",
+              "UNIT_INTERVAL",
+              "PERCENTAGE",
+              "INTEGER",
+              "INTEGER_POSITIVE",
+              "INTEGER_NEGATIVE",
+              "INTEGER_ZERO_OR_POSITIVE",
+              "TRACKER_ASSOCIATE",
+              "USERNAME",
+              "COORDINATE",
+              "ORGANISATION_UNIT",
+              "REFERENCE",
+              "AGE",
+              "URL",
+              "FILE_RESOURCE",
+              "IMAGE",
+              "GEOJSON"
+            ]
+          },
+          "domainType": { "type": "string", "enum": ["AGGREGATE", "TRACKER"] }
+        }
+      }
+    }
+  }
+}

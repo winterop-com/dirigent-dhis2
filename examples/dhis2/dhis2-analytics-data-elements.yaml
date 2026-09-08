@@ -1,0 +1,76 @@
+# Compare several data elements across the districts under one organisation unit.
+#
+# An analytics query is built from axes. Each axis is a dimension name, a colon, and the
+# items on it, joined by semicolons: dx is what is being measured, ou is where, pe is when.
+# An axis in dimension is broken down in the answer -- one row per combination of items --
+# and an axis in filter is fixed instead, narrowing the query without appearing in the rows.
+#
+# So this asks for two data elements by three-and-a-bit dozen districts, with the period
+# pinned: the grid comes back as rows of dx, ou, value.
+#
+# LEVEL-2 is the syntax that makes ou mean "the districts under this unit" rather than the
+# unit itself: an org unit uid and a level, together on the ou axis, expand to every unit at
+# that level inside that subtree. LEVEL-4 in the same place would give facilities. That is
+# how an analytics read spells what children: true spells in a data value set export -- and
+# the difference is that analytics aggregates up to each unit rather than returning the raw
+# values recorded at it.
+#
+# The answer's metaData block names every uid in the grid, so a reader does not need a second
+# metadata read to label the rows -- output_id_scheme: NAME goes further and replaces the
+# uids in the rows themselves.
+#
+# This reads the analytics tables as they stand. dhis2.analytics_run is what rebuilds them,
+# and a value that looks stale is usually a table that has not been rebuilt since the data
+# landed.
+#
+#   dg run --local examples/dhis2/dhis2-analytics-data-elements.yaml
+#   dg run --local examples/dhis2/dhis2-analytics-data-elements.yaml -p period=2025
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-analytics-data-elements
+name: Data elements by district
+description: Read two data elements broken down by the districts under one organisation unit.
+
+tags: [dhis2, analytics]
+
+requires:
+  blocks:
+    - dhis2.analytics_query
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: THIS_YEAR
+      description: An ISO period or a DHIS2 relative period, such as 2026 or THIS_YEAR.
+    org_unit:
+      type: string
+      default: ImspTQPwCqd
+      description: The uid of the subtree whose level-2 units are compared.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  compare:
+    block: dhis2.analytics_query
+    config:
+      connection: dhis2-demo
+      mode: aggregate
+      dimension:
+        # ANC 1st visit and ANC 2nd visit, side by side in the same grid.
+        - dx:fbfJHSPpUQD;cYeuwXTCPkU
+        - "ou:${params.org_unit};LEVEL-2"
+      filter:
+        # Fixed, not broken down: the grid has no period column and every value is the
+        # total over this window.
+        - "pe:${params.period}"
+      output_id_scheme: NAME

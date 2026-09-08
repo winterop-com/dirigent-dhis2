@@ -1,0 +1,64 @@
+# Query the enrollment analytics: one row per enrollment, with its events folded in.
+#
+# mode: enrollment reads /api/analytics/enrollments/query/{program}, and the unit of the
+# answer is the enrollment rather than the event. Where an event query gives one row per
+# thing that happened, this gives one row per person's journey through the program, with the
+# program stages' values available as columns on that single row.
+#
+# That is the difference worth understanding before choosing between them: a question about
+# occurrences -- how many births were recorded in June -- is an event query, and a question
+# about cases -- how many of the children enrolled this year have both a birth and a
+# postnatal record -- is an enrollment query, because the answer needs both stages on one
+# row to be answerable at all.
+#
+# Everything else is shared with the event query: the program is required and lives in the
+# path, ou and pe are the axes, start_date and end_date bound the window by date, and the
+# answer pages.
+#
+#   dg run --local examples/dhis2/dhis2-analytics-enrollment-query.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-analytics-enrollment-query
+name: An enrollment analytics line list
+description: Read a page of enrollments for one program from the enrollment analytics endpoint.
+
+tags: [dhis2, analytics]
+
+requires:
+  blocks:
+    - dhis2.analytics_query
+
+params:
+  type: object
+  properties:
+    program:
+      type: string
+      default: IpHINAT79UW
+      description: The uid of the program whose enrollments are read.
+    org_unit:
+      type: string
+      default: ImspTQPwCqd
+      description: The uid of the organisation unit the enrollments are read under.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  journeys:
+    block: dhis2.analytics_query
+    config:
+      connection: dhis2-demo
+      mode: enrollment
+      program: "${params.program}"
+      dimension:
+        - "ou:${params.org_unit}"
+        - pe:THIS_YEAR
+      page: 1
+      page_size: 50

@@ -1,0 +1,66 @@
+# Read one data set, for one period, at one organisation unit.
+#
+# This is the smallest aggregate read DHIS2 has, and the one every other export in this
+# directory is a variation on. dhis2.data_value_set_export asks GET /api/dataValueSets for
+# the intersection of three things -- a data set, a period, an organisation unit -- and the
+# instance answers with the values recorded there and nothing else.
+#
+# What comes back rides in the step's output as json_body: an object naming the dataSet,
+# period and orgUnit that were asked for, and a dataValues array. Each value carries the
+# dataElement it is a value of, the categoryOptionCombo that says which disaggregation cell
+# it sits in, the attributeOptionCombo, the value itself as a string, and the audit fields
+# DHIS2 keeps -- storedBy, created, lastUpdated, followup. A period with nothing recorded is
+# not an error: the answer is the same envelope with an empty dataValues.
+#
+# For your own instance, three things change and nothing else: the data_set uid, the
+# org_unit uid, and the period. The period's format follows the data set's period type --
+# Child Health is Monthly, so 202507; a Quarterly set takes 2025Q3, a Yearly one 2025.
+#
+# The demo shifts its data era from release to release. An empty answer usually means the
+# period is outside it rather than that the read is wrong, so ask a nearby month.
+#
+#   dg run --local examples/dhis2/dhis2-export-data-values.yaml
+#   dg run --local examples/dhis2/dhis2-export-data-values.yaml -p period=202506
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-data-values
+name: Export one data value set
+description: Read one data set for one period at one organisation unit, inline.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read, in the data set's own period type.
+    org_unit:
+      type: string
+      default: DiszpKrYNg8
+      description: The uid of the organisation unit to read at. Ngelehun CHC by default.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2-demo
+      # Child Health, a monthly aggregate set. A facility-level read: one org unit, so the
+      # answer is the values that facility itself reported, with nothing rolled up into it.
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: "${params.org_unit}"

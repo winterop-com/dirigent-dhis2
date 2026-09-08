@@ -1,0 +1,69 @@
+# Read one page of a metadata collection, and learn how many there are.
+#
+# paging is off by default on this block: a metadata read usually wants the whole collection,
+# and a document that silently returned the first fifty rows of a thousand would be wrong in
+# a way nothing catches. Turning it on is therefore a decision, and it comes with page and
+# page_size.
+#
+# What paging buys is the pager block in the answer. With paging off there is no pager, only
+# the collection; with it on, the answer carries page, pageSize, pageCount and total beside
+# the rows. That total is the number worth having even when the whole collection is what you
+# want: a first page of one row is the cheapest way to ask an instance how big something is
+# before deciding how to read it.
+#
+# On a collection large enough to matter -- a national instance's organisation units, or its
+# data elements -- paging is also what keeps a single response from being larger than the
+# worker holding it. The alternative to paging there is a filter that makes the answer small
+# in the first place, which is usually the better read.
+#
+#   dg run --local examples/dhis2/dhis2-metadata-paged.yaml
+#   dg run --local examples/dhis2/dhis2-metadata-paged.yaml -p page=2 -p page_size=10
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-metadata-paged
+name: One page of a metadata collection
+description: Read a single page of organisation units and the pager that says how many there are.
+
+tags: [dhis2, metadata]
+
+requires:
+  blocks:
+    - dhis2.metadata
+
+params:
+  type: object
+  properties:
+    page:
+      type: integer
+      minimum: 1
+      default: 1
+      description: The 1-based page to read.
+    page_size:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      default: 25
+      description: How many rows the page holds.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  read:
+    block: dhis2.metadata
+    config:
+      connection: dhis2-demo
+      resource: organisationUnits
+      fields: id,name,level
+      # Without this the other three settings are ignored and the whole collection comes back.
+      paging: true
+      page: "${params.page}"
+      page_size: "${params.page_size}"
+      order: [name:asc]

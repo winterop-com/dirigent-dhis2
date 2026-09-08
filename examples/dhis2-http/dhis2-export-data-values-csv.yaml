@@ -1,0 +1,77 @@
+# Export a data value set as CSV instead of JSON.
+#
+# DHIS2 chooses the representation from the extension on the path: /api/dataValueSets.json
+# answers with the envelope-and-array shape everything else in this pack reads, and
+# /api/dataValueSets.csv answers with a header row and one line per value. The query is
+# identical; only the extension differs.
+#
+# The columns are flat and every value carries its own coordinates rather than inheriting
+# them from an envelope: dataelement, period, orgunit, categoryoptioncombo,
+# attributeoptioncombo, value, storedby, lastupdated, comment, followup, deleted. That
+# flatness is the reason to ask for CSV at all -- a spreadsheet, a COPY into a warehouse
+# table, or anything that reads rows rather than trees wants this and not the JSON.
+#
+# The native dhis2.data_value_set_export block reads JSON, because that is the shape its
+# downstream steps reference by field. A CSV export is therefore a generic-HTTP call, and
+# this is what it looks like.
+#
+# save_to is not decoration here. A CSV body is text, and text large enough to be worth
+# exporting as CSV is text worth streaming to storage rather than holding in a step's output.
+# A local run deletes its artifacts on the way out, so --keep is how to read the file
+# afterwards.
+#
+#   dg run --local examples/dhis2-http/dhis2-export-data-values-csv.yaml --keep
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-data-values-csv
+name: Data values as CSV
+description: Export one data set's values as CSV and stream the rows to storage.
+
+tags: [dhis2, http, storage]
+
+requires:
+  blocks:
+    - http.request
+
+params:
+  type: object
+  properties:
+    data_set:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: BfMAe6Itzgt
+      description: The uid of the data set to export.
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to export.
+    org_unit:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: O6uvpzGd5pu
+      description: The uid of the organisation unit to export for.
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  export_csv:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      # The extension is the content negotiation: .json here would return the tree instead.
+      path: /api/dataValueSets.csv
+      method: GET
+      query:
+        dataSet: "${params.data_set}"
+        period: "${params.period}"
+        orgUnit: "${params.org_unit}"
+        children: true
+      save_to: "${run.scratch}/dhis2/${params.data_set}-${params.period}.csv"

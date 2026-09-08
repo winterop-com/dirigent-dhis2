@@ -1,0 +1,65 @@
+# Remove values by importing the document that names them.
+#
+# DHIS2 has no delete endpoint for a batch of data values. Deleting is an import: the same
+# document shape, the same endpoint, with import_strategy DELETE, and the value field of
+# each row ignored -- what identifies a cell is the data element, period, org unit and the
+# two option combos, so the document only has to name them.
+#
+# The summary reports the removals under deleted, and a cell that held nothing under
+# ignored. That asymmetry is worth knowing: deleting a value that is not there is not an
+# error, so a clean-looking summary does not by itself prove the cells were populated
+# before the run.
+#
+# This is the one strategy with no undo, which is why dry_run is on here and belongs on any
+# rehearsal of it. Run it dry, read the deleted count, and only then decide whether the
+# document names what you meant it to name.
+#
+#   dg run --local examples/dhis2/dhis2-import-delete.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-import-delete
+name: Delete data values with the DELETE strategy
+description: Remove the data values a document names, rehearsed as a dry run.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_import
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period whose values are being removed.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  remove:
+    block: dhis2.data_value_set_import
+    config:
+      connection: dhis2-demo
+      data_values:
+        dataSet: BfMAe6Itzgt
+        period: "${params.period}"
+        orgUnit: DiszpKrYNg8
+        dataValues:
+          # The value is required by the wire shape and ignored by a delete: the cell is
+          # addressed by its coordinates, not by what it holds.
+          - dataElement: s46m5MS0hxu
+            categoryOptionCombo: Prlt0C1RF0s
+            attributeOptionCombo: HllvX50cXC0
+            value: ""
+      import_strategy: DELETE
+      dry_run: true

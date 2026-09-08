@@ -1,0 +1,41 @@
+# Query the analytics tables for one indicator over the last year.
+#
+# dhis2.analytics_query reads /api/analytics through the client's analytics accessor:
+# `dimension` axes break the answer down, `filter` axes fix a dimension the grid is not
+# broken down by. This reads a value by period for one org unit; the parsed grid comes back
+# inline. It reads the tables as they stand -- dhis2.analytics_run is what rebuilds them.
+#
+#   dg run --local examples/dhis2/dhis2-analytics-query.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-analytics-query
+name: Query DHIS2 analytics
+description: Run an aggregate analytics query for one indicator over the last twelve months.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.analytics_query
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+
+steps:
+  query:
+    block: dhis2.analytics_query
+    config:
+      connection: dhis2-demo
+      mode: aggregate
+      dimension:
+        - dx:Uvn6LCg7dVU
+        - pe:LAST_12_MONTHS
+      filter:
+        - ou:ImspTQPwCqd
+      output_id_scheme: NAME

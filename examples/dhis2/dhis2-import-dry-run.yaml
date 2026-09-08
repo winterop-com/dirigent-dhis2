@@ -1,0 +1,76 @@
+# Send a data value set to DHIS2 without writing anything.
+#
+# dhis2.data_value_set_import posts a data value set document to /api/dataValueSets and
+# reads the import summary the instance answers with. dry_run is the parameter that makes
+# this safe: DHIS2 runs the whole import -- resolving every uid, checking every value
+# against its data element's value type, applying the strategy -- and then throws the result
+# away. The summary is the same either way, which is what makes a dry run worth running.
+#
+# The summary comes back parsed in the step's output: status (SUCCESS, WARNING or ERROR),
+# the imported, updated, ignored and deleted counts, and a conflicts list naming each value
+# the instance refused and why. A summary whose status is ERROR fails the step rather than
+# being reported as a success with bad news inside it.
+#
+# The document below is written inline, which is what a hand-authored import looks like.
+# Every uid in it is a real one on the play demo: s46m5MS0hxu is "BCG doses given",
+# Prlt0C1RF0s and psbwp3CQEhs are two cells of its "Location and age group" disaggregation,
+# HllvX50cXC0 is the default attribute option combo, and DiszpKrYNg8 is Ngelehun CHC. A
+# value is always a string on the wire, whatever the data element's value type says.
+#
+# Turning dry_run off is what makes this a real import -- against your own instance, never
+# against the shared demo.
+#
+#   dg run --local examples/dhis2/dhis2-import-dry-run.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-import-dry-run
+name: Rehearse a data value import
+description: Send a small hand-written data value set to DHIS2 as a dry run and read its summary.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_import
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period the values belong to.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  rehearse:
+    block: dhis2.data_value_set_import
+    config:
+      connection: dhis2-demo
+      # The envelope's dataSet, period and orgUnit are the defaults each value inherits, so
+      # a value only repeats what differs from them.
+      data_values:
+        dataSet: BfMAe6Itzgt
+        period: "${params.period}"
+        orgUnit: DiszpKrYNg8
+        dataValues:
+          - dataElement: s46m5MS0hxu
+            categoryOptionCombo: Prlt0C1RF0s
+            attributeOptionCombo: HllvX50cXC0
+            value: "12"
+          - dataElement: s46m5MS0hxu
+            categoryOptionCombo: psbwp3CQEhs
+            attributeOptionCombo: HllvX50cXC0
+            value: "7"
+      # Nothing is written. This is the parameter to be suspicious of: dropping it turns the
+      # same document into a real import of the same values.
+      dry_run: true

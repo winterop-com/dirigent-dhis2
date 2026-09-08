@@ -1,0 +1,44 @@
+# List every organisation unit in the public DHIS2 demo.
+#
+# paging: false is deliberate: this is a metadata snapshot rather than an interactive page.
+# The selected fields preserve identity, display name, hierarchy level, and immediate parent
+# without pulling the much larger default representation. The body is also written to the
+# run's scratch storage so a downstream step can consume it as an artifact URI.
+#
+# On the current demo this returns about 1,300 organisation units.
+#
+#   dg run --local examples/dhis2-http/dhis2-org-units.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-org-units
+name: Org unit sync
+description: Fetch a compact, alphabetically ordered snapshot of every DHIS2 organisation unit.
+
+tags: [dhis2, http]
+
+requires:
+  blocks:
+    - http.request
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  list_org_units:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/organisationUnits.json
+      method: GET
+      query:
+        fields: id,displayName,level,parent[id,displayName]
+        paging: false
+        order: displayName:asc
+      save_to: "${run.scratch}/dhis2/organisation-units.json"

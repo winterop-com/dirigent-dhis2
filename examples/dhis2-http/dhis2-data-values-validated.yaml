@@ -1,0 +1,68 @@
+# Read a DHIS2 data value set and gate every value on DHIS2's own id and period formats.
+#
+# The carried schema pins dataElement and orgUnit to format: dhis2-uid and period to
+# format: dhis2-period -- formats this pack contributes -- so a value whose dataElement is not
+# a real 11-character UID, or whose period is not a DHIS2 ISO period, is refused at the gate
+# instead of imported downstream. The schema travels in the document's own top-level schemas:
+# section, so the run needs no schema handed to it; that also means a --local run.
+#
+#   dg run --local examples/dhis2-http/dhis2-data-values-validated.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-data-values-validated
+name: Data values, id- and period-checked
+description: Fetch a DHIS2 data value set and validate its ids and periods against the pack's formats.
+
+tags: [dhis2, http, validate]
+
+requires:
+  blocks:
+    - http.request
+    - validate.schema
+
+connections:
+  dhis2-demo:
+    kind: http
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+schemas:
+  dhis2-data-value-set:
+    type: object
+    required: [dataValues]
+    properties:
+      dataElement: { type: string, format: dhis2-uid }
+      period: { type: string, format: dhis2-period }
+      orgUnit: { type: string, format: dhis2-uid }
+      dataValues:
+        type: array
+        items:
+          type: object
+          required: [dataElement, period, orgUnit, value]
+          properties:
+            dataElement: { type: string, format: dhis2-uid }
+            period: { type: string, format: dhis2-period }
+            orgUnit: { type: string, format: dhis2-uid }
+            value: { type: string }
+
+steps:
+  fetch:
+    block: http.request
+    config:
+      connection: dhis2-demo
+      path: /api/dataValueSets.json
+      method: GET
+      query:
+        dataSet: BfMAe6Itzgt
+        period: 202401
+        orgUnit: DiszpKrYNg8
+  gate:
+    block: validate.schema
+    depends_on: [fetch]
+    config:
+      input: ${steps.fetch.output.json_body}
+      schema: dhis2-data-value-set
