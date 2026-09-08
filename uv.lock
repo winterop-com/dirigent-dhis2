@@ -148,8 +148,8 @@ wheels = [
 
 [[package]]
 name = "dirigent-common"
-version = "0.8.1"
-source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-common&branch=main#ded953a8ea79366671e22b7631911dd3e82a4cae" }
+version = "0.9.0"
+source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-common&branch=main#9247fd9101c3a19cb34d32573f2b73bbad48a9bd" }
 dependencies = [
     { name = "httpx2" },
     { name = "jsonschema", extra = ["format-nongpl"] },
@@ -205,8 +205,8 @@ dev = [
 
 [[package]]
 name = "dirigent-plugin"
-version = "0.8.1"
-source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-plugin&branch=main#ded953a8ea79366671e22b7631911dd3e82a4cae" }
+version = "0.9.0"
+source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-plugin&branch=main#9247fd9101c3a19cb34d32573f2b73bbad48a9bd" }
 dependencies = [
     { name = "dirigent-common" },
     { name = "httpx2" },
@@ -216,8 +216,8 @@ dependencies = [
 
 [[package]]
 name = "dirigent-testing"
-version = "0.8.1"
-source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-testing&branch=main#ded953a8ea79366671e22b7631911dd3e82a4cae" }
+version = "0.9.0"
+source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-testing&branch=main#9247fd9101c3a19cb34d32573f2b73bbad48a9bd" }
 dependencies = [
     { name = "dirigent-common" },
     { name = "dirigent-plugin" },
