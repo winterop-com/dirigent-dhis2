@@ -10,6 +10,10 @@ does not contribute, so it is out of scope for a single-pack conformance check.
 ``examples/dhis2-compose`` mixes the two: ``dhis2.*`` steps beside engine blocks such as
 ``transform.jq`` and ``validate.schema``. Its ``dhis2.*`` steps are held to the same catalog
 as the native shelf by checking each document with its foreign steps removed.
+
+``examples/validate`` names engine blocks only, so removing its foreign steps leaves the
+document's own identity -- format, kind, code and description -- which is the half a
+single-pack check can answer for.
 """
 
 from pathlib import Path
@@ -25,6 +29,9 @@ EXAMPLES_DIR = Path(__file__).resolve().parents[1] / "examples" / "dhis2"
 
 #: The composed shelf: ``dhis2.*`` steps beside the engine's own blocks.
 COMPOSE_DIR = Path(__file__).resolve().parents[1] / "examples" / "dhis2-compose"
+
+#: The validation shelf: a metadata read gated on the engine's own ``validate.schema``.
+VALIDATE_DIR = Path(__file__).resolve().parents[1] / "examples" / "validate"
 
 #: What the pack itself puts in the catalog, checked once and reused by both tests.
 CONTRIBUTION = Dhis2Plugin().contribute()
@@ -46,6 +53,29 @@ def test_every_composed_example_uses_the_pack_blocks_correctly(tmp_path: Path) -
         (tmp_path / path.name).write_text(yaml.safe_dump(_only_pack_steps(path), sort_keys=False))
     issues = check_pack_examples(CONTRIBUTION, tmp_path)
     assert issues == [], "\n".join(issues)
+
+
+def test_every_validation_example_carries_the_identity_a_document_needs(tmp_path: Path) -> None:
+    documents = sorted(VALIDATE_DIR.rglob("*.yaml"))
+    assert documents, "there are no validation examples to check"
+    for path in documents:
+        (tmp_path / path.name).write_text(yaml.safe_dump(_only_pack_steps(path), sort_keys=False))
+    issues = check_pack_examples(CONTRIBUTION, tmp_path)
+    assert issues == [], "\n".join(issues)
+
+
+def test_every_validation_example_names_the_schema_it_gates_on() -> None:
+    """A gate names a schema by code, and a code the instance holds is declared in requires."""
+    for path in sorted(VALIDATE_DIR.rglob("*.yaml")):
+        document = cast("dict[str, Any]", yaml.safe_load(path.read_text()))
+        steps = cast("dict[str, Any]", document.get("steps", {}))
+        gates = [step for step in steps.values() if step.get("block") == "validate.schema"]
+        assert gates, f"{path.name}: has no validate.schema step"
+        carried = set(cast("dict[str, Any]", document.get("schemas", {})))
+        declared = set(cast("dict[str, Any]", document.get("requires", {})).get("schemas", []))
+        for gate in gates:
+            code = cast("dict[str, Any]", gate.get("config", {})).get("schema")
+            assert code in carried | declared, f"{path.name}: gate names schema {code!r}, neither carried nor required"
 
 
 def test_the_contribution_blocks_are_well_formed() -> None:

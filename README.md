@@ -62,6 +62,7 @@ One file per operation, grouped by how it is built:
 | [`examples/dhis2/`](examples/dhis2) | The native adapter: exports and their import strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker collections, the metadata reads. |
 | [`examples/dhis2-compose/`](examples/dhis2-compose) | A `dhis2.*` block beside one of the engine's own: a schema gate, a jq reshape, a fan-out over org units. |
 | [`examples/dhis2-http/`](examples/dhis2-http) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a completion registration, a stage-scoped event read. |
+| [`examples/validate/`](examples/validate) | A metadata read held to a shape: a `fields=` projection gated on `validate.schema`, with the schema carried and named. |
 | [`examples/schemas/`](examples/schemas) | The JSON Schemas that pin the reads the DHIS2 series makes, applied on their own. |
 
 Each shelf's README lists its files one line each.
