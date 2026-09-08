@@ -1,0 +1,53 @@
+site_name: dirigent-dhis2
+site_description: The DHIS2 adapter pack for dirigent. A connection kind, two formats, and the blocks for one instance.
+site_url: https://winterop-com.github.io/dirigent-dhis2/
+repo_url: https://github.com/winterop-com/dirigent-dhis2
+edit_uri: ""
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Connection: connection.md
+  - Formats: formats.md
+  - Blocks: blocks.md
+  - Examples: examples.md
+  - Releases: releases.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/winterop-com/dirigent-dhis2

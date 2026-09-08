@@ -6,4 +6,5 @@ __pycache__/
 .playwright-mcp/
 .DS_Store
 dist/
+site/
 .env
