@@ -49,7 +49,6 @@ uv run pytest
 
 That is what CI runs. The lock file is committed and CI syncs against it, so a pack build is
 reproducible; the ecosystem's nightly integration is what proves the pack against the
-current tips of its git dependencies.
 
 `tests/` exercises every block against a mocked DHIS2 instance, and `tests/test_examples.py`
 validates the example documents against the pack's own catalog. The examples run standalone,
