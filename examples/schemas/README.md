@@ -23,11 +23,11 @@ A schema carries its own identity in its keywords, so there is nothing else to p
 | [dhis2-org-units.json](dhis2-org-units.json) | An object with an `organisationUnits` array of UID/name/level items |
 | [dhis2-data-elements.json](dhis2-data-elements.json) | A `dataElements` array whose `valueType` and `domainType` are held to the DHIS2 enums |
 | [dhis2-system-info.json](dhis2-system-info.json) | A top-level object, not a list: an instance `version` and a `serverDate` |
+| [dhis2-number-data-elements.json](dhis2-number-data-elements.json) | A `dataElements` array whose every `valueType` is `NUMBER` |
 | [dhis2-data-elements-v42.json](dhis2-data-elements-v42.json) | The v42-pinned `dataElements` shape: the 2.42 `valueType` enum and closed rows, so a 2.43 bump is caught |
 | [dhis2-data-value-set.json](dhis2-data-value-set.json) | The `/api/dataValueSets` envelope, every id held to `dhis2-uid` and every period to `dhis2-period` |
 
-These pin the reads the DHIS2 series makes: the three `fields=` metadata reads, and the data
-value set that [`../dhis2-compose/dhis2-export-validated.yaml`](../dhis2-compose/dhis2-export-validated.yaml)
-gates on. The [JSON Schema
-guide](../../docs/json-schema.md) walks through how a schema like these is built, keyword by
-keyword.
+These pin the reads the DHIS2 series makes: the `fields=` metadata reads the
+[`../validate/`](../validate) documents gate on, and the data value set that
+[`../dhis2-compose/dhis2-export-validated.yaml`](../dhis2-compose/dhis2-export-validated.yaml)
+gates on.
