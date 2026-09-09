@@ -294,21 +294,21 @@ wheels = [
 
 [[package]]
 name = "dirigent-common"
-version = "0.9.1"
+version = "0.9.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx2" },
     { name = "jsonschema", extra = ["format-nongpl"] },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a8/70/e1515a1f07bdbc9958862baada8a682fe74f10bc7277f8f534eed81601c7/dirigent_common-0.9.1.tar.gz", hash = "sha256:17c997e23c993013fbead004f23665c52dd5888b1c57499e75462c7d88fd556f", size = 11662, upload-time = "2026-09-08T23:46:39.075Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/56/f2/56be54f8829735619939623a07780e9ce1ae08894267b516276c207e681a/dirigent_common-0.9.2.tar.gz", hash = "sha256:3ab59d7000c93c7a4b584f6bdf44b42b7e64fc73ff2e6521de80285f91ef1c2f", size = 11661, upload-time = "2026-09-09T09:32:44.949Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/22/99/ef8cc784fe832e15537c8b3facefcc9b4e9b0be45c1cff89dfc7d04595f0/dirigent_common-0.9.1-py3-none-any.whl", hash = "sha256:b4914229b32e91c356908921290377f03981c6d917cb6848fc82ee1a8e07a934", size = 17448, upload-time = "2026-09-08T23:46:37.765Z" },
+    { url = "https://files.pythonhosted.org/packages/de/96/28deb346080275493d163ac16774dfbebadc43d87221e4b4e75378adba61/dirigent_common-0.9.2-py3-none-any.whl", hash = "sha256:b1853a3d6fe676af86f15532fbfe5b03709ee62afc011331b339592573b59540", size = 17449, upload-time = "2026-09-09T09:32:43.46Z" },
 ]
 
 [[package]]
 name = "dirigent-dhis2"
-version = "0.9.1"
+version = "0.9.2"
 source = { editable = "." }
 dependencies = [
     { name = "dhis2w-client" },
@@ -337,14 +337,14 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dhis2w-client", specifier = ">=1.13.4,<2" },
-    { name = "dirigent-common", specifier = "==0.9.1" },
-    { name = "dirigent-plugin", specifier = "==0.9.1" },
+    { name = "dirigent-common", specifier = "==0.9.2" },
+    { name = "dirigent-plugin", specifier = "==0.9.2" },
     { name = "httpx", specifier = ">=0.28" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "dirigent-testing", specifier = "==0.9.1" },
+    { name = "dirigent-testing", specifier = "==0.9.2" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-material", specifier = ">=9.7.7" },
     { name = "mypy", specifier = ">=1.19" },
@@ -361,7 +361,7 @@ dev = [
 
 [[package]]
 name = "dirigent-plugin"
-version = "0.9.1"
+version = "0.9.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dirigent-common" },
@@ -369,14 +369,14 @@ dependencies = [
     { name = "pluginkit" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/52/18/d3395f99828daa33f49f18ae67cf00171b96e3ea4df883147e32a39ba0f8/dirigent_plugin-0.9.1.tar.gz", hash = "sha256:39882ebd76870c2118aeb9b6b0767f3b58d67974a8d3b51acb36cde98cfea27d", size = 15559, upload-time = "2026-09-08T23:46:34.319Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/25/cd98b928d1755825c0469458864611656d36b80ada47cdaaaa3ee65748bc/dirigent_plugin-0.9.2.tar.gz", hash = "sha256:6142ed9fbd1fe1526023798e64523d65835cf33e9d54f9e7f65413da1bd599f5", size = 15560, upload-time = "2026-09-09T09:32:40.678Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/0c/1640d516988385b14874702f69d84d35a2611e2b742a10c8c52a14e33396/dirigent_plugin-0.9.1-py3-none-any.whl", hash = "sha256:8259e9b6698b710e334062ea878af8415a4fbdcc76dff2db9ff22f38248b2652", size = 18287, upload-time = "2026-09-08T23:46:33.122Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/a6/bc5f16169ff9798820f7be2246b983896f6470f0b95c4e372613a4de9e40/dirigent_plugin-0.9.2-py3-none-any.whl", hash = "sha256:302cba1816a526e8a80c48aaf7b1d9c92af8c450005887e52be70a75baaca591", size = 18286, upload-time = "2026-09-09T09:32:39.237Z" },
 ]
 
 [[package]]
 name = "dirigent-testing"
-version = "0.9.1"
+version = "0.9.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dirigent-common" },
@@ -386,9 +386,9 @@ dependencies = [
     { name = "pytest" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ea/e8/875aa277935c62d4e05e10e8844242e36c2711d12781de14bd82733ccb06/dirigent_testing-0.9.1.tar.gz", hash = "sha256:a7a13415dea342d3e8df645cf898ee2fb4b5d8e35e50a36bdff248a3acf1708f", size = 9875, upload-time = "2026-09-08T23:46:39.83Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a2/f9/3acab47ea683b8c2fa284f71d7ff330aa0dbb31525a0c97f21c25954c007/dirigent_testing-0.9.2.tar.gz", hash = "sha256:821d4ea8cdebbb51a71af967290ae57dbca302b32adae28898a03104b9f627cb", size = 9873, upload-time = "2026-09-09T09:32:47.603Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3d/27/f367845f10e6ce4a0dccf76e1760c408e84e455f51af97aae6b6995245db/dirigent_testing-0.9.1-py3-none-any.whl", hash = "sha256:73b25a77813fc7913ff8c95f064422b20e4b15b41efa2d26803d2fa44bf0e228", size = 13087, upload-time = "2026-09-08T23:46:38.509Z" },
+    { url = "https://files.pythonhosted.org/packages/24/df/0376863a6fbdd8d938ac31c665f07f5614d1e0b3cd1278bc356f420f1ff3/dirigent_testing-0.9.2-py3-none-any.whl", hash = "sha256:b304607fb1cb005748769af0c13fd57f3af45f9e78ec4ef9fc332fb8b7e0fba5", size = 13087, upload-time = "2026-09-09T09:32:46.495Z" },
 ]
 
 [[package]]
