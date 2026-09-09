@@ -2,10 +2,10 @@
 
 The pack follows dirigent's version. A release of dirigent is a release here: the pack relocks
 its dirigent packages at the tagged commit, moves to the same number, and is tagged `vX.Y.Z`
-with a GitHub release of its own. So `dirigent-dhis2` 0.9.1 is the pack built against dirigent
-0.9.1, and the two numbers are never read as independent.
+with a GitHub release of its own. So `dirigent-dhis2` 0.9.2 is the pack built against dirigent
+0.9.2, and the two numbers are never read as independent.
 
-The current version is **0.9.1**.
+The current version is **0.9.2**.
 
 Every release, with its notes, is on
 [the pack's releases page](https://github.com/winterop-com/dirigent-dhis2/releases). What
