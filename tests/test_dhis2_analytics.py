@@ -4,9 +4,8 @@ import json as jsonlib
 from datetime import UTC, datetime, timedelta
 
 import pytest
-import respx
 
-from dhis2server import BASE_URL, CONNECTION, json, notification, submitted, task_feed
+from dhis2server import BASE_URL, CONNECTION, Dhis2Server, json, notification, submitted, task_feed
 from dirigent_dhis2.analytics import (
     CURSOR,
     GONE_AFTER,
@@ -39,8 +38,8 @@ def cursor(*identifiers: str) -> dict[str, str]:
     return {CURSOR: jsonlib.dumps(list(identifiers))}
 
 
-async def test_submitting_hands_back_the_task_reference_to_probe(ctx: FakeContext, dhis2: respx.Router) -> None:
-    route = dhis2.post(SUBMIT).mock(return_value=json(200, submitted()))
+async def test_submitting_hands_back_the_task_reference_to_probe(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    route = dhis2.post(SUBMIT).answers(json(200, submitted()))
     returned = await call_block(
         Dhis2AnalyticsRunOperator(), {"connection": CONNECTION, "last_years": 2, "skip_events": True}, ctx
     )
@@ -48,29 +47,29 @@ async def test_submitting_hands_back_the_task_reference_to_probe(ctx: FakeContex
     assert returned.ref == "tk123"
     assert returned.meta[NOTIFIER] == NOTIFIER_PATH
     assert returned.meta[JOB_TYPE] == JOB
-    request = route.calls.last.request
+    request = route.last
     assert request.url.params["lastYears"] == "2"
     assert request.url.params["skipEvents"] == "true"
     assert "skipAggregate" not in request.url.params
 
 
-async def test_a_submission_without_a_task_reference_is_rejected(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.post(SUBMIT).mock(return_value=json(200, {"status": "OK", "response": {}}))
+async def test_a_submission_without_a_task_reference_is_rejected(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.post(SUBMIT).answers(json(200, {"status": "OK", "response": {}}))
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
     assert refused.value.error_class is ErrorClass.REJECTED
 
 
-async def test_a_refused_submission_is_classified_by_its_status(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.post(SUBMIT).mock(return_value=json(503, {}))
+async def test_a_refused_submission_is_classified_by_its_status(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.post(SUBMIT).answers(json(503, {}))
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
     assert refused.value.error_class is ErrorClass.TRANSIENT
 
 
-async def test_a_probe_streams_the_new_notifications_and_advances(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.get(TASK_URL).mock(
-        return_value=json(
+async def test_a_probe_streams_the_new_notifications_and_advances(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(TASK_URL).answers(
+        json(
             200,
             task_feed(
                 notification("resource tables built", time=T2, uid="n2"),
@@ -86,14 +85,14 @@ async def test_a_probe_streams_the_new_notifications_and_advances(ctx: FakeConte
     assert ctx.log.messages() == ["resource tables built"]
 
 
-async def test_a_probe_reads_the_instance_wire_extras_and_all(ctx: FakeContext, dhis2: respx.Router) -> None:
+async def test_a_probe_reads_the_instance_wire_extras_and_all(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     """A live 2.43.1 answers with ids, categories, LOOP levels and a parameter echo.
 
     The payload here is the shape play.im.dhis2.org actually returned, and reading it must
     not be broken by any field this block does not use.
     """
-    dhis2.get(TASK_URL).mock(
-        return_value=json(
+    dhis2.get(TASK_URL).answers(
+        json(
             200,
             task_feed(
                 {
@@ -123,9 +122,9 @@ async def test_a_probe_reads_the_instance_wire_extras_and_all(ctx: FakeContext, 
     assert "[0/1] analytics_2026_temp" in ctx.log.messages()
 
 
-async def test_a_completed_task_probes_as_succeeded(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.get(TASK_URL).mock(
-        return_value=json(
+async def test_a_completed_task_probes_as_succeeded(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(TASK_URL).answers(
+        json(
             200,
             task_feed(
                 notification("analytics tables updated", time=T3, completed=True, uid="n3"),
@@ -139,11 +138,9 @@ async def test_a_completed_task_probes_as_succeeded(ctx: FakeContext, dhis2: res
     assert probed.message == "analytics tables updated"
 
 
-async def test_a_task_ending_in_error_probes_as_failed(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.get(TASK_URL).mock(
-        return_value=json(
-            200, task_feed(notification("out of memory", time=T2, level="ERROR", completed=True, uid="e1"))
-        )
+async def test_a_task_ending_in_error_probes_as_failed(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(TASK_URL).answers(
+        json(200, task_feed(notification("out of memory", time=T2, level="ERROR", completed=True, uid="e1")))
     )
     config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
     probed = await Dhis2AnalyticsRunOperator().probe(handle(), config, ctx.as_context())
@@ -151,16 +148,16 @@ async def test_a_task_ending_in_error_probes_as_failed(ctx: FakeContext, dhis2: 
     assert "out of memory" in (probed.message or "")
 
 
-async def test_a_task_the_instance_forgot_probes_as_gone(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.get(TASK_URL).mock(return_value=json(404, {}))
+async def test_a_task_the_instance_forgot_probes_as_gone(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(TASK_URL).answers(json(404, {}))
     config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
     probed = await Dhis2AnalyticsRunOperator().probe(handle(), config, ctx.as_context())
     assert probed.status is ProbeStatus.GONE
 
 
-async def test_fetch_collects_the_story(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.get(TASK_URL).mock(
-        return_value=json(
+async def test_fetch_collects_the_story(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(TASK_URL).answers(
+        json(
             200,
             task_feed(
                 notification("analytics tables updated", time=T3, completed=True, uid="n3"),
@@ -177,8 +174,8 @@ async def test_fetch_collects_the_story(ctx: FakeContext, dhis2: respx.Router) -
     assert output.messages == ["started", "building", "analytics tables updated"]
 
 
-async def test_fetch_on_a_task_that_vanished_is_transient(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.get(TASK_URL).mock(return_value=json(404, {}))
+async def test_fetch_on_a_task_that_vanished_is_transient(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(TASK_URL).answers(json(404, {}))
     config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
     with pytest.raises(BlockFailure) as refused:
         await Dhis2AnalyticsRunOperator().fetch(handle(), config, ctx.as_context())
@@ -190,17 +187,17 @@ async def test_cancel_reports_that_the_job_cannot_be_told(ctx: FakeContext) -> N
     assert await Dhis2AnalyticsRunOperator().cancel(handle(), config, ctx.as_context()) is False
 
 
-async def test_a_task_that_has_not_reported_yet_probes_as_running(ctx: FakeContext, dhis2: respx.Router) -> None:
+async def test_a_task_that_has_not_reported_yet_probes_as_running(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     """A just-submitted job answers the same empty feed an unknown task does; time tells them apart."""
-    dhis2.get(TASK_URL).mock(return_value=json(200, []))
+    dhis2.get(TASK_URL).answers(json(200, []))
     config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
     probed = await Dhis2AnalyticsRunOperator().probe(handle(), config, ctx.as_context())
     assert probed.status is ProbeStatus.RUNNING
 
 
-async def test_a_task_silent_since_submission_probes_as_gone(ctx: FakeContext, dhis2: respx.Router) -> None:
+async def test_a_task_silent_since_submission_probes_as_gone(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     """The live instance answers an unknown task with 200 and an empty list, never a 404."""
-    dhis2.get(TASK_URL).mock(return_value=json(200, []))
+    dhis2.get(TASK_URL).answers(json(200, []))
     ctx.started_at = datetime.now(UTC) - GONE_AFTER - timedelta(seconds=1)
     config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
     probed = await Dhis2AnalyticsRunOperator().probe(handle(), config, ctx.as_context())
@@ -208,8 +205,8 @@ async def test_a_task_silent_since_submission_probes_as_gone(ctx: FakeContext, d
     assert "reported nothing" in (probed.message or "")
 
 
-async def test_a_task_that_once_reported_is_never_taken_for_gone(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.get(TASK_URL).mock(return_value=json(200, task_feed(notification("started", time=T1, uid="n1"))))
+async def test_a_task_that_once_reported_is_never_taken_for_gone(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(TASK_URL).answers(json(200, task_feed(notification("started", time=T1, uid="n1"))))
     ctx.started_at = datetime.now(UTC) - GONE_AFTER * 4
     config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
     probed = await Dhis2AnalyticsRunOperator().probe(handle(cursor("n1")), config, ctx.as_context())

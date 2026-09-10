@@ -1,12 +1,9 @@
 """Names the packaged fixtures, installs the dhis2 connection, and mocks the instance."""
 
-from collections.abc import Iterator
-
 import pytest
-import respx
 from pydantic import SecretStr
 
-from dhis2server import BASE_URL, CONNECTION, instance
+from dhis2server import BASE_URL, CONNECTION, Dhis2Server, serve
 from dirigent_dhis2.connection import Dhis2ConnectionConfig
 from dirigent_testing import FakeContext
 
@@ -32,8 +29,6 @@ def local_ctx(local_block_ctx: FakeContext) -> FakeContext:
 
 
 @pytest.fixture
-def dhis2() -> Iterator[respx.Router]:
-    """Route the pack's dhis2w-client through respx, with the version probes already scripted."""
-    with respx.mock(assert_all_called=False) as router:
-        instance(router)
-        yield router
+def dhis2(monkeypatch: pytest.MonkeyPatch) -> Dhis2Server:
+    """Answer the pack's dhis2w-client from a fake instance, with the version probes scripted."""
+    return serve(monkeypatch)

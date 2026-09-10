@@ -1,16 +1,13 @@
 """What the DHIS2 blocks share: turning a dhis2w-client failure into what the engine acts on.
 
-dhis2w-client speaks ``httpx`` where the plugin contract's default classifier knows only
-``httpx2``, so a connection refused or a read timeout raised through the client is not a
-transport error to the engine unless this module says so. Every block in the pack inherits
-its classification from the base classes here.
+Every block in the pack inherits its classification from the base classes here: a DHIS2
+refusal carries its status, and anything else falls to the plugin contract's default rule.
 
 The status helper duplicates the one in ``dirigent-blocks`` on purpose: an adapter pack may
 not depend on that package, and the roadmap lifts a helper into ``common`` only once a
 second pack has duplicated it.
 """
 
-import httpx
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError, UnsupportedVersionError
 from pydantic import BaseModel
 
@@ -50,8 +47,7 @@ def classify(error: Exception) -> ErrorClass:
     """Classify a failure raised through dhis2w-client, so the engine knows whether to retry.
 
     An instance whose version the client does not speak is a configuration problem and is
-    never retried; a transport failure on the client's own ``httpx`` is transient the way
-    the contract's ``httpx2`` one is.
+    never retried.
     """
     match error:
         case BlockFailure():
@@ -60,8 +56,6 @@ def classify(error: Exception) -> ErrorClass:
             return status_class(error.status_code)
         case AuthenticationError() | UnsupportedVersionError():
             return ErrorClass.REJECTED
-        case httpx.TransportError():
-            return ErrorClass.TRANSIENT
         case _:
             return classify_default(error)
 

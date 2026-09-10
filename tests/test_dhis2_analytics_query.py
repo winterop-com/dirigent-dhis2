@@ -1,10 +1,9 @@
 """Tests for dhis2.analytics_query: aggregate through the accessor, event through the path."""
 
 import pytest
-import respx
 from pydantic import JsonValue, ValidationError
 
-from dhis2server import BASE_URL, CONNECTION, json
+from dhis2server import BASE_URL, CONNECTION, Dhis2Server, json
 from dirigent_dhis2.analytics_query import (
     Dhis2AnalyticsQueryConfig,
     Dhis2AnalyticsQueryOperator,
@@ -23,8 +22,8 @@ GRID: dict[str, JsonValue] = {
 }
 
 
-async def test_an_aggregate_query_reads_the_grid(ctx: FakeContext, dhis2: respx.Router) -> None:
-    route = dhis2.get(ANALYTICS).mock(return_value=json(200, GRID))
+async def test_an_aggregate_query_reads_the_grid(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    route = dhis2.get(ANALYTICS).answers(json(200, GRID))
     output = await call_block(
         Dhis2AnalyticsQueryOperator(),
         {
@@ -39,14 +38,14 @@ async def test_an_aggregate_query_reads_the_grid(ctx: FakeContext, dhis2: respx.
     assert isinstance(output.json_body, dict)
     assert output.json_body["rows"] == [["fbfJHSPpUQD", "12"]]
     assert output.duration_ms >= 0
-    params = route.calls.last.request.url.params
+    params = route.last.url.params
     assert params.get_list("dimension") == ["dx:fbfJHSPpUQD", "pe:LAST_12_MONTHS"]
     assert params.get_list("filter") == ["ou:ImspTQPwCqd"]
 
 
-async def test_an_event_query_reads_under_the_program(ctx: FakeContext, dhis2: respx.Router) -> None:
+async def test_an_event_query_reads_under_the_program(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     body: dict[str, JsonValue] = {"headers": [], "rows": [], "width": 0, "height": 0}
-    route = dhis2.get(f"{BASE_URL}/api/analytics/events/query/IpHINAT79UW.json").mock(return_value=json(200, body))
+    route = dhis2.get(f"{BASE_URL}/api/analytics/events/query/IpHINAT79UW.json").answers(json(200, body))
     output = await call_block(
         Dhis2AnalyticsQueryOperator(),
         {
@@ -61,11 +60,11 @@ async def test_an_event_query_reads_under_the_program(ctx: FakeContext, dhis2: r
     )
     assert isinstance(output, Dhis2AnalyticsQueryOutput)
     assert output.json_body == body
-    assert route.calls.last.request.url.path == "/api/analytics/events/query/IpHINAT79UW.json"
+    assert route.last.url.path == "/api/analytics/events/query/IpHINAT79UW.json"
 
 
-async def test_an_aggregate_refusal_is_classified_by_its_status(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.get(ANALYTICS).mock(return_value=json(409, {"message": "no"}))
+async def test_an_aggregate_refusal_is_classified_by_its_status(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(ANALYTICS).answers(json(409, {"message": "no"}))
     with pytest.raises(BlockFailure) as refused:
         await call_block(
             Dhis2AnalyticsQueryOperator(),

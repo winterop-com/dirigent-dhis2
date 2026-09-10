@@ -1,11 +1,10 @@
 """Tests for what the blocks share: classifying a dhis2w-client failure the way the engine needs."""
 
-import httpx
+import httpx2
 import pytest
-import respx
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError, UnsupportedVersionError, VersionPinMismatchError
 
-from dhis2server import BASE_URL, CONNECTION, instance
+from dhis2server import BASE_URL, CONNECTION, serve
 from dirigent_dhis2 import Dhis2Plugin
 from dirigent_dhis2.metadata import Dhis2MetadataOperator
 from dirigent_dhis2.web import classify, refuse
@@ -16,8 +15,8 @@ from dirigent_testing import FakeContext, call_block
 @pytest.mark.parametrize(
     ("error", "expected"),
     [
-        (httpx.ConnectError("refused"), ErrorClass.TRANSIENT),
-        (httpx.ReadTimeout("slow"), ErrorClass.TRANSIENT),
+        (httpx2.ConnectError("refused"), ErrorClass.TRANSIENT),
+        (httpx2.ReadTimeout("slow"), ErrorClass.TRANSIENT),
         (Dhis2ApiError(503, "Service Unavailable"), ErrorClass.TRANSIENT),
         (Dhis2ApiError(409, "Conflict"), ErrorClass.REJECTED),
         (AuthenticationError("401 Unauthorized at GET /api/x"), ErrorClass.REJECTED),
@@ -37,7 +36,7 @@ def test_every_contributed_block_classifies_through_the_shared_rule() -> None:
     blocks: list[AnyOperator | AnySensor] = [*contribution.operators, *contribution.sensors]
     assert blocks
     for block in blocks:
-        assert block.classify_error(httpx.ConnectError("refused")) is ErrorClass.TRANSIENT, block.spec.id
+        assert block.classify_error(httpx2.ConnectError("refused")) is ErrorClass.TRANSIENT, block.spec.id
         assert block.classify_error(UnsupportedVersionError("2.40.0", ["v42"])) is ErrorClass.REJECTED, block.spec.id
 
 
@@ -54,20 +53,23 @@ def test_a_refusal_without_a_web_message_carries_the_reason_phrase() -> None:
     assert failure.error_class is ErrorClass.TRANSIENT
 
 
-async def test_an_unreachable_instance_is_a_transient_failure(ctx: FakeContext) -> None:
-    with respx.mock(assert_all_called=False) as router:
-        router.get(f"{BASE_URL}/").mock(side_effect=httpx.ConnectError("refused"))
-        router.get(f"{BASE_URL}/api/system/info").mock(side_effect=httpx.ConnectError("refused"))
-        operator = Dhis2MetadataOperator()
-        with pytest.raises(httpx.ConnectError) as raised:
-            await call_block(operator, {"connection": CONNECTION, "resource": "dataElements"}, ctx)
+async def test_an_unreachable_instance_is_a_transient_failure(
+    ctx: FakeContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dhis2 = serve(monkeypatch)
+    dhis2.get(f"{BASE_URL}/").raises(httpx2.ConnectError("refused"))
+    dhis2.get(f"{BASE_URL}/api/system/info").raises(httpx2.ConnectError("refused"))
+    operator = Dhis2MetadataOperator()
+    with pytest.raises(httpx2.ConnectError) as raised:
+        await call_block(operator, {"connection": CONNECTION, "resource": "dataElements"}, ctx)
     assert operator.classify_error(raised.value) is ErrorClass.TRANSIENT
 
 
-async def test_an_instance_version_the_client_cannot_speak_is_rejected(ctx: FakeContext) -> None:
-    with respx.mock(assert_all_called=False) as router:
-        instance(router, version="2.40.0")
-        operator = Dhis2MetadataOperator()
-        with pytest.raises(UnsupportedVersionError) as raised:
-            await call_block(operator, {"connection": CONNECTION, "resource": "dataElements"}, ctx)
+async def test_an_instance_version_the_client_cannot_speak_is_rejected(
+    ctx: FakeContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    serve(monkeypatch, version="2.40.0")
+    operator = Dhis2MetadataOperator()
+    with pytest.raises(UnsupportedVersionError) as raised:
+        await call_block(operator, {"connection": CONNECTION, "resource": "dataElements"}, ctx)
     assert operator.classify_error(raised.value) is ErrorClass.REJECTED
