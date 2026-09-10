@@ -2,34 +2,32 @@
 
 import base64
 
-import httpx
+import httpx2
 import pytest
-import respx
 from pydantic import SecretStr, ValidationError
 
-from dhis2server import instance
+from dhis2server import serve
 from dirigent_dhis2.connection import Dhis2ConnectionConfig, Dhis2ConnectionKind, build_client
 
 
-async def _authorization_sent(config: Dhis2ConnectionConfig) -> str:
+async def _authorization_sent(monkeypatch: pytest.MonkeyPatch, config: Dhis2ConnectionConfig) -> str:
     """Open a client from the config and read the Authorization header it put on the wire."""
-    with respx.mock(assert_all_called=False) as router:
-        instance(router, base_url=config.base_url)
-        route = router.get(f"{config.base_url}/api/me").mock(return_value=httpx.Response(200, json={}))
-        async with build_client(config) as client:
-            await client.get_raw("/api/me")
-    return route.calls.last.request.headers["authorization"]
+    dhis2 = serve(monkeypatch, base_url=config.base_url)
+    route = dhis2.get(f"{config.base_url}/api/me").answers(httpx2.Response(200, json={}))
+    async with build_client(config) as client:
+        await client.get_raw("/api/me")
+    return route.last.headers["authorization"]
 
 
-async def test_an_api_token_connection_sends_the_token() -> None:
+async def test_an_api_token_connection_sends_the_token(monkeypatch: pytest.MonkeyPatch) -> None:
     config = Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("d2pat_abc"))
-    assert await _authorization_sent(config) == "ApiToken d2pat_abc"
+    assert await _authorization_sent(monkeypatch, config) == "ApiToken d2pat_abc"
 
 
-async def test_a_basic_auth_connection_sends_the_pair() -> None:
+async def test_a_basic_auth_connection_sends_the_pair(monkeypatch: pytest.MonkeyPatch) -> None:
     config = Dhis2ConnectionConfig(base_url="http://x", basic_username="u", basic_password=SecretStr("p"))
     expected = "Basic " + base64.b64encode(b"u:p").decode()
-    assert await _authorization_sent(config) == expected
+    assert await _authorization_sent(monkeypatch, config) == expected
 
 
 def test_a_connection_with_both_credentials_is_refused() -> None:
@@ -47,39 +45,32 @@ def test_a_basic_username_without_a_password_is_refused() -> None:
         Dhis2ConnectionConfig(base_url="http://x", basic_username="u")
 
 
-async def test_the_connection_check_reports_the_instance_version() -> None:
-    with respx.mock(assert_all_called=False) as router:
-        instance(router, base_url="http://x", version="2.43.1")
-        report = await Dhis2ConnectionKind().check(Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("t")))
+async def test_the_connection_check_reports_the_instance_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    serve(monkeypatch, base_url="http://x", version="2.43.1")
+    report = await Dhis2ConnectionKind().check(Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("t")))
     assert report.healthy is True
     assert report.version == "2.43.1"
 
 
-async def test_a_refused_credential_reports_unhealthy() -> None:
-    with respx.mock(assert_all_called=False) as router:
-        router.get("http://x/").mock(return_value=httpx.Response(200, text="<html></html>"))
-        router.get("http://x/api/system/info").mock(
-            return_value=httpx.Response(401, json={"httpStatus": "Unauthorized"})
-        )
-        report = await Dhis2ConnectionKind().check(
-            Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("bad"))
-        )
+async def test_a_refused_credential_reports_unhealthy(monkeypatch: pytest.MonkeyPatch) -> None:
+    dhis2 = serve(monkeypatch, base_url="http://x")
+    dhis2.get("http://x/api/system/info").answers(httpx2.Response(401, json={"httpStatus": "Unauthorized"}))
+    report = await Dhis2ConnectionKind().check(Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("bad")))
     assert report.healthy is False
     assert "401" in (report.detail or "")
 
 
-async def test_an_unreachable_instance_reports_rather_than_raises() -> None:
-    with respx.mock(assert_all_called=False) as router:
-        router.get("http://x/").mock(side_effect=httpx.ConnectError("refused"))
-        router.get("http://x/api/system/info").mock(side_effect=httpx.ConnectError("refused"))
-        report = await Dhis2ConnectionKind().check(Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("t")))
+async def test_an_unreachable_instance_reports_rather_than_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    dhis2 = serve(monkeypatch, base_url="http://x")
+    dhis2.get("http://x/").raises(httpx2.ConnectError("refused"))
+    dhis2.get("http://x/api/system/info").raises(httpx2.ConnectError("refused"))
+    report = await Dhis2ConnectionKind().check(Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("t")))
     assert report.healthy is False
     assert "ConnectError" in (report.detail or "")
 
 
-async def test_an_unsupported_instance_version_reports_unhealthy() -> None:
-    with respx.mock(assert_all_called=False) as router:
-        instance(router, base_url="http://x", version="2.40.0")
-        report = await Dhis2ConnectionKind().check(Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("t")))
+async def test_an_unsupported_instance_version_reports_unhealthy(monkeypatch: pytest.MonkeyPatch) -> None:
+    serve(monkeypatch, base_url="http://x", version="2.40.0")
+    report = await Dhis2ConnectionKind().check(Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("t")))
     assert report.healthy is False
     assert "UnsupportedVersionError" in (report.detail or "")

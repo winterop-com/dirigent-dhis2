@@ -4,10 +4,9 @@ import importlib
 from typing import Any, cast
 
 import pytest
-import respx
 from pydantic import ValidationError
 
-from dhis2server import BASE_URL, CONNECTION, json
+from dhis2server import BASE_URL, CONNECTION, Dhis2Server, json
 from dirigent_dhis2.metadata import Dhis2MetadataConfig, Dhis2MetadataOperator, Dhis2MetadataOutput, accessor_name
 from dirigent_plugin import BlockFailure, ErrorClass
 from dirigent_testing import FakeContext, call_block
@@ -19,8 +18,8 @@ READ = {
 }
 
 
-async def test_a_metadata_read_carries_the_collection(ctx: FakeContext, dhis2: respx.Router) -> None:
-    route = dhis2.get(DATA_ELEMENTS).mock(return_value=json(200, READ))
+async def test_a_metadata_read_carries_the_collection(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    route = dhis2.get(DATA_ELEMENTS).answers(json(200, READ))
     output = await call_block(
         Dhis2MetadataOperator(),
         {"connection": CONNECTION, "resource": "dataElements", "fields": "id,name,valueType"},
@@ -29,35 +28,35 @@ async def test_a_metadata_read_carries_the_collection(ctx: FakeContext, dhis2: r
     assert isinstance(output, Dhis2MetadataOutput)
     assert output.json_body == READ
     assert output.duration_ms >= 0
-    params = route.calls.last.request.url.params
+    params = route.last.url.params
     assert params["fields"] == "id,name,valueType"
     assert params["paging"] == "false"
 
 
-async def test_a_single_filter_string_is_sent_as_one_filter(ctx: FakeContext, dhis2: respx.Router) -> None:
-    route = dhis2.get(DATA_ELEMENTS).mock(return_value=json(200, READ))
+async def test_a_single_filter_string_is_sent_as_one_filter(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    route = dhis2.get(DATA_ELEMENTS).answers(json(200, READ))
     await call_block(
         Dhis2MetadataOperator(),
         {"connection": CONNECTION, "resource": "dataElements", "filter": "domainType:eq:AGGREGATE"},
         ctx,
     )
-    assert route.calls.last.request.url.params.get_list("filter") == ["domainType:eq:AGGREGATE"]
+    assert route.last.url.params.get_list("filter") == ["domainType:eq:AGGREGATE"]
 
 
-async def test_paging_sends_the_page_and_size(ctx: FakeContext, dhis2: respx.Router) -> None:
-    route = dhis2.get(f"{BASE_URL}/api/organisationUnits").mock(return_value=json(200, {"organisationUnits": []}))
+async def test_paging_sends_the_page_and_size(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    route = dhis2.get(f"{BASE_URL}/api/organisationUnits").answers(json(200, {"organisationUnits": []}))
     await call_block(
         Dhis2MetadataOperator(),
         {"connection": CONNECTION, "resource": "organisationUnits", "paging": True, "page": 2, "page_size": 50},
         ctx,
     )
-    params = route.calls.last.request.url.params
+    params = route.last.url.params
     assert params["paging"] == "true"
     assert params["page"] == "2"
     assert params["pageSize"] == "50"
 
 
-async def test_a_resource_the_version_does_not_know_is_rejected(ctx: FakeContext, dhis2: respx.Router) -> None:
+async def test_a_resource_the_version_does_not_know_is_rejected(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     with pytest.raises(BlockFailure) as refused:
         await call_block(
             Dhis2MetadataOperator(),
@@ -67,8 +66,8 @@ async def test_a_resource_the_version_does_not_know_is_rejected(ctx: FakeContext
     assert refused.value.error_class is ErrorClass.REJECTED
 
 
-async def test_a_refused_read_is_classified_by_its_status(ctx: FakeContext, dhis2: respx.Router) -> None:
-    dhis2.get(DATA_ELEMENTS).mock(return_value=json(409, {}))
+async def test_a_refused_read_is_classified_by_its_status(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(DATA_ELEMENTS).answers(json(409, {}))
     with pytest.raises(BlockFailure) as refused:
         await call_block(
             Dhis2MetadataOperator(),
