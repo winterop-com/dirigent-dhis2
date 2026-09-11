@@ -64,7 +64,7 @@ class Dhis2AnalyticsQueryConfig(BlockModel):
 class Dhis2AnalyticsQueryOutput(BlockModel):
     """The query the analytics endpoint answered, for a downstream step to reference by field."""
 
-    json_body: JsonValue | None = None
+    body: JsonValue | None = None
     """The parsed response: the analytics grid, its headers, metaData, and rows."""
 
     duration_ms: int
@@ -111,7 +111,7 @@ class Dhis2AnalyticsQueryOperator(Dhis2Operator[Dhis2AnalyticsQueryConfig, Dhis2
                 body = await self._events(client.analytics, config)
         duration = round((time.monotonic() - started) * 1000)
         ctx.log.info("analytics query read", mode=config.mode, duration_ms=duration)
-        return Dhis2AnalyticsQueryOutput(json_body=body, duration_ms=duration)
+        return Dhis2AnalyticsQueryOutput(body=body, duration_ms=duration)
 
     async def _aggregate(self, analytics: AnalyticsAccessor, params: dict[str, Any]) -> JsonValue:
         """Read the aggregate grid through the client's analytics accessor."""

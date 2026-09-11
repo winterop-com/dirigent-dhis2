@@ -26,7 +26,7 @@ async def test_a_tracker_read_carries_the_page(ctx: FakeContext, dhis2: Dhis2Ser
         ctx,
     )
     assert isinstance(output, Dhis2TrackerOutput)
-    assert output.json_body == PAGE
+    assert output.body == PAGE
     assert output.duration_ms >= 0
     params = route.last.url.params
     assert params["program"] == "IpHINAT79UW"

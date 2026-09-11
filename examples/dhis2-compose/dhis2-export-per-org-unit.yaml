@@ -23,8 +23,15 @@
 # not null, absent. A step reading the batch therefore sees only what worked, and has to
 # treat a short list as the normal case.
 #
-# Each item writes its own file, keyed by the org unit, because a save_to that did not vary
-# per item would have thirteen exports overwriting one another.
+# The batch is written out once, after the fan, and not once per district. A fanned step's
+# output is the list of its items' outputs, and there is no item-wise wiring between two
+# fanned steps -- an item of the export cannot reach the matching item of a write -- so the
+# write is a join over the whole list. One file per district is a different shape: fan
+# pipeline.run over the org units and let each child export and write its own.
+#
+# Under items: continue that list is the districts that worked, in their order, with the
+# failed ones absent. It is therefore what landed, not a row per district, which is the
+# other reason the file is one bundle and not thirteen named ones.
 #
 #   dg run --local examples/dhis2-compose/dhis2-export-per-org-unit.yaml
 #   dg run --local examples/dhis2-compose/dhis2-export-per-org-unit.yaml \
@@ -41,6 +48,7 @@ tags: [dhis2, storage]
 requires:
   blocks:
     - dhis2.data_value_set_export
+    - storage.write
 
 params:
   type: object
@@ -82,4 +90,12 @@ steps:
       period: "${params.period}"
       org_unit: "${item}"
       children: true
-      save_to: "${run.scratch}/dhis2/${params.period}-${item}.json"
+
+  bundle:
+    block: storage.write
+    depends_on: [export]
+    config:
+      target: "${run.scratch}/dhis2/${params.period}-exports.json"
+      # The fan's output is the list of its items' outputs, so this reads .output and not
+      # .output.body, which is a field of one item's output.
+      value: ${steps.export.output}

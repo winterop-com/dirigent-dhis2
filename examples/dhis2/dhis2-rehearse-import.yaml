@@ -55,5 +55,5 @@ steps:
     depends_on: [export]
     config:
       connection: dhis2-demo
-      data_values: ${steps.export.output.json_body}
+      data_values: ${steps.export.output.body}
       dry_run: true

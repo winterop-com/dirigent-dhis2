@@ -80,7 +80,7 @@ steps:
     block: validate.schema
     config:
       schema: dhis2-data-value-set
-      value: "{{ steps.export.json_body }}"
+      input: ${steps.export.output.body}
 ```
 
 A schema is also what a pipeline's parameters are declared with, so a parameter written

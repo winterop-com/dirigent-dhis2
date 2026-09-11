@@ -17,8 +17,9 @@
 # the generic pattern: how to follow any system's asynchronous task with http.request and
 # http.ready when no adapter exists, preserving the complete task log for a person.
 #
-# That log is long -- 129 notifications and about 25kb on the demo -- so it is stored as an
-# artifact rather than inlined, and the run's closing record names it rather than holding it.
+# That log is long -- 129 notifications and about 25kb on the demo -- so the last step writes
+# it out as a file with storage.write, which is the one block that puts a value into storage,
+# and the run's closing record names the URI rather than holding the log.
 # A local run deletes its artifacts on the way out, so read it back with --keep, which leaves
 # them in place and prints where:
 #
@@ -31,7 +32,7 @@ code: dhis2-run-analytics
 name: Run DHIS2 analytics
 description: Start a bounded DHIS2 analytics-table update and watch its asynchronous task complete.
 
-tags: [dhis2, http, sensor]
+tags: [dhis2, http, sensor, storage]
 
 concurrency: skip
 
@@ -39,6 +40,7 @@ requires:
   blocks:
     - http.request
     - http.ready
+    - storage.write
 
 connections:
   dhis2-demo:
@@ -81,7 +83,7 @@ steps:
     deadline: 2h
     config:
       connection: dhis2-demo
-      path: "${steps.start_analytics.output.json_body.response.relativeNotifierEndpoint}"
+      path: "${steps.start_analytics.output.body.response.relativeNotifierEndpoint}"
       expect_status: [200]
       contains: '"completed":true'
 
@@ -90,6 +92,12 @@ steps:
     depends_on: [wait_for_analytics]
     config:
       connection: dhis2-demo
-      path: "${steps.start_analytics.output.json_body.response.relativeNotifierEndpoint}"
+      path: "${steps.start_analytics.output.body.response.relativeNotifierEndpoint}"
       method: GET
-      save_to: "${run.scratch}/dhis2/analytics-task.json"
+
+  save_task_log:
+    block: storage.write
+    depends_on: [read_task_log]
+    config:
+      target: "${run.scratch}/dhis2/analytics-task.json"
+      value: ${steps.read_task_log.output.body}

@@ -15,8 +15,9 @@ Two neighbours hold what this shelf deliberately does not. The generic-HTTP way 
 to DHIS2 -- what you reach for when no adapter is installed, or for a call the adapter does
 not yet cover, such as a CSV export, a period range, a completion registration or a
 stage-scoped event read -- lives in [`../dhis2-http/`](../dhis2-http). Documents that put a
-`dhis2.*` block beside one of the engine's own -- a schema gate, a jq reshape, a fan-out --
-live in [`../dhis2-compose/`](../dhis2-compose).
+`dhis2.*` block beside one of the engine's own -- a schema gate, a jq reshape, a fan-out, or
+the `storage.write` and `storage.read` steps that are the only way a value becomes a file and
+comes back -- live in [`../dhis2-compose/`](../dhis2-compose).
 
 Each document carries the connection it uses so it runs standalone; an instance you own
 names its connections instead, and a server refuses a document that embeds one, so applying
@@ -37,14 +38,12 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | --- | --- |
 | [dhis2-export-data-values.yaml](dhis2-export-data-values.yaml) | Export one data set, for one period, at one organisation unit. |
 | [dhis2-export-with-children.yaml](dhis2-export-with-children.yaml) | The same export widened to the org unit's descendants with `children`. |
-| [dhis2-export-to-storage.yaml](dhis2-export-to-storage.yaml) | Stream an export to a storage URI with `save_to` instead of carrying it inline. |
 | [dhis2-import-dry-run.yaml](dhis2-import-dry-run.yaml) | Send a hand-written data value set with `dry_run` on and read the summary. |
 | [dhis2-import-create.yaml](dhis2-import-create.yaml) | `import_strategy: CREATE` -- fill the gaps, revise nothing. |
 | [dhis2-import-update.yaml](dhis2-import-update.yaml) | `import_strategy: UPDATE` -- revise what is there, invent nothing. |
 | [dhis2-import-create-and-update.yaml](dhis2-import-create-and-update.yaml) | `import_strategy: CREATE_AND_UPDATE` -- the file is the truth. |
 | [dhis2-import-delete.yaml](dhis2-import-delete.yaml) | `import_strategy: DELETE` -- remove the values a document names. |
 | [dhis2-import-partial.yaml](dhis2-import-partial.yaml) | `atomic_mode: NONE` -- take the good values, report the rest as conflicts. |
-| [dhis2-import-from-storage.yaml](dhis2-import-from-storage.yaml) | Export to storage and import back from it with `source_uri`. |
 | [dhis2-rehearse-import.yaml](dhis2-rehearse-import.yaml) | The round trip: export a month, then hand it straight back as a dry run. |
 
 ## Completeness
@@ -66,7 +65,7 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | [dhis2-native-analytics.yaml](dhis2-native-analytics.yaml) | `dhis2.analytics_run` submits the job and streams its notifications into the log. |
 | [dhis2-analytics-resource-tables.yaml](dhis2-analytics-resource-tables.yaml) | The same job with every data table skipped: the run to make after a metadata change. |
 | [dhis2-rebuild-then-query.yaml](dhis2-rebuild-then-query.yaml) | Rebuild, then read -- the edge that makes the query wait for the job to finish. |
-| [dhis2-analytics.yaml](dhis2-analytics.yaml) | The production-shaped nightly: sign-off gate, rebuild, export to storage. |
+| [dhis2-analytics.yaml](dhis2-analytics.yaml) | The production-shaped nightly: sign-off gate, rebuild, export, with a nightly's deadlines and retries. |
 
 ## Tracker
 

@@ -12,7 +12,7 @@ rather than composing them out of raw HTTP:
 | --- | --- | --- |
 | `dhis2.analytics_run` | operator | Submits the analytics tables job and follows its task notifications to the end. |
 | `dhis2.analytics_query` | operator | Runs one analytics query, aggregate or event/enrollment, and hands the grid on. |
-| `dhis2.data_value_set_export` | operator | Reads a data value set for a data set, period and org unit, inline or to storage. |
+| `dhis2.data_value_set_export` | operator | Reads a data value set for a data set, period and org unit, and hands the document on. |
 | `dhis2.data_value_set_import` | operator | Imports a data value set, parsing the import summary and its conflicts. |
 | `dhis2.metadata` | operator | Reads one metadata collection through the version-bound generic accessor. |
 | `dhis2.tracker` | operator | Reads a page of tracked entities, enrollments or events from `/api/tracker`. |
@@ -61,7 +61,7 @@ One file per operation, grouped by how it is built:
 | Shelf | What is in it |
 | --- | --- |
 | [`examples/dhis2/`](examples/dhis2) | The native adapter: exports and their import strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker collections, the metadata reads. |
-| [`examples/dhis2-compose/`](examples/dhis2-compose) | A `dhis2.*` block beside one of the engine's own: a schema gate, a jq reshape, a fan-out over org units. |
+| [`examples/dhis2-compose/`](examples/dhis2-compose) | A `dhis2.*` block beside one of the engine's own: a schema gate, a jq reshape, a fan-out over org units, a write to storage and the read back. |
 | [`examples/dhis2-http/`](examples/dhis2-http) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a completion registration, a stage-scoped event read. |
 | [`examples/validate/`](examples/validate) | A metadata read held to a shape: a `fields=` projection gated on `validate.schema`, with the schema carried and named. |
 | [`examples/schemas/`](examples/schemas) | The JSON Schemas that pin the reads the DHIS2 series makes, applied on their own. |

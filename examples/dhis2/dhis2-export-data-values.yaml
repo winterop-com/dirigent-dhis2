@@ -5,7 +5,7 @@
 # the intersection of three things -- a data set, a period, an organisation unit -- and the
 # instance answers with the values recorded there and nothing else.
 #
-# What comes back rides in the step's output as json_body: an object naming the dataSet,
+# What comes back rides in the step's output as body: an object naming the dataSet,
 # period and orgUnit that were asked for, and a dataValues array. Each value carries the
 # dataElement it is a value of, the categoryOptionCombo that says which disaggregation cell
 # it sits in, the attributeOptionCombo, the value itself as a string, and the audit fields

@@ -1,0 +1,95 @@
+# Move a data value set between two instances, through a file on the way.
+#
+# The document that moves data between instances is four hops, because storage has two doors
+# and each is a step:
+#
+#   export  dhis2.data_value_set_export. Output: body, the document the instance answered
+#           with.
+#   save    storage.write. That body out at a URI. Output: uri, bytes_written, content_type.
+#   reload  storage.read. The same URI back in. The object is application/json by its
+#           extension, so the read decodes it and answers with `value`; max_size is how much
+#           of it this step will hold, and an object past it is refused rather than truncated.
+#   load    dhis2.data_value_set_import. The value as the document to send.
+#
+# The saved file is the point of the shape: it is what a person reads when the import
+# disagrees with the export, and what a re-run sends again without asking the source instance
+# for the month a second time.
+#
+# HOW MUCH THIS MOVES. Every hop passes through the worker, so the month has to fit in it --
+# a national instance's whole export does not, and is moved a district at a time instead,
+# which dhis2-export-per-org-unit.yaml fans out.
+#
+# Both steps point at the same demo connection here so the example runs standalone. The real
+# document names two: read from source, write to target. Repointing the import's connection
+# is the whole edit, which is the argument for naming a connection rather than writing a URL
+# into a step.
+#
+#   dg run --local examples/dhis2-compose/dhis2-import-from-storage.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-import-from-storage
+name: Move a data value set through storage
+description: Export a data value set, write it to storage, read it back, and import it as a dry run.
+
+tags: [dhis2, storage]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+    - dhis2.data_value_set_import
+    - storage.write
+    - storage.read
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to move.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2-demo
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: DiszpKrYNg8
+
+  save:
+    block: storage.write
+    depends_on: [export]
+    config:
+      target: "${run.scratch}/dhis2/child-health-${params.period}.json"
+      value: ${steps.export.output.body}
+
+  reload:
+    block: storage.read
+    depends_on: [save]
+    config:
+      # The URI the write decided rather than the literal path: one step says where the file
+      # went, the next reads it from there.
+      source: ${steps.save.output.uri}
+      max_size: 8mb
+
+  load:
+    block: dhis2.data_value_set_import
+    depends_on: [reload]
+    config:
+      connection: dhis2-demo
+      data_values: ${steps.reload.output.value}
+      import_strategy: CREATE_AND_UPDATE
+      # The demo is shared, and this document sends it its own data back. Point the import
+      # at your own instance before turning this off.
+      dry_run: true
