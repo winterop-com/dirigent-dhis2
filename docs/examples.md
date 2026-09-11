@@ -1,8 +1,8 @@
 # Examples
 
 The pack ships one document per operation, small enough to read in a sitting and to lift into a
-real pipeline unchanged. They live in [`examples/`](https://github.com/winterop-com/dirigent-dhis2/tree/main/examples),
-on five shelves:
+real pipeline unchanged. They live in [`src/dirigent_dhis2/shelves/`](https://github.com/winterop-com/dirigent-dhis2/tree/main/src/dirigent_dhis2/shelves),
+on six shelves:
 
 | Shelf | What is on it |
 | --- | --- |
@@ -11,6 +11,18 @@ on five shelves:
 | [`dhis2-http/`](#the-generic-http-way) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a completion registration, a stage-scoped event read. |
 | [`validate/`](#a-read-held-to-a-shape) | A metadata read held to a shape: a `fields=` projection gated on `validate.schema`, with the schema carried and named. |
 | [`schemas/`](#schemas) | The JSON Schemas that pin the reads the DHIS2 series makes, applied on their own. |
+| [`starters/`](#starters) | The `starter`-tagged flows: the same work naming a `dhis2` connection rather than carrying one. |
+
+## Reaching them once the pack is installed
+
+The shelves ship inside the distribution and the pack contributes them through the
+`examples()` hook, so an instance with the pack installed has the catalogue without a
+checkout:
+
+```bash
+dg examples list --plugin dhis2
+dg examples show dhis2-export-and-import
+```
 
 ## Running one
 
@@ -198,3 +210,30 @@ A schema carries its own identity in its keywords: `$id` becomes the `code` it i
 | `dhis2-number-data-elements.json` | `dhis2-number-data-elements` | A `dataElements` array whose every `valueType` is `NUMBER`. |
 | `dhis2-data-elements-v42.json` | `dhis2-data-elements-v42` | The v42-pinned `dataElements` shape: the 2.42 `valueType` enum and closed rows, so a 2.43 bump is caught. |
 | `dhis2-data-value-set.json` | `dhis2-data-value-set` | The `/api/dataValueSets` envelope, every id held to `dhis2-uid` and every period to `dhis2-period`. |
+
+## Starters
+
+`src/dirigent_dhis2/shelves/starters/`. Every other shelf carries the connection it uses so
+its documents run standalone; a server refuses a carried connection, so none of them apply to
+an instance unedited. This shelf is the other half: the same flows written the way an instance
+accepts them, naming a `dhis2` connection and declaring it under `requires.connections`, with
+nothing carried. Each is tagged `starter`, which is what `dg pipeline new` copies from:
+
+```bash
+dg connection create dhis2 --kind dhis2 --set base_url=... --set basic_username=... --set basic_password=...
+dg pipeline new dhis2-export-and-import
+```
+
+The copy is verbatim apart from the `code:` line and the dropped `starter` tag, so the
+comments come with it, and each document ends with a TO MAKE IT YOURS paragraph naming the
+edits a real instance needs -- the uids are the play demo's.
+
+| File | Code | What it starts you with |
+| --- | --- | --- |
+| `dhis2-export-and-import.yaml` | `dhis2-export-and-import` | The round trip: read a data value set and hand it to an import, rehearsed with `dry_run`. |
+| `dhis2-export-through-storage.yaml` | `dhis2-export-through-storage` | The same move with the file kept: export, write, read back, import. |
+| `dhis2-export-gated-on-a-schema.yaml` | `dhis2-export-gated-on-a-schema` | An export held to a named schema, so a changed payload stops at the step it arrived in. |
+| `dhis2-export-reshaped-to-totals.yaml` | `dhis2-export-reshaped-to-totals` | An export reshaped with `transform.jq` into the shape the next system reads. |
+| `dhis2-rebuild-then-report.yaml` | `dhis2-rebuild-then-report` | The analytics ordering: rebuild the tables, then read an indicator out of them. |
+| `dhis2-signed-off-then-export.yaml` | `dhis2-signed-off-then-export` | A sensor gate: hold until a month is marked complete, then read it. |
+| `dhis2-metadata-snapshot-to-storage.yaml` | `dhis2-metadata-snapshot-to-storage` | A metadata collection read with a fields projection and written to storage. |

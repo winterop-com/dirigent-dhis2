@@ -1,0 +1,57 @@
+# Take a dated snapshot of a metadata collection and keep it.
+#
+# Metadata drifts: a data element is renamed, an org unit is closed, a category combo is
+# swapped underneath a data set, and the pipeline that was correct last quarter starts
+# posting into a cell nobody reads. A snapshot on a schedule is the cheapest answer -- it
+# costs one read and one file, and it turns "when did this change?" into a diff.
+#
+# dhis2.metadata reads one collection through the version-bound generic accessor, so the
+# fields projection is what keeps the answer small: ask for the columns the diff is about,
+# not for :owner.
+#
+# TO MAKE IT YOURS: create the `dhis2` connection, choose the collection and the fields you
+# want to watch, point the target at durable storage rather than the run's scratch space,
+# and add a schedule so a snapshot lands every night.
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-metadata-snapshot-to-storage
+name: Snapshot a metadata collection to storage
+description: Read one metadata collection with a fields projection and write it to storage under the run's date.
+
+tags: [dhis2, metadata, storage, starter]
+
+requires:
+  blocks:
+    - dhis2.metadata
+    - storage.write
+  connections:
+    - dhis2
+
+params:
+  type: object
+  properties:
+    resource:
+      type: string
+      default: dataElements
+      description: The metadata collection to snapshot, such as dataElements or organisationUnits.
+    fields:
+      type: string
+      default: id,name,shortName,valueType,domainType
+      description: The fields projection the snapshot keeps.
+
+steps:
+  read:
+    block: dhis2.metadata
+    config:
+      connection: dhis2
+      resource: ${params.resource}
+      fields: ${params.fields}
+      order: [name:asc]
+
+  save:
+    block: storage.write
+    depends_on: [read]
+    config:
+      target: "${run.scratch}/dhis2/${params.resource}.json"
+      value: ${steps.read.output.body}

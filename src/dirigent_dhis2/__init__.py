@@ -1,5 +1,9 @@
 """The DHIS2 adapter pack: the ``dhis2`` connection kind and the blocks for one instance."""
 
+from collections.abc import Sequence
+from importlib.resources import files
+from importlib.resources.abc import Traversable
+
 from dirigent_dhis2.analytics import (
     Dhis2AnalyticsRunConfig,
     Dhis2AnalyticsRunOperator,
@@ -46,6 +50,9 @@ from dirigent_dhis2.tracker import (
 from dirigent_dhis2.web import Dhis2Operator, Dhis2Sensor, classify
 from dirigent_plugin import Contribution, extension
 
+#: The directory the pack's example shelves live in, inside this distribution.
+SHELVES_DIRECTORY = "shelves"
+
 
 class Dhis2Plugin:
     """The plugin object the host discovers under the dirigent.plugins.v1 entry-point group."""
@@ -67,11 +74,19 @@ class Dhis2Plugin:
             formats=DHIS2_FORMATS,
         )
 
+    # optional=True keeps the pack loadable against a host whose dirigent-plugin predates the
+    # examples() extension point, where an unknown implementation is a registration error.
+    @extension(optional=True)
+    def examples(self) -> Sequence[Traversable]:
+        """Contribute the example shelves this distribution carries."""
+        return [files(__package__ or "dirigent_dhis2") / SHELVES_DIRECTORY]
+
 
 plugin = Dhis2Plugin()
 
 __all__ = [
     "DHIS2_FORMATS",
+    "SHELVES_DIRECTORY",
     "Dhis2AnalyticsQueryConfig",
     "Dhis2AnalyticsQueryOperator",
     "Dhis2AnalyticsQueryOutput",

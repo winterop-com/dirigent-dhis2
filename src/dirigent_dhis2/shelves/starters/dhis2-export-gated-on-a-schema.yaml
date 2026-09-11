@@ -1,0 +1,65 @@
+# Export a data value set and refuse it if its shape has moved.
+#
+# The pack's blocks read DHIS2; the engine's own blocks are what a document composes them
+# with. This is the smallest useful pair: dhis2.data_value_set_export reads the values, and
+# validate.schema holds the answer to a shape written down in advance. A gate like this is
+# what turns "the payload changed and everything downstream quietly did the wrong thing"
+# into a run that stops at the step where the change arrived.
+#
+# The schema is named, not carried. The instance holds it under the code below, so several
+# pipelines gate on the same shape and it is corrected in one place; requires.schemas is
+# what refuses the document on an instance that does not hold it, before a run rather than
+# during one. The pack's own shelf ships the file to create it from:
+#
+#   dg schema create examples/schemas/dhis2-data-value-set.json
+#
+# What that schema pins is not just the presence of dataValues. Every identifier is held to
+# format: dhis2-uid and every period to format: dhis2-period, and both formats are
+# contributed by this pack, so an id that is not an 11-character DHIS2 uid fails the gate.
+#
+# TO MAKE IT YOURS: create the `dhis2` connection and the schema, then put the steps that
+# act on the values after the gate, so nothing downstream sees a payload that did not pass.
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-gated-on-a-schema
+name: Export a data value set, then check its shape
+description: Export a data value set and validate it against the schema the instance holds before anything reads it.
+
+tags: [dhis2, validate, starter]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+    - validate.schema
+  connections:
+    - dhis2
+  schemas:
+    - dhis2-data-value-set
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read.
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2
+      data_set: BfMAe6Itzgt
+      period: ${params.period}
+      org_unit: DiszpKrYNg8
+
+  gate:
+    block: validate.schema
+    depends_on: [export]
+    config:
+      # A gate reads a value, and the export's body is one, so nothing is read back from
+      # storage here. A document whose values arrived as a file gates what storage.read
+      # brought in instead.
+      input: ${steps.export.output.body}
+      schema: dhis2-data-value-set

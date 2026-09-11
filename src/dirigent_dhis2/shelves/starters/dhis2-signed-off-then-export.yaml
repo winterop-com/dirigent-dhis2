@@ -1,0 +1,58 @@
+# Wait for a month to be signed off, then read it.
+#
+# dhis2.data_set_complete is a sensor: each poke is one read-only question to the instance --
+# is this data set, for this period, at this organisation unit, marked complete? -- and the
+# run holds at the gate until the answer is yes. The export behind it then reads a month
+# somebody has stood behind, not a month still being typed in.
+#
+# The deadline is the interesting part against a real instance: a month nobody signs off
+# inside two days skips the run rather than failing it, so a quiet period is not an alert.
+# Between pokes the attempt is a row with a due time, not a worker, so waiting costs nothing.
+#
+# TO MAKE IT YOURS: create the `dhis2` connection, name the data set and facility you are
+# waiting on, take the period from a param or a schedule's window, and put whatever consumes
+# the month -- an import into a warehouse, a report, a file on a share -- behind the export.
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-signed-off-then-export
+name: Wait for a signed-off month, then export it
+description: Hold the run until a data set is marked complete for a period, then read that period's values.
+
+tags: [dhis2, sensor, starter]
+
+requires:
+  blocks:
+    - dhis2.data_set_complete
+    - dhis2.data_value_set_export
+  connections:
+    - dhis2
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period being waited on and read.
+
+steps:
+  signed_off:
+    block: dhis2.data_set_complete
+    poll: 1m
+    deadline: 48h
+    on_timeout: skip
+    config:
+      connection: dhis2
+      data_set: BfMAe6Itzgt
+      period: ${params.period}
+      org_unit: vSbt6cezomG
+
+  read:
+    block: dhis2.data_value_set_export
+    depends_on: [signed_off]
+    config:
+      connection: dhis2
+      data_set: BfMAe6Itzgt
+      period: ${params.period}
+      org_unit: vSbt6cezomG
