@@ -56,17 +56,31 @@ each carrying the connection it uses.
 
 ## Examples
 
+The shelves are installed with the pack: `dirigent_dhis2` contributes them through the
+`examples()` hook, so an instance with the pack installed lists them with
+
+```bash
+dg examples list --plugin dhis2
+dg examples list --plugin dhis2 --starter
+```
+
+They live in [`src/dirigent_dhis2/shelves/`](src/dirigent_dhis2/shelves), and the root
+`examples/` is a symlink to it so `dg run --local examples/...` reads from a checkout.
+
 One file per operation, grouped by how it is built:
 
 | Shelf | What is in it |
 | --- | --- |
-| [`examples/dhis2/`](examples/dhis2) | The native adapter: exports and their import strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker collections, the metadata reads. |
-| [`examples/dhis2-compose/`](examples/dhis2-compose) | A `dhis2.*` block beside one of the engine's own: a schema gate, a jq reshape, a fan-out over org units, a write to storage and the read back. |
-| [`examples/dhis2-http/`](examples/dhis2-http) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a completion registration, a stage-scoped event read. |
-| [`examples/validate/`](examples/validate) | A metadata read held to a shape: a `fields=` projection gated on `validate.schema`, with the schema carried and named. |
-| [`examples/schemas/`](examples/schemas) | The JSON Schemas that pin the reads the DHIS2 series makes, applied on their own. |
+| [`dhis2/`](src/dirigent_dhis2/shelves/dhis2) | The native adapter: exports and their import strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker collections, the metadata reads. |
+| [`dhis2-compose/`](src/dirigent_dhis2/shelves/dhis2-compose) | A `dhis2.*` block beside one of the engine's own: a schema gate, a jq reshape, a fan-out over org units, a write to storage and the read back. |
+| [`dhis2-http/`](src/dirigent_dhis2/shelves/dhis2-http) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a completion registration, a stage-scoped event read. |
+| [`validate/`](src/dirigent_dhis2/shelves/validate) | A metadata read held to a shape: a `fields=` projection gated on `validate.schema`, with the schema carried and named. |
+| [`schemas/`](src/dirigent_dhis2/shelves/schemas) | The JSON Schemas that pin the reads the DHIS2 series makes, applied on their own. |
+| [`starters/`](src/dirigent_dhis2/shelves/starters) | The documents tagged `starter`: the same flows naming a `dhis2` connection rather than carrying one, which is what `dg pipeline new` copies into a project. |
 
-Each shelf's README lists its files one line each.
+Each shelf's README lists its files one line each. Every shelf but `starters/` carries the
+connection it uses so each document runs standalone; a server refuses a carried connection,
+so the starters are the ones an instance accepts unedited.
 
 ## Licence
 

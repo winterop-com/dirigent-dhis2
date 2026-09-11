@@ -1,17 +1,17 @@
 """The pack's native examples must conform to its own contribution, checked by the kit.
 
 ``check_pack_examples`` re-derives the structural half of the engine's preflight over the
-pack's own ``Contribution`` and its ``examples/dhis2`` documents: each is a ``dirigent/v1``
+pack's own ``Contribution`` and its ``dhis2`` shelf's documents: each is a ``dirigent/v1``
 pipeline coded after its file, every block a step names is one the pack contributes, each
 config fits that block's published schema, and a named connection is carried. The
-``examples/dhis2-http`` shelf is deliberately built from generic ``http.*`` blocks this pack
+``dhis2-http`` shelf is deliberately built from generic ``http.*`` blocks this pack
 does not contribute, so it is out of scope for a single-pack conformance check.
 
-``examples/dhis2-compose`` mixes the two: ``dhis2.*`` steps beside engine blocks such as
+``dhis2-compose`` mixes the two: ``dhis2.*`` steps beside engine blocks such as
 ``transform.jq`` and ``validate.schema``. Its ``dhis2.*`` steps are held to the same catalog
 as the native shelf by checking each document with its foreign steps removed.
 
-``examples/validate`` names engine blocks only, so removing its foreign steps leaves the
+``validate`` names engine blocks only, so removing its foreign steps leaves the
 document's own identity -- format, kind, code and description -- which is the half a
 single-pack check can answer for.
 """
@@ -24,17 +24,32 @@ import yaml
 from dirigent_dhis2 import Dhis2Plugin
 from dirigent_testing import assert_contribution_conforms, check_pack_examples
 
+#: The shelves root, taken from the hook the pack ships them through.
+SHELVES = Path(str(Dhis2Plugin().examples()[0]))
+
 #: The native shelf: the documents built from the ``dhis2.*`` blocks this pack contributes.
-EXAMPLES_DIR = Path(__file__).resolve().parents[1] / "examples" / "dhis2"
+EXAMPLES_DIR = SHELVES / "dhis2"
 
 #: The composed shelf: ``dhis2.*`` steps beside the engine's own blocks.
-COMPOSE_DIR = Path(__file__).resolve().parents[1] / "examples" / "dhis2-compose"
+COMPOSE_DIR = SHELVES / "dhis2-compose"
 
 #: The validation shelf: a metadata read gated on the engine's own ``validate.schema``.
-VALIDATE_DIR = Path(__file__).resolve().parents[1] / "examples" / "validate"
+VALIDATE_DIR = SHELVES / "validate"
+
+#: The starter shelf: the same flows written the way an instance accepts them, naming a
+#: connection rather than carrying one.
+STARTERS_DIR = SHELVES / "starters"
+
+#: The connection every starter names, and the kind it is.
+STARTER_CONNECTION = "dhis2"
 
 #: What the pack itself puts in the catalog, checked once and reused by both tests.
 CONTRIBUTION = Dhis2Plugin().contribute()
+
+
+def test_the_shelves_the_hook_answers_with_are_the_ones_in_the_package() -> None:
+    assert SHELVES.is_dir(), f"the shelves directory {SHELVES} does not exist"
+    assert SHELVES.name == "shelves" and SHELVES.parent.name == "dirigent_dhis2"
 
 
 def test_there_are_native_examples_to_check() -> None:
@@ -98,3 +113,57 @@ def _only_pack_steps(path: Path) -> dict[str, Any]:
         if isinstance(step, dict) and str(cast("dict[str, Any]", step).get("block", "")).startswith("dhis2.")
     }
     return document
+
+
+#: The floor under the pack's starter set: fewer than this and the menu is not worth opening.
+STARTERS_AT_LEAST = 6
+
+
+def _starters() -> list[Path]:
+    """The documents that opted into being copied by ``dg pipeline new``."""
+    found: list[Path] = []
+    for path in sorted(SHELVES.rglob("*.yaml")):
+        document = cast("dict[str, Any]", yaml.safe_load(path.read_text()))
+        if "starter" in cast("list[str]", document.get("tags", [])):
+            found.append(path)
+    return found
+
+
+def test_the_pack_carries_a_curated_set_of_starters() -> None:
+    starters = _starters()
+    assert len(starters) >= STARTERS_AT_LEAST, f"only {len(starters)} documents are tagged starter"
+
+
+def test_a_starter_clears_the_bar_for_being_copied() -> None:
+    for path in _starters():
+        document = cast("dict[str, Any]", yaml.safe_load(path.read_text()))
+        assert len(cast("dict[str, Any]", document.get("steps", {}))) >= 2, f"{path.name}: a starter is a flow"
+        assert not document.get("connections"), f"{path.name}: a starter names its connections, it does not carry them"
+        assert not document.get("schemas"), f"{path.name}: a starter names its schemas, it does not carry them"
+        assert document.get("description"), f"{path.name}: a starter says what it is for"
+        required = cast("dict[str, Any]", document.get("requires", {}))
+        assert STARTER_CONNECTION in cast("list[str]", required.get("connections", [])), (
+            f"{path.name}: a starter declares the connection it names in requires.connections"
+        )
+
+
+def test_every_starter_is_on_the_starter_shelf() -> None:
+    for path in _starters():
+        assert path.parent == STARTERS_DIR, f"{path.name}: a starter belongs on the starters shelf"
+
+
+def test_every_starter_uses_the_pack_blocks_correctly(tmp_path: Path) -> None:
+    """A starter names its connection, so the single-pack check is given one to find.
+
+    ``check_pack_examples`` insists a step's connection is carried by the document, which is
+    the one thing a starter must not do. Writing the connection in on the way to the check
+    holds the starters to the same catalog as every other shelf.
+    """
+    documents = sorted(STARTERS_DIR.rglob("*.yaml"))
+    assert documents, "there are no starters to check"
+    for path in documents:
+        document = _only_pack_steps(path)
+        document["connections"] = {STARTER_CONNECTION: {"kind": "dhis2", "config": {"base_url": "https://example.org"}}}
+        (tmp_path / path.name).write_text(yaml.safe_dump(document, sort_keys=False))
+    issues = check_pack_examples(CONTRIBUTION, tmp_path)
+    assert issues == [], "\n".join(issues)

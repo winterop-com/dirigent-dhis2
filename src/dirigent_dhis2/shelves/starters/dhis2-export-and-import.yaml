@@ -1,0 +1,64 @@
+# Read one month of a data set out of one instance and write it into another.
+#
+# This is the shape most DHIS2 integrations start as: an export and an import, with the
+# import rehearsed until the summary looks right. dhis2.data_value_set_export answers with
+# the document the instance gave it, and dhis2.data_value_set_import parses the import
+# summary into status, counts and conflicts, so a refused value is a field you can branch on
+# rather than a string to grep.
+#
+# Both steps name the same connection here, which is the round trip against one instance.
+# Moving between two is one edit: create a second connection and name it on the import.
+#
+# TO MAKE IT YOURS: create the `dhis2` connection, change the data set, period and org unit
+# to ones your instance has, and turn dry_run off once the summary is what you expect.
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-and-import
+name: Export a data value set, then import it
+description: Read one data set for a period and org unit, and hand it to an import as a rehearsal.
+
+tags: [dhis2, starter]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+    - dhis2.data_value_set_import
+  connections:
+    - dhis2
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read and write, such as 202507.
+    data_set:
+      type: string
+      default: BfMAe6Itzgt
+      description: The uid of the data set to move.
+    org_unit:
+      type: string
+      default: DiszpKrYNg8
+      description: The uid of the organisation unit to read at.
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2
+      data_set: ${params.data_set}
+      period: ${params.period}
+      org_unit: ${params.org_unit}
+
+  load:
+    block: dhis2.data_value_set_import
+    depends_on: [export]
+    config:
+      connection: dhis2
+      data_values: ${steps.export.output.body}
+      import_strategy: CREATE_AND_UPDATE
+      # A rehearsal: the instance validates the document and answers with the summary it
+      # would have produced, and writes nothing.
+      dry_run: true

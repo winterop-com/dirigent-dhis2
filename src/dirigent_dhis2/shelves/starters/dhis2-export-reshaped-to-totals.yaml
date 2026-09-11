@@ -1,0 +1,78 @@
+# Export a data value set and turn it into the shape the next system wants.
+#
+# A DHIS2 data value set is shaped for DHIS2: an envelope of defaults with a flat array of
+# values beneath it, every identifier a uid and every value a string. Almost nothing else
+# wants it that way, so the step after an export is usually a reshape -- and transform.jq is
+# where that belongs rather than in a script on a worker.
+#
+# jq is worth reaching for here rather than shell.run for two reasons that matter in a
+# pipeline: the program is compiled when the document is applied, so a typo in it is an
+# issue reported beside every other issue the document has rather than a run that fails at
+# three in the morning; and jq opens no file and no socket, so nothing has to be allowlisted
+# and no code executes on the worker.
+#
+# The program below does the three things a DHIS2 reshape almost always does. It pushes the
+# envelope's defaults down onto each value, because a consumer reading one row should not
+# have to know that the period was inherited. It turns the value into a number, because
+# DHIS2 sends every value as a string whatever the data element's value type says. And it
+# groups by data element, because a flat list of cells is not a report.
+#
+# The data goes in through config.input, not spliced into the program text: the program stays
+# a program and the payload stays data.
+#
+# TO MAKE IT YOURS: create the `dhis2` connection, then replace the program with the shape
+# the system downstream actually reads, and send it on with http.request or storage.write.
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-reshaped-to-totals
+name: Export a data value set, then reshape it
+description: Export a data value set and reshape it into per-data-element totals with jq.
+
+tags: [dhis2, transform, starter]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+    - transform.jq
+  connections:
+    - dhis2
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read and reshape.
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2
+      data_set: BfMAe6Itzgt
+      period: ${params.period}
+      org_unit: DiszpKrYNg8
+
+  reshape:
+    block: transform.jq
+    depends_on: [export]
+    config:
+      input: ${steps.export.output.body}
+      # One output, so the step's output value is this one object.
+      program: |
+        . as {$period, $orgUnit, $dataValues}
+        | {period: $period,
+           org_unit: $orgUnit,
+           value_count: ($dataValues | length),
+           by_data_element:
+             [$dataValues[]
+              | {data_element: .dataElement,
+                 category_option_combo: .categoryOptionCombo,
+                 value: (.value | tonumber? // null)}]
+             | group_by(.data_element)
+             | map({data_element: .[0].data_element,
+                    cells: length,
+                    total: ([.[].value | select(. != null)] | add // 0)})
+             | sort_by(-.total)}

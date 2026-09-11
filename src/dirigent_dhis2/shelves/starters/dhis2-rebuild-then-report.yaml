@@ -1,0 +1,75 @@
+# Rebuild the analytics tables, then read a number that depends on them.
+#
+# Analytics is not live. A value imported through /api/dataValueSets does not appear in an
+# analytics answer until the tables have been rebuilt, so a pipeline that imports and then
+# reports has to put the rebuild between the two or it reports yesterday.
+#
+# That ordering is the whole point of this document. dhis2.analytics_run submits the job and
+# then follows its notifications until the instance says it is done -- it is not a
+# fire-and-forget POST -- and the depends_on edge is what makes the query wait for that
+# ending rather than for the submission. No worker is held while the job runs: the step parks
+# and is woken when the task settles.
+#
+# Reversing the order, or dropping the edge and letting the two run side by side, produces a
+# document that works most of the time and is wrong exactly when the data is new.
+#
+# The rebuild is bounded to one recent year with the event and enrollment families skipped,
+# because a rebuild whose scope does not cover what the query reads is a rebuild that changes
+# nothing, and one wider than that is time the instance spends for no reader.
+#
+# TO MAKE IT YOURS: create the `dhis2` connection, put the indicator and org unit you report
+# on in the query, and add a schedule so the report is current every morning.
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-rebuild-then-report
+name: Rebuild analytics, then read an indicator
+description: Rebuild the analytics tables and read an indicator out of them once the job is done.
+
+tags: [dhis2, analytics, starter]
+
+# One rebuild at a time: a second run arriving while the job is up is dropped, not queued.
+concurrency: skip
+
+requires:
+  blocks:
+    - dhis2.analytics_run
+    - dhis2.analytics_query
+  connections:
+    - dhis2
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: THIS_YEAR
+      description: The period the indicator is read for, once the tables are current.
+
+steps:
+  rebuild:
+    block: dhis2.analytics_run
+    timeout: 30m
+    retry:
+      max_attempts: 2
+      backoff: 5m
+    config:
+      connection: dhis2
+      last_years: 1
+      skip_events: true
+      skip_enrollment: true
+      skip_org_unit_ownership: true
+
+  read:
+    block: dhis2.analytics_query
+    # The edge is the point: the query runs after the job has finished, not after it started.
+    depends_on: [rebuild]
+    config:
+      connection: dhis2
+      mode: aggregate
+      dimension:
+        - dx:Uvn6LCg7dVU
+      filter:
+        - "pe:${params.period}"
+        - ou:ImspTQPwCqd
+      output_id_scheme: NAME
