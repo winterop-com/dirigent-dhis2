@@ -126,7 +126,7 @@ steps:
     block: map.jq
     depends_on: [fetch_level]
     config:
-      input: "${steps.fetch_level.output.json_body.organisationUnits}"
+      input: "${steps.fetch_level.output.body.organisationUnits}"
       program: |
         {uid: .id,
          name: .name,
@@ -149,7 +149,7 @@ steps:
     config:
       input:
         level: "${params.level}"
-        total_in_instance: "${steps.count_units.output.json_body.pager.total}"
+        total_in_instance: "${steps.count_units.output.body.pager.total}"
         units: "${steps.project_units.output.value}"
       program: |
         {source: "dhis2-play-demo",

@@ -42,14 +42,14 @@ curl -sSI https://play.dhis2.org/demo
 | --- | --- |
 | [dhis2-system-info.yaml](dhis2-system-info.yaml) | Authentication and a minimal API call. |
 | [dhis2-org-unit-levels.yaml](dhis2-org-unit-levels.yaml) | The configured hierarchy levels. |
-| [dhis2-org-units.yaml](dhis2-org-units.yaml) | A compact snapshot of every organisation unit, saved as an artifact. |
+| [dhis2-org-units.yaml](dhis2-org-units.yaml) | A compact snapshot of every organisation unit, written to storage as a file. |
 | [dhis2-org-unit-detail.yaml](dhis2-org-unit-detail.yaml) | One parameterized organisation unit and its children. |
 | [dhis2-forward-org-units.yaml](dhis2-forward-org-units.yaml) | Select, reshape with `transform.jq`, and send an organisation-unit batch to Postman Echo -- nothing on the allowlist. |
 | [dhis2-run-analytics.yaml](dhis2-run-analytics.yaml) | Start an analytics-table update and poll the asynchronous DHIS2 task with `http.ready` -- what the native `dhis2.analytics_run` does for you. |
 | [dhis2-sync-org-units.yaml](dhis2-sync-org-units.yaml) | An organisation-unit sync: count before fetching, bound the read, ask for fields, order by `path`. |
 | [dhis2-export-data-elements.yaml](dhis2-export-data-elements.yaml) | A metadata export with `fields=:owner`, and the import vocabulary -- `importStrategy`, `atomicMode`, `importMode=VALIDATE`. |
 | [dhis2-fhir-to-data-values.yaml](dhis2-fhir-to-data-values.yaml) | A FHIR `QuestionnaireResponse` translated into a `/api/dataValueSets` import, link id by link id. |
-| [dhis2-export-data-values-csv.yaml](dhis2-export-data-values-csv.yaml) | A data value set as CSV rather than JSON -- the extension is the content negotiation -- streamed to storage. |
+| [dhis2-export-data-values-csv.yaml](dhis2-export-data-values-csv.yaml) | A data value set as CSV rather than JSON -- the extension is the content negotiation -- written out with `storage.write`. |
 | [dhis2-data-values-validated.yaml](dhis2-data-values-validated.yaml) | A data value set fetched and validated against the pack's `dhis2-uid` and `dhis2-period` formats. |
 | [dhis2-export-data-values-range.yaml](dhis2-export-data-values-range.yaml) | Every period inside a `startDate`/`endDate` window in one call, instead of a period at a time. |
 | [dhis2-mark-data-set-complete.yaml](dhis2-mark-data-set-complete.yaml) | Reading a completion registration, and the POST that signs a period off. |

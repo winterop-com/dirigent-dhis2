@@ -135,8 +135,8 @@ steps:
     depends_on: [survey_data_elements, export_bundle]
     config:
       input:
-        survey: "${steps.survey_data_elements.output.json_body}"
-        bundle: "${steps.export_bundle.output.json_body}"
+        survey: "${steps.survey_data_elements.output.body}"
+        bundle: "${steps.export_bundle.output.body}"
       program: |
         {source_version: .bundle.system.version,
          exported_at: .bundle.system.date,
@@ -164,5 +164,5 @@ steps:
         # which is the argument for it being the last thing changed and never the default.
         importMode: VALIDATE
         skipSharing: true
-      body: "${steps.export_bundle.output.json_body}"
+      body: "${steps.export_bundle.output.body}"
       max_response: 16mb

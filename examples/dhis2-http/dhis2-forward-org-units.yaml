@@ -1,9 +1,14 @@
-# Fetch a useful slice of DHIS2 organisation units, reshape it, and send it downstream.
+# Fetch a useful slice of DHIS2 organisation units, keep a copy, reshape it, and send it on.
 #
 # DHIS2 performs the initial filtering and field projection. transform.jq then maps every
 # item into a smaller downstream shape, and the forwarding step composes the envelope in its
 # own typed body, where a reference belongs: the reshaped list, the DHIS2 version, and the
 # level all arrive as ${...} references rather than shell interpolation.
+#
+# The selection is parked in the run's scratch space on the way through, which takes two
+# steps because storage has two doors and no other block opens them: storage.write puts the
+# fetched body at a URI, storage.read brings it back as the value the transform works on.
+# The copy is what a later run, or a person, reads to see exactly what DHIS2 answered.
 #
 # The jq program contains no references, so a typo in it is refused at apply with jq's own
 # message. Nothing here executes code on the worker: no allowlist entry, and no jq or curl
@@ -24,11 +29,13 @@ code: dhis2-forward-org-units
 name: Forward org units to a webhook
 description: Select DHIS2 organisation units, reshape the batch, and send it to Postman Echo.
 
-tags: [dhis2, http, transform]
+tags: [dhis2, http, storage, transform]
 
 requires:
   blocks:
     - http.request
+    - storage.write
+    - storage.read
     - transform.jq
 
 params:
@@ -70,15 +77,30 @@ steps:
         filter: "level:eq:${params.level}"
         paging: false
         order: displayName:asc
-      save_to: "${run.scratch}/dhis2/selected-org-units.json"
 
-  # The saved body streams straight into the transform through storage; it is never held
-  # whole by a shell, and the program is checked the moment the document is applied.
-  reshape:
-    block: transform.jq
+  # The body the request answered with, written out as a file. Output: uri, bytes_written,
+  # content_type, so the read below names the URI this step decided rather than repeating it.
+  store_org_units:
+    block: storage.write
     depends_on: [select_org_units]
     config:
-      input_uri: ${steps.select_org_units.output.body_uri}
+      target: "${run.scratch}/dhis2/selected-org-units.json"
+      value: ${steps.select_org_units.output.body}
+
+  # Back in as a value: the object is application/json by its extension, so the read decodes
+  # it and answers with `value` rather than `text`.
+  load_org_units:
+    block: storage.read
+    depends_on: [store_org_units]
+    config:
+      source: ${steps.store_org_units.output.uri}
+      max_size: 8mb
+
+  reshape:
+    block: transform.jq
+    depends_on: [load_org_units]
+    config:
+      input: ${steps.load_org_units.output.value}
       program: >-
         [.organisationUnits[]
          | {uid: .id, name: .displayName, level: .level, parent: (.parent.displayName // null)}]
@@ -94,6 +116,6 @@ steps:
       body:
         source:
           system: DHIS2
-          version: ${steps.read_system_info.output.json_body.version}
+          version: ${steps.read_system_info.output.body.version}
           organisation_unit_level: ${params.level}
         organisation_units: ${steps.reshape.output.value}

@@ -1,8 +1,12 @@
 # The production-shaped composition: wait for the month to be signed off, rebuild the
-# analytics, then export the tables to storage -- with the deadlines, timeouts and retries a
+# analytics, then export the tables -- with the deadlines, timeouts and retries a
 # nightly deserves. It carries a dhis2-production connection so it runs standalone; an
 # instance you own names its own connection instead. The demo-sized versions of each step
 # live beside it in this directory.
+#
+# The export's document is the run's answer. A nightly that has to leave a file behind adds
+# one storage.write step after it -- storage.write is the only block that puts a value into
+# storage -- which is what dhis2-export-to-storage.yaml on the compose shelf shows.
 
 format: dirigent/v1
 kind: pipeline
@@ -70,4 +74,3 @@ steps:
       data_set: pBOMPrpg1QX
       period: "${params.period}"
       org_unit: "${params.org_unit}"
-      save_to: "${run.scratch}/dhis2/${params.period}.json"

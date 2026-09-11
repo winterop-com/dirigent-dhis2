@@ -68,7 +68,8 @@ steps:
     block: validate.schema
     depends_on: [export]
     config:
-      # The export's parsed body, not the file: a gate reads the value, so an export that
-      # streamed to storage with save_to would be checked after being read back instead.
-      input: ${steps.export.output.json_body}
+      # A gate reads a value, and the export's body is one, so nothing is read back from
+      # storage here. A document whose values arrived as a file gates what storage.read
+      # brought in instead.
+      input: ${steps.export.output.body}
       schema: dhis2-data-value-set

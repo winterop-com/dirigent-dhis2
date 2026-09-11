@@ -15,8 +15,16 @@
 # downstream steps reference by field. A CSV export is therefore a generic-HTTP call, and
 # this is what it looks like.
 #
-# save_to is not decoration here. A CSV body is text, and text large enough to be worth
-# exporting as CSV is text worth streaming to storage rather than holding in a step's output.
+# A CSV export is a file at the end of it, and a file is written by storage.write and by
+# nothing else, so the second step is the one that puts it there. The response is not JSON,
+# so the request's `body` is the CSV text; the write takes it as `text` and is told
+# content_type: text/csv, because the object's type is what the next reader of it goes by.
+#
+# HOW BIG AN EXPORT THIS HANDLES. The rows pass through the worker: once in the response,
+# once in the write. max_response bounds the first, and an export too large for that is
+# asked for in narrower slices -- a shorter period, one org unit -- rather than streamed
+# past the step that would otherwise be able to show it.
+#
 # A local run deletes its artifacts on the way out, so --keep is how to read the file
 # afterwards.
 #
@@ -26,13 +34,14 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-export-data-values-csv
 name: Data values as CSV
-description: Export one data set's values as CSV and stream the rows to storage.
+description: Export one data set's values as CSV and write the rows to storage.
 
 tags: [dhis2, http, storage]
 
 requires:
   blocks:
     - http.request
+    - storage.write
 
 params:
   type: object
@@ -74,4 +83,11 @@ steps:
         period: "${params.period}"
         orgUnit: "${params.org_unit}"
         children: true
-      save_to: "${run.scratch}/dhis2/${params.data_set}-${params.period}.csv"
+
+  write_csv:
+    block: storage.write
+    depends_on: [export_csv]
+    config:
+      target: "${run.scratch}/dhis2/${params.data_set}-${params.period}.csv"
+      text: ${steps.export_csv.output.body}
+      content_type: text/csv

@@ -56,7 +56,7 @@ class Dhis2MetadataConfig(BlockModel):
 class Dhis2MetadataOutput(BlockModel):
     """The collection the read answered, for a downstream step to reference by field."""
 
-    json_body: JsonValue | None = None
+    body: JsonValue | None = None
     """The parsed response: the collection under its own key, and a ``pager`` when paged."""
 
     duration_ms: int
@@ -114,4 +114,4 @@ class Dhis2MetadataOperator(Dhis2Operator[Dhis2MetadataConfig, Dhis2MetadataOutp
                 raise refuse(error, f"GET /api/{config.resource}") from error
         duration = round((time.monotonic() - started) * 1000)
         ctx.log.info("metadata read", resource=config.resource, duration_ms=duration)
-        return Dhis2MetadataOutput(json_body=body, duration_ms=duration)
+        return Dhis2MetadataOutput(body=body, duration_ms=duration)

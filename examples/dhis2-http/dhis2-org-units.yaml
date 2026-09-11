@@ -2,8 +2,10 @@
 #
 # paging: false is deliberate: this is a metadata snapshot rather than an interactive page.
 # The selected fields preserve identity, display name, hierarchy level, and immediate parent
-# without pulling the much larger default representation. The body is also written to the
-# run's scratch storage so a downstream step can consume it as an artifact URI.
+# without pulling the much larger default representation. The snapshot the request answered
+# with is then written to the run's scratch storage as a file, which is a step of its own:
+# storage.write is the only way a value leaves the run, so the document that wants a file
+# says so, and a later step or a person reads it by the URI the write reports.
 #
 # On the current demo this returns about 1,300 organisation units.
 #
@@ -15,11 +17,12 @@ code: dhis2-org-units
 name: Org unit sync
 description: Fetch a compact, alphabetically ordered snapshot of every DHIS2 organisation unit.
 
-tags: [dhis2, http]
+tags: [dhis2, http, storage]
 
 requires:
   blocks:
     - http.request
+    - storage.write
 
 connections:
   dhis2-demo:
@@ -41,4 +44,10 @@ steps:
         fields: id,displayName,level,parent[id,displayName]
         paging: false
         order: displayName:asc
-      save_to: "${run.scratch}/dhis2/organisation-units.json"
+
+  save_snapshot:
+    block: storage.write
+    depends_on: [list_org_units]
+    config:
+      target: "${run.scratch}/dhis2/organisation-units.json"
+      value: ${steps.list_org_units.output.body}

@@ -1,0 +1,73 @@
+# Export a data value set, then leave it behind as a file.
+#
+# A value moves through step outputs, and storage has exactly two doors: storage.write puts a
+# value out at a URI and storage.read brings one back in. No other block opens them, so a
+# document that wants a file says so in a step of its own. Two hops:
+#
+#   export  dhis2.data_value_set_export. Output: body, the exported document, and duration_ms.
+#   save    storage.write. Output: uri, bytes_written, content_type -- so a later step names
+#           ${steps.save.output.uri} rather than repeating the path.
+#
+# HOW BIG AN EXPORT THIS HANDLES. The document passes through the worker twice, once as the
+# export's output and once as the write's value, which is the trade for being able to look at
+# what is stored. An export too large for that is asked for in narrower slices -- a shorter
+# period, one org unit at a time, which dhis2-export-per-org-unit.yaml fans out.
+#
+# ${run.scratch} is this run's own scratch space, cleaned up when the run ends. A local run
+# deletes its artifacts on the way out, so pass --keep to leave them behind and be told where
+# they landed. A target naming a bucket URI instead writes there and outlives the run, and
+# the export above it does not change: the scheme is the only difference.
+#
+# dhis2-import-from-storage.yaml is what reading the file back looks like.
+#
+#   dg run --local examples/dhis2-compose/dhis2-export-to-storage.yaml
+#   dg run --local examples/dhis2-compose/dhis2-export-to-storage.yaml --keep
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-to-storage
+name: Export a data value set to storage
+description: Export one data set's values and write them to a storage URI with storage.write.
+
+tags: [dhis2, storage]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+    - storage.write
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2-demo
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: O6uvpzGd5pu
+      children: true
+
+  save:
+    block: storage.write
+    depends_on: [export]
+    config:
+      # The period is in the file name so a run per month leaves one file per month rather
+      # than each overwriting the last.
+      target: "${run.scratch}/dhis2/child-health-${params.period}.json"
+      value: ${steps.export.output.body}

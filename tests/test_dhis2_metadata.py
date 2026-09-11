@@ -26,7 +26,7 @@ async def test_a_metadata_read_carries_the_collection(ctx: FakeContext, dhis2: D
         ctx,
     )
     assert isinstance(output, Dhis2MetadataOutput)
-    assert output.json_body == READ
+    assert output.body == READ
     assert output.duration_ms >= 0
     params = route.last.url.params
     assert params["fields"] == "id,name,valueType"

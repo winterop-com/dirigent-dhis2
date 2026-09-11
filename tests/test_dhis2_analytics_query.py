@@ -35,8 +35,8 @@ async def test_an_aggregate_query_reads_the_grid(ctx: FakeContext, dhis2: Dhis2S
         ctx,
     )
     assert isinstance(output, Dhis2AnalyticsQueryOutput)
-    assert isinstance(output.json_body, dict)
-    assert output.json_body["rows"] == [["fbfJHSPpUQD", "12"]]
+    assert isinstance(output.body, dict)
+    assert output.body["rows"] == [["fbfJHSPpUQD", "12"]]
     assert output.duration_ms >= 0
     params = route.last.url.params
     assert params.get_list("dimension") == ["dx:fbfJHSPpUQD", "pe:LAST_12_MONTHS"]
@@ -59,7 +59,7 @@ async def test_an_event_query_reads_under_the_program(ctx: FakeContext, dhis2: D
         ctx,
     )
     assert isinstance(output, Dhis2AnalyticsQueryOutput)
-    assert output.json_body == body
+    assert output.body == body
     assert route.last.url.path == "/api/analytics/events/query/IpHINAT79UW.json"
 
 

@@ -63,7 +63,7 @@ those two modes require a `program`.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `json_body` | `any or null` |  | `null` | The parsed response: the analytics grid, its headers, metaData, and rows. |
+| `body` | `any or null` |  | `null` | The parsed response: the analytics grid, its headers, metaData, and rows. |
 | `duration_ms` | `integer` | yes |  | How long the query took. |
 
 ### `dhis2.analytics_run`
@@ -105,9 +105,9 @@ Export a DHIS2 data value set.
 
 Idempotent.
 
-Reads one data set, for one period, at one organisation unit. Without `save_to` the parsed
-document rides in the output; with it the export is streamed straight to storage and only the
-URI and the byte count come back. A failed export leaves nothing at `save_to`.
+Reads one data set, for one period, at one organisation unit, and answers with the parsed
+document as its `body`. A run that has to leave the export behind as a file hands that body to
+`storage.write`, which is the only block that puts a value into storage.
 
 **Config**
 
@@ -118,15 +118,12 @@ URI and the byte count come back. A failed export leaves nothing at `save_to`.
 | `period` | `string` | yes |  | An ISO period identifier, such as 2026Q1. |
 | `org_unit` | `string` | yes |  | The uid of the organisation unit to export for. |
 | `children` | `boolean` |  | `false` | Whether the org unit's descendants are included. |
-| `save_to` | `string (storage-uri) or null` |  | `null` | A storage URI to stream the export to, instead of carrying it inline. |
 
 **Output**
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `json_body` | `any or null` |  | `null` | The exported data value set, when it was not streamed to storage. |
-| `body_uri` | `string or null` |  | `null` | Where the export was written, when `save_to` asked for it. |
-| `body_bytes` | `integer or null` |  | `null` | How many bytes were written there. |
+| `body` | `any or null` |  | `null` | The exported data value set, the value the next step works on. |
 | `duration_ms` | `integer` | yes |  | How long the export took. |
 
 ### `dhis2.data_value_set_import`
@@ -193,7 +190,7 @@ the whole collection, not its first page.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `json_body` | `any or null` |  | `null` | The parsed response: the collection under its own key, and a `pager` when paged. |
+| `body` | `any or null` |  | `null` | The parsed response: the collection under its own key, and a `pager` when paged. |
 | `duration_ms` | `integer` | yes |  | How long the read took. |
 
 The instance's own version and system information is not a metadata collection, so it is read
@@ -229,7 +226,7 @@ them.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `json_body` | `any or null` |  | `null` | The parsed response: the objects under `instances` and the `page` block DHIS2 sends. |
+| `body` | `any or null` |  | `null` | The parsed response: the objects under `instances` and the `page` block DHIS2 sends. |
 | `duration_ms` | `integer` | yes |  | How long the read took. |
 
 ## Sensors

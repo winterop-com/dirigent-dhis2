@@ -11,8 +11,9 @@
 #
 # Reading a district or the root pulls back every facility beneath it, so this is the export
 # that grows fastest as the org unit moves up the hierarchy. When the answer stops being
-# something to hold in memory, the same read with save_to streams it to storage instead --
-# dhis2-export-to-storage.yaml is that document.
+# something to hold in memory, it is read in narrower slices -- a district at a time -- and
+# what a run leaves behind as a file is one storage.write step after the export, which
+# dhis2-export-to-storage.yaml on the compose shelf shows.
 #
 #   dg run --local examples/dhis2/dhis2-export-with-children.yaml
 #   dg run --local examples/dhis2/dhis2-export-with-children.yaml -p org_unit=ImspTQPwCqd

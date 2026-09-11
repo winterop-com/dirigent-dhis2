@@ -63,7 +63,7 @@ class Dhis2TrackerConfig(BlockModel):
 class Dhis2TrackerOutput(BlockModel):
     """The tracker page the read answered, for a downstream step to reference by field."""
 
-    json_body: JsonValue | None = None
+    body: JsonValue | None = None
     """The parsed response: the objects under ``instances`` and the ``page`` block DHIS2 sends."""
 
     duration_ms: int
@@ -90,7 +90,7 @@ class Dhis2TrackerOperator(Dhis2Operator[Dhis2TrackerConfig, Dhis2TrackerOutput]
                 raise refuse(error, f"GET {TRACKER_PATH}/{config.kind}") from error
         duration = round((time.monotonic() - started) * 1000)
         ctx.log.info("tracker read", kind=config.kind, duration_ms=duration)
-        return Dhis2TrackerOutput(json_body=body, duration_ms=duration)
+        return Dhis2TrackerOutput(body=body, duration_ms=duration)
 
     async def _read(self, tracker: TrackerAccessor, config: Dhis2TrackerConfig) -> JsonValue:
         """Dispatch on the collection ``kind`` to the tracker accessor that reads it."""

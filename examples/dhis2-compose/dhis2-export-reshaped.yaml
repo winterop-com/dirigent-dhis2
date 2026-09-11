@@ -65,7 +65,7 @@ steps:
     block: transform.jq
     depends_on: [export]
     config:
-      input: ${steps.export.output.json_body}
+      input: ${steps.export.output.body}
       # One output, so the step's output value is this one object.
       program: |
         . as {$period, $orgUnit, $dataValues}

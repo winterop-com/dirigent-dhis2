@@ -44,5 +44,5 @@ steps:
     block: validate.schema
     depends_on: [fetch]
     config:
-      input: ${steps.fetch.output.json_body}
+      input: ${steps.fetch.output.body}
       schema: dhis2-system-info
