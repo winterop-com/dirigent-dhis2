@@ -132,8 +132,8 @@ Import a data value set into DHIS2.
 
 Not idempotent.
 
-Sends the document from `data_values` or from `source_uri`, exactly one of which a step names,
-and reads the import summary as the instance's verdict: a 409 carrying a summary is that
+Sends the document in `data_values`, written in the step or referenced from an upstream
+output (a set held in storage comes in through `storage.read`), and reads the import summary as the instance's verdict: a 409 carrying a summary is that
 verdict too, not a transport failure. A summary whose status is `ERROR` fails the step with the
 first conflicts named, and so does a `WARNING` that took nothing under `atomic_mode: ALL`. Both
 failures are `rejected`, so the same document is not retried against the same instance.
@@ -143,8 +143,7 @@ failures are `rejected`, so the same document is not retried against the same in
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
-| `data_values` | `any or null` |  | `null` | The data value set document to send, written in the step or referenced from one. |
-| `source_uri` | `string (storage-uri) or null` |  | `null` | A storage URI holding the document to send, for a set a previous step exported. |
+| `data_values` | `any` | yes |  | The data value set document to send, written in the step or referenced from one. |
 | `dry_run` | `boolean` |  | `false` | Whether the instance validates the import without writing anything. |
 | `import_strategy` | `"CREATE" or "UPDATE" or "CREATE_AND_UPDATE" or "DELETE"` |  | `"CREATE_AND_UPDATE"` | What the import may do to existing values: CREATE, UPDATE, CREATE_AND_UPDATE, or DELETE. |
 | `atomic_mode` | `"ALL" or "NONE"` |  | `"ALL"` | ALL refuses the whole import on any conflict; NONE takes what it can. |

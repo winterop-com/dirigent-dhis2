@@ -91,38 +91,6 @@ async def test_a_refused_transport_is_classified_by_its_status(ctx: FakeContext,
     assert refused.value.error_class is ErrorClass.TRANSIENT
 
 
-async def test_an_import_reads_its_document_back_from_storage(local_ctx: FakeContext, dhis2: Dhis2Server) -> None:
-    uri = f"{local_ctx.scratch_uri}/dhis2/export.json"
-    local_ctx.storage.path_for(uri).parent.mkdir(parents=True, exist_ok=True)
-    local_ctx.storage.path_for(uri).write_bytes(jsonlib.dumps(DOCUMENT).encode())
-    route = dhis2.post(IMPORT).answers(json(200, summary("SUCCESS", imported=1)))
-    output = await call_block(
-        Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "source_uri": uri}, local_ctx
-    )
-    assert output.model_dump()["status"] == "SUCCESS"
-    assert jsonlib.loads(route.last.content) == DOCUMENT
-
-
-async def test_a_source_that_is_not_json_is_rejected(local_ctx: FakeContext, dhis2: Dhis2Server) -> None:
-    uri = f"{local_ctx.scratch_uri}/dhis2/broken.json"
-    local_ctx.storage.path_for(uri).parent.mkdir(parents=True, exist_ok=True)
-    local_ctx.storage.path_for(uri).write_bytes(b"not json")
-    dhis2.post(IMPORT).answers(json(200, summary("SUCCESS")))
-    with pytest.raises(BlockFailure) as refused:
-        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "source_uri": uri}, local_ctx)
-    assert refused.value.error_class is ErrorClass.REJECTED
-
-
-def test_check_config_refuses_both_sources_and_neither() -> None:
-    operator = Dhis2DataValueSetImportOperator()
-    both = Dhis2DataValueSetImportConfig(connection="c", data_values={}, source_uri="file:///x")
-    neither = Dhis2DataValueSetImportConfig(connection="c")
-    one = Dhis2DataValueSetImportConfig(connection="c", data_values={})
-    assert operator.check_config(both) == ["an import takes data_values or source_uri, not both"]
-    assert operator.check_config(neither) == ["an import needs data_values or a source_uri to send"]
-    assert operator.check_config(one) == []
-
-
 @pytest.mark.parametrize("field", ["import_strategy", "atomic_mode"])
 def test_an_import_mode_dhis2_does_not_know_is_refused_at_config(field: str) -> None:
     with pytest.raises(ValidationError):
