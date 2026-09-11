@@ -23,15 +23,14 @@
 # not null, absent. A step reading the batch therefore sees only what worked, and has to
 # treat a short list as the normal case.
 #
-# The batch is written out once, after the fan, and not once per district. A fanned step's
-# output is the list of its items' outputs, and there is no item-wise wiring between two
-# fanned steps -- an item of the export cannot reach the matching item of a write -- so the
-# write is a join over the whole list. One file per district is a different shape: fan
-# pipeline.run over the org units and let each child export and write its own.
-#
-# Under items: continue that list is the districts that worked, in their order, with the
-# failed ones absent. It is therefore what landed, not a row per district, which is the
-# other reason the file is one bundle and not thirteen named ones.
+# Each district's export is written to its own file by a second fanned step. for_each:
+# ${steps.export.items} maps the write over the export's grid rather than a list of its own,
+# so district i's file is written from district i's export -- ${steps.export.item.output} is
+# the matching item, not the batch. The grid is the export's, fixed when the run was created,
+# which is why the adopted step has to name the export in depends_on directly and may not
+# carry rule: one_failed. Under items: continue a district whose export failed has its write
+# skipped rather than failed, so the manifest lists what did land, and a short manifest is
+# the normal case rather than an error.
 #
 #   dg run --local examples/dhis2-compose/dhis2-export-per-org-unit.yaml
 #   dg run --local examples/dhis2-compose/dhis2-export-per-org-unit.yaml \
@@ -49,6 +48,7 @@ requires:
   blocks:
     - dhis2.data_value_set_export
     - storage.write
+    - transform.jq
 
 params:
   type: object
@@ -91,11 +91,22 @@ steps:
       org_unit: "${item}"
       children: true
 
-  bundle:
+  write_one:
     block: storage.write
     depends_on: [export]
+    # The export's grid, so this item is that item: the same org unit, the same index.
+    for_each: "${steps.export.items}"
+    items: continue
     config:
-      target: "${run.scratch}/dhis2/${params.period}-exports.json"
-      # The fan's output is the list of its items' outputs, so this reads .output and not
-      # .output.body, which is a field of one item's output.
-      value: ${steps.export.output}
+      target: "${run.scratch}/dhis2/${params.period}/${item}.json"
+      # The matching item's output, not the batch: .item.output is district i's export.
+      value: ${steps.export.item.output.body}
+
+  manifest:
+    block: transform.jq
+    depends_on: [write_one]
+    config:
+      # The write's output is the list of its items' outputs, the skipped ones absent, so
+      # this is what landed.
+      input: ${steps.write_one.output}
+      program: '{files: length, uris: [.[].uri], total_bytes: ([.[].bytes_written] | add // 0)}'
