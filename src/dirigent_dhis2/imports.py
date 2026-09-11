@@ -7,7 +7,7 @@ from dhis2w_client import WebMessageResponse
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
 from pydantic import BaseModel, JsonValue
 
-from dirigent_common import BlockModel, StorageUri
+from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.export import DATA_VALUE_SETS_PATH
 from dirigent_dhis2.web import Dhis2Operator, refuse
@@ -36,11 +36,9 @@ class Dhis2DataValueSetImportConfig(BlockModel):
     connection: str
     """The code of the dhis2 connection naming the instance."""
 
-    data_values: JsonValue | None = None
-    """The data value set document to send, written in the step or referenced from one."""
-
-    source_uri: StorageUri | None = None
-    """A storage URI holding the document to send, for a set a previous step exported."""
+    data_values: JsonValue
+    """The data value set document to send, written in the step or referenced from one; a set
+    held in storage comes in through storage.read."""
 
     dry_run: bool = False
     """Whether the instance validates the import without writing anything."""
@@ -127,24 +125,11 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
     config_model: ClassVar[type[BaseModel]] = Dhis2DataValueSetImportConfig
     output_model: ClassVar[type[BaseModel]] = Dhis2DataValueSetImportOutput
 
-    def check_config(self, config: BaseModel) -> list[str]:
-        """Refuse a step naming both sources for the document, or neither."""
-        settings = (
-            config
-            if isinstance(config, Dhis2DataValueSetImportConfig)
-            else Dhis2DataValueSetImportConfig.model_validate(config.model_dump())
-        )
-        if settings.data_values is not None and settings.source_uri is not None:
-            return ["an import takes data_values or source_uri, not both"]
-        if settings.data_values is None and settings.source_uri is None:
-            return ["an import needs data_values or a source_uri to send"]
-        return []
-
     async def execute(
         self, config: Dhis2DataValueSetImportConfig, ctx: StepContext
     ) -> Dhis2DataValueSetImportOutput | RemoteHandle:
         """Send the document and turn the summary into an output, or into a classified refusal."""
-        document = await _document(config, ctx)
+        document = config.data_values
         payload = json.dumps(document).encode()
         async with client_for(ctx, config.connection) as client:
             try:
@@ -176,22 +161,3 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
                 error_class=ErrorClass.REJECTED,
             )
         return Dhis2DataValueSetImportOutput(status=status, conflicts=conflicts, **counts)
-
-
-async def _document(config: Dhis2DataValueSetImportConfig, ctx: StepContext) -> JsonValue:
-    """Take the document from the step, or read it back from storage."""
-    if config.data_values is not None:
-        return config.data_values
-    if config.source_uri is None:
-        raise BlockFailure("an import needs data_values or a source_uri to send", error_class=ErrorClass.REJECTED)
-    chunks: list[bytes] = []
-    async for chunk in ctx.storage.open_read(config.source_uri):
-        chunks.append(chunk)
-    try:
-        parsed: JsonValue = json.loads(b"".join(chunks))
-    except ValueError as error:
-        raise BlockFailure(
-            f"{config.source_uri} does not hold a JSON document: {error}",
-            error_class=ErrorClass.REJECTED,
-        ) from error
-    return parsed
