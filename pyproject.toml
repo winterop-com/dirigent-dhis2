@@ -1,6 +1,6 @@
 [project]
 name = "dirigent-dhis2"
-version = "0.15.1"
+version = "0.15.2"
 description = "The DHIS2 adapter pack for dirigent: a connection kind and the blocks for one instance."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -8,8 +8,8 @@ license = "LicenseRef-Proprietary"
 license-files = ["LICENSE"]
 dependencies = [
     "dhis2w-client>=1.14,<2",
-    "dirigent-common==0.15.1",
-    "dirigent-plugin==0.15.1",
+    "dirigent-common==0.15.2",
+    "dirigent-plugin==0.15.2",
 ]
 
 [project.entry-points."dirigent.plugins.v1"]
@@ -17,7 +17,7 @@ dhis2 = "dirigent_dhis2:plugin"
 
 [dependency-groups]
 dev = [
-    "dirigent-testing==0.15.1",
+    "dirigent-testing==0.15.2",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.7",
     "mypy>=1.19",
