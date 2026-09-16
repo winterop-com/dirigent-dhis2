@@ -48,6 +48,22 @@ async def test_a_refused_import_answers_409_with_the_summary_and_is_rejected(
     assert "data element not found" in refused.value.message
 
 
+async def test_a_refusal_names_the_first_conflicts_and_counts_the_rest(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    conflicts = [{"object": f"de{n}", "value": f"reason {n}"} for n in range(5)]
+    dhis2.post(IMPORT).answers(json(409, summary("ERROR", ignored=5, conflicts=conflicts)))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
+    assert "de0: reason 0; de1: reason 1; de2: reason 2 (and 2 more)" in refused.value.message
+    assert "de3" not in refused.value.message
+
+
+async def test_a_refusal_without_conflicts_counts_the_ignored_values(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.post(IMPORT).answers(json(409, summary("ERROR", ignored=4)))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
+    assert "4 values ignored" in refused.value.message
+
+
 async def test_a_summary_of_error_on_200_is_rejected_the_same_way(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     conflicts = [{"object": "de9", "value": "data element not found"}]
     dhis2.post(IMPORT).answers(json(200, summary("ERROR", ignored=1, conflicts=conflicts)))

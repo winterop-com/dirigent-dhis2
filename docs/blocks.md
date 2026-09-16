@@ -215,7 +215,7 @@ them.
 | `org_unit` | `string or null` |  | `null` | The uid of the organisation unit to read within. |
 | `ou_mode` | `"SELECTED" or "CHILDREN" or "DESCENDANTS" or "ACCESSIBLE" or "CAPTURE" or "ALL" or null` |  | `null` | How the org unit is interpreted: `SELECTED`, `CHILDREN`, `DESCENDANTS`, `ACCESSIBLE`, `CAPTURE`, or `ALL`. |
 | `fields` | `string or null` |  | `null` | The DHIS2 `fields=` selector; the instance's own default when unset. |
-| `filter` | `string or string[] or null` |  | `null` | One or more DHIS2 `filter=` expressions on the collection's attributes. |
+| `filter` | `string or string[] or null` |  | `null` | One or more DHIS2 `filter=` expressions on the collection's attributes. Tracked entities and events take one; the enrollments collection has no attribute filter of its own, so a filter given for it rides through as a plain query parameter the instance may ignore. |
 | `status` | `string or null` |  | `null` | The status to read, where the collection has one: an enrollment or event `status`. |
 | `updated_after` | `string or null` |  | `null` | Read only rows changed at or after this ISO instant. |
 | `page` | `integer or null` |  | `null` | The 1-based page to read. |
