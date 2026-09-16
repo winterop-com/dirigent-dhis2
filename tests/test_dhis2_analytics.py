@@ -233,3 +233,33 @@ async def test_a_task_that_once_reported_is_never_taken_for_gone(ctx: FakeContex
     config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
     probed = await Dhis2AnalyticsRunOperator().probe(handle(cursor("n1")), config, ctx.as_context())
     assert probed.status is ProbeStatus.RUNNING
+
+
+async def test_a_feed_that_empties_after_it_had_reported_probes_as_gone(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    """An instance restart drops every task's notifications; a feed empty after a row was seen is lost."""
+    dhis2.get(TASK_URL).answers(json(200, []))
+    config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
+    probed = await Dhis2AnalyticsRunOperator().probe(handle(cursor("n1")), config, ctx.as_context())
+    assert probed.status is ProbeStatus.GONE
+    assert "dropped the feed" in (probed.message or "")
+
+
+async def test_a_probe_streams_only_the_rows_the_cursor_has_not_seen(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(TASK_URL).answers(
+        json(200, task_feed(notification("building", time=T2, uid="n2"), notification("started", time=T1, uid="n1")))
+    )
+    config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
+    probed = await Dhis2AnalyticsRunOperator().probe(handle(cursor("n1")), config, ctx.as_context())
+    assert probed.status is ProbeStatus.RUNNING
+    assert ctx.log.messages() == ["building"]
+    assert probed.meta is not None
+    assert jsonlib.loads(probed.meta[CURSOR]) == ["n1", "n2"]
+
+
+async def test_fetch_refuses_a_feed_without_a_terminal_row(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(TASK_URL).answers(json(200, []))
+    config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
+    with pytest.raises(BlockFailure) as refused:
+        await Dhis2AnalyticsRunOperator().fetch(handle(), config, ctx.as_context())
+    assert refused.value.error_class is ErrorClass.TRANSIENT
+    assert "no result to collect" in refused.value.message

@@ -41,13 +41,17 @@ class Dhis2DataValueSetImportConfig(BlockModel):
     held in storage comes in through storage.read."""
 
     dry_run: bool = False
-    """Whether the instance validates the import without writing anything."""
+    """Whether the instance validates the import without writing anything. A `completeDate`
+    in the document is left out of a dry run: DHIS2 2.41 and 2.42 register the data set
+    complete even under dryRun, and a rehearsal must persist nothing."""
 
     import_strategy: ImportStrategy = "CREATE_AND_UPDATE"
     """What the import may do to existing values: CREATE, UPDATE, CREATE_AND_UPDATE, or DELETE."""
 
     atomic_mode: AtomicMode = "ALL"
-    """ALL refuses the whole import on any conflict; NONE takes what it can."""
+    """ALL asks the instance to refuse the whole import on any conflict; NONE takes what it can.
+    DHIS2 does not always honour ALL and may commit the good values beside the conflicts, so
+    a failure under ALL names what landed."""
 
 
 class Dhis2DataValueSetImportOutput(BlockModel):
@@ -64,6 +68,12 @@ class Dhis2DataValueSetImportOutput(BlockModel):
     """Every value the instance refused, empty when the import was clean."""
 
 
+def _has_summary(envelope: WebMessageResponse) -> bool:
+    """Whether the envelope carries an import summary: a typed count or the summary's own type."""
+    summary = envelope.response or {}
+    return summary.get("responseType") == "ImportSummary" or envelope.import_count() is not None
+
+
 def _summary_in(error: Dhis2ApiError) -> WebMessageResponse | None:
     """The import summary a refusal carries, when the instance refused the import with one.
 
@@ -75,10 +85,7 @@ def _summary_in(error: Dhis2ApiError) -> WebMessageResponse | None:
     if error.status_code != 409:
         return None
     envelope = error.web_message
-    if envelope is None or not envelope.response:
-        return None
-    summary = envelope.response
-    if summary.get("responseType") != "ImportSummary" and "importCount" not in summary:
+    if envelope is None or not _has_summary(envelope):
         return None
     return envelope
 
@@ -115,6 +122,43 @@ def _refusal(conflicts: list[Dhis2ImportConflict], counts: dict[str, int]) -> st
     return f"{named}{tail}" if named else f"{counts['ignored']} values ignored"
 
 
+def _taken(counts: dict[str, int]) -> int:
+    """How many values the summary says landed: imported, updated or deleted."""
+    return counts["imported"] + counts["updated"] + counts["deleted"]
+
+
+def _partial(conflicts: list[Dhis2ImportConflict], counts: dict[str, int]) -> str:
+    """Say what an import asked to be atomic did, honestly: what it took and what it refused.
+
+    DHIS2 commits the good values beside the conflicts under ``atomicMode=ALL`` on every
+    supported major, so a WARNING under ALL is not the rollback the mode promises. The
+    failure names the values that landed so the step's reader knows the instance changed.
+    """
+    taken = _taken(counts)
+    if taken == 0:
+        return f"the import took nothing: {_refusal(conflicts, counts)}"
+    return (
+        f"the import took {taken} values and refused {counts['ignored']} despite atomic_mode ALL: "
+        f"{_refusal(conflicts, counts)}"
+    )
+
+
+def _rehearsal(document: JsonValue, ctx: StepContext) -> JsonValue:
+    """The document a dry run sends: the same one, without the completeness claim.
+
+    DHIS2 2.41 and 2.42 store the complete-data-set registration a ``completeDate`` asks for
+    even under ``dryRun=true``, so a rehearsal carrying one is not a rehearsal. The claim is
+    left out and said so; a real import sends the document whole.
+    """
+    if not isinstance(document, dict) or "completeDate" not in document:
+        return document
+    ctx.log.warning(
+        "completeDate left out of the dry run: DHIS2 2.41 and 2.42 register completeness under dryRun",
+        complete_date=str(document["completeDate"]),
+    )
+    return {key: value for key, value in document.items() if key != "completeDate"}
+
+
 class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfig, Dhis2DataValueSetImportOutput]):
     """Sends one data value set and fails the step when the instance did not take it."""
 
@@ -129,7 +173,7 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
         self, config: Dhis2DataValueSetImportConfig, ctx: StepContext
     ) -> Dhis2DataValueSetImportOutput | RemoteHandle:
         """Send the document and turn the summary into an output, or into a classified refusal."""
-        document = config.data_values
+        document = _rehearsal(config.data_values, ctx) if config.dry_run else config.data_values
         payload = json.dumps(document).encode()
         async with client_for(ctx, config.connection) as client:
             try:
@@ -146,6 +190,11 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
                 envelope = refused
             except AuthenticationError as error:
                 raise refuse(error, f"POST {DATA_VALUE_SETS_PATH}") from error
+        if not _has_summary(envelope):
+            raise BlockFailure(
+                f"POST {DATA_VALUE_SETS_PATH} answered without an import summary, so nothing says the import took",
+                error_class=ErrorClass.REJECTED,
+            )
         status = _status(envelope)
         counts = _counts(envelope)
         conflicts = _conflicts(envelope)
@@ -156,8 +205,5 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
                 error_class=ErrorClass.REJECTED,
             )
         if status == "WARNING" and counts["ignored"] > 0 and config.atomic_mode == "ALL":
-            raise BlockFailure(
-                f"the import took nothing: {_refusal(conflicts, counts)}",
-                error_class=ErrorClass.REJECTED,
-            )
+            raise BlockFailure(_partial(conflicts, counts), error_class=ErrorClass.REJECTED)
         return Dhis2DataValueSetImportOutput(status=status, conflicts=conflicts, **counts)

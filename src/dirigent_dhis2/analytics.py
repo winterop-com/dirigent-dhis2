@@ -96,6 +96,15 @@ def _completed_at(entry: Any) -> str | None:
     return entry.time.isoformat() if entry is not None and entry.time is not None else None
 
 
+def _identity(entry: Any) -> str:
+    """The identifier a notification is told from the others by, the way the client tells them.
+
+    A row without one is streamed on every poll, which is what the client does too.
+    """
+    time = getattr(entry, "time", None)
+    return str(getattr(entry, "uid", None) or getattr(entry, "id", None) or (time.isoformat() if time else ""))
+
+
 def _silent_for(ctx: StepContext) -> timedelta:
     """How long this attempt has been waiting on the task, measured from its first start."""
     started = ctx.started_at if ctx.started_at.tzinfo is not None else ctx.started_at.replace(tzinfo=UTC)
@@ -139,12 +148,19 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
         return RemoteHandle(block_id=self.spec.id, ref=task_uid, meta={NOTIFIER: endpoint, JOB_TYPE: job_type})
 
     async def probe(self, handle: RemoteHandle, config: Dhis2AnalyticsRunConfig, ctx: StepContext) -> ProbeResult:
-        """Poll the task once, stream the notifications new since the cursor, and map its state."""
+        """Poll the task once, stream the notifications new since the cursor, and map its state.
+
+        The feed is read whole and the cursor applied here rather than in the client, because
+        the poll has to know whether the feed is empty: an instance that restarts drops every
+        task's notifications, and a feed that is empty after it had spoken is a task the
+        instance lost. The client's cursor would hide that, since it reports the rows it has
+        seen whether or not the instance still holds them.
+        """
         task_ref = (handle.meta[JOB_TYPE], handle.ref)
-        cursor = json.loads(handle.meta.get(CURSOR, "[]"))
+        seen: set[str] = set(json.loads(handle.meta.get(CURSOR, "[]")))
         async with client_for(ctx, config.connection) as client:
             try:
-                poll = await client.tasks.poll_once(task_ref, cursor=cursor)
+                poll = await client.tasks.poll_once(task_ref)
             except Dhis2ApiError as error:
                 if error.status_code == 404:
                     return ProbeResult(
@@ -153,22 +169,26 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
                 raise refuse(error, f"GET {handle.meta[NOTIFIER]}") from error
             except AuthenticationError as error:
                 raise refuse(error, f"GET {handle.meta[NOTIFIER]}") from error
-        for entry in poll.new:
+        new = [entry for entry in poll.new if _identity(entry) not in seen]
+        for entry in new:
             log = ctx.log.warning if _level(entry) == "ERROR" else ctx.log.info
             log(entry.message or "", level=_level(entry))
-        advanced = {**handle.meta, CURSOR: json.dumps(sorted(poll.cursor))}
+        advanced = {**handle.meta, CURSOR: json.dumps(sorted(seen | set(poll.cursor)))}
         if not poll.completed:
-            if not poll.cursor and _silent_for(ctx) >= GONE_AFTER:
+            if not poll.new and seen:
+                return ProbeResult(
+                    status=ProbeStatus.GONE,
+                    message=f"the instance has dropped the feed of task {handle.ref} after it had reported",
+                )
+            if not poll.new and _silent_for(ctx) >= GONE_AFTER:
                 return ProbeResult(
                     status=ProbeStatus.GONE,
                     message=f"the instance has reported nothing for task {handle.ref} since it was submitted",
                 )
             return ProbeResult(status=ProbeStatus.RUNNING, message="the task is still running", meta=advanced)
-        # A settled outcome carries no cursor on purpose. The client only reports the task
-        # complete when the terminal row is new to it, so a cursor advanced past that row
-        # would make any later probe of the same handle answer "running" for good. Leaving
-        # the cursor where it is means a re-probe reads the terminal row again and settles
-        # again, which is the at-least-once the contract asks for.
+        # A settled outcome carries no cursor on purpose: a re-probe of the same handle reads
+        # the terminal row again and settles again, which is the at-least-once the contract
+        # asks for.
         terminal = poll.new[-1] if poll.new else None
         if terminal is not None and _level(terminal) == "ERROR":
             return ProbeResult(status=ProbeStatus.FAILED, message=f"the task failed: {terminal.message or ''}")
@@ -177,7 +197,13 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
     async def fetch(
         self, handle: RemoteHandle, config: Dhis2AnalyticsRunConfig, ctx: StepContext
     ) -> Dhis2AnalyticsRunOutput:
-        """Collect the finished task's story; safe to call again."""
+        """Collect the finished task's story; safe to call again.
+
+        The story is the whole feed, ending at the terminal row. A feed without one is not a
+        result: the instance restarted and dropped it, or the probe that settled read a feed
+        this fetch no longer sees. Either way the step has nothing to report, so it says so
+        instead of answering an empty story as a success.
+        """
         task_ref = (handle.meta[JOB_TYPE], handle.ref)
         async with client_for(ctx, config.connection) as client:
             try:
@@ -193,6 +219,11 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
                 raise refuse(error, f"GET {handle.meta[NOTIFIER]}") from error
         story = poll.new
         terminal = story[-1] if story and story[-1].completed else None
+        if terminal is None:
+            raise BlockFailure(
+                f"task {handle.ref} has no result to collect: the instance holds no terminal notification for it",
+                error_class=ErrorClass.TRANSIENT,
+            )
         return Dhis2AnalyticsRunOutput(
             task_id=handle.ref,
             completed_at=_completed_at(terminal),

@@ -1,9 +1,11 @@
 # Let the good values through and report the bad ones, instead of refusing the batch.
 #
 # atomic_mode is the other half of an import's contract, and it decides what one bad row
-# does to the other rows. ALL, the default, is all-or-nothing: a single conflict and DHIS2
-# writes none of it, so the instance never holds half a submission. NONE takes every value
-# it can and reports the rest as conflicts.
+# does to the other rows. ALL, the default, asks for all-or-nothing: a single conflict and
+# the whole submission is refused. DHIS2 does not keep that promise -- on every supported
+# major the good values are committed beside the conflicts under ALL -- so the block fails
+# the step and names how many values landed. NONE takes every value it can and reports the
+# rest as conflicts, which is the behaviour ALL delivers anyway, said out loud.
 #
 # NONE is for a feed you do not control -- a district's monthly file, a survey export, an
 # upstream system with its own idea of an uid. Refusing three hundred good values because

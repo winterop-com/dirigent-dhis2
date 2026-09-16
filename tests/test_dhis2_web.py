@@ -18,6 +18,7 @@ from dirigent_testing import FakeContext, call_block
         (httpx2.ConnectError("refused"), ErrorClass.TRANSIENT),
         (httpx2.ReadTimeout("slow"), ErrorClass.TRANSIENT),
         (Dhis2ApiError(503, "Service Unavailable"), ErrorClass.TRANSIENT),
+        (Dhis2ApiError(429, "Too Many Requests"), ErrorClass.TRANSIENT),
         (Dhis2ApiError(409, "Conflict"), ErrorClass.REJECTED),
         (AuthenticationError("401 Unauthorized at GET /api/x"), ErrorClass.REJECTED),
         (UnsupportedVersionError("2.40.0", ["v41", "v42", "v43"]), ErrorClass.REJECTED),

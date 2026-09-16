@@ -12,7 +12,9 @@ contributes joins the engine's own in that checker.
 | `dhis2-code` | a DHIS2 code: one to fifty characters, not padded, on one line | `DE_359596`, `OU_222702`, `ANC 1st visit` |
 
 A format only ever narrows a `string`: a value of the wrong type is caught by `type`, and the
-checker speaks only once the value is already a string.
+checker speaks only once the value is already a string. So a field written
+`{"type": ["string", "null"], "format": "dhis2-uid"}` admits `null` and holds every string to
+the format, the way the draft's own formats behave.
 
 ## `dhis2-uid`
 

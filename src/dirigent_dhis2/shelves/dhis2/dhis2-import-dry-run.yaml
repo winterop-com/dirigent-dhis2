@@ -5,6 +5,8 @@
 # this safe: DHIS2 runs the whole import -- resolving every uid, checking every value
 # against its data element's value type, applying the strategy -- and then throws the result
 # away. The summary is the same either way, which is what makes a dry run worth running.
+# One thing is held back: a completeDate in the document is left out of a dry run, because
+# DHIS2 2.41 and 2.42 register the data set complete even under dryRun.
 #
 # The summary comes back parsed in the step's output: status (SUCCESS, WARNING or ERROR),
 # the imported, updated, ignored and deleted counts, and a conflicts list naming each value
