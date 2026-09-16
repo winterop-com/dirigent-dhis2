@@ -21,14 +21,14 @@ def test_a_bad_dhis2_uid_is_rejected(value: object) -> None:
     assert not is_uid(value)
 
 
-@pytest.mark.parametrize("value", ["2024", "202401", "20240115", "2024Q1", "2024W1", "2024W53"])
+@pytest.mark.parametrize("value", ["2024", "202401", "20240115", "2024Q1", "2024W1", "2024W03", "2024W53"])
 def test_a_dhis2_period_of_a_common_type_is_accepted(value: str) -> None:
     assert is_period(value)
 
 
 @pytest.mark.parametrize(
     "value",
-    ["2024Q5", "202413", "20240132", "2024W54", "24Q1", "2024-01", "notaperiod", 202401],
+    ["2024Q5", "202413", "20240132", "2024W0", "2024W00", "2024W54", "24Q1", "2024-01", "notaperiod", 202401],
 )
 def test_a_bad_dhis2_period_is_rejected(value: object) -> None:
     assert not is_period(value)

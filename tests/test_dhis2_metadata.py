@@ -43,6 +43,20 @@ async def test_a_single_filter_string_is_sent_as_one_filter(ctx: FakeContext, dh
     assert route.last.url.params.get_list("filter") == ["domainType:eq:AGGREGATE"]
 
 
+async def test_a_list_of_filters_is_sent_as_several(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    route = dhis2.get(DATA_ELEMENTS).answers(json(200, READ))
+    await call_block(
+        Dhis2MetadataOperator(),
+        {
+            "connection": CONNECTION,
+            "resource": "dataElements",
+            "filter": ["domainType:eq:AGGREGATE", "valueType:eq:NUMBER"],
+        },
+        ctx,
+    )
+    assert route.last.url.params.get_list("filter") == ["domainType:eq:AGGREGATE", "valueType:eq:NUMBER"]
+
+
 async def test_paging_sends_the_page_and_size(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     route = dhis2.get(f"{BASE_URL}/api/organisationUnits").answers(json(200, {"organisationUnits": []}))
     await call_block(

@@ -1,4 +1,4 @@
-"""Tests for dhis2.analytics_query: aggregate through the accessor, event through the path."""
+"""Tests for dhis2.analytics_query: aggregate, event and enrollment, all through the analytics accessor."""
 
 import pytest
 from pydantic import JsonValue, ValidationError

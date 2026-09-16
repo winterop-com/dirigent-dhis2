@@ -28,13 +28,14 @@ The common DHIS2 ISO period types, matched whole:
 | Monthly | `YYYYMM` | `202601` |
 | Daily | `YYYYMMDD` | `20260115` |
 | Quarterly | `YYYYQn` | `2026Q1` |
-| Weekly | `YYYYWnn` | `2026W03` |
+| Weekly | `YYYYWn`, zero-padded or not | `2026W3`, `2026W03` |
 
 The month, day, quarter and week numbers are bounded, so `202613` and `2026Q5` are refused.
 
-The rarer period types are not covered: bi-monthly (`YYYYMMB`), six-monthly (`YYYYSn`), and the
-financial-year variants (`YYYYApril`, `YYYYJuly`, `YYYYOct`). A schema that has to accept one
-of those uses `pattern` rather than this format.
+The rarer period types are not covered: bi-weekly (`YYYYBiWn`), the weekly variants that start
+on another day (`YYYYWedWn`, `YYYYThuWn`, `YYYYSatWn`, `YYYYSunWn`), bi-monthly (`YYYYMMB`),
+six-monthly (`YYYYSn`), and the financial-year variants (`YYYYApril`, `YYYYJuly`, `YYYYOct`). A
+schema that has to accept one of those uses `pattern` rather than this format.
 
 ## Using one in a schema
 

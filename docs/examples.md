@@ -130,7 +130,7 @@ instances is four.
 | --- | --- | --- |
 | `dhis2-export-validated.yaml` | `dhis2-export-validated` | An export gated on `validate.schema`, ids and periods held to `dhis2-uid` and `dhis2-period`. |
 | `dhis2-export-reshaped.yaml` | `dhis2-export-reshaped` | An export reshaped with `transform.jq`: the envelope's defaults pushed down, values made numeric, cells grouped per data element. |
-| `dhis2-export-per-org-unit.yaml` | `dhis2-export-per-org-unit` | One export per organisation unit with `for_each`, `items: continue` so one district's failure costs only that district, and the fan's outputs written out as one bundle. |
+| `dhis2-export-per-org-unit.yaml` | `dhis2-export-per-org-unit` | One export per organisation unit with `for_each`, `items: continue` so one district's failure costs only that district; a second fanned `storage.write` writes one file per district, and a manifest lists what landed. |
 | `dhis2-export-to-storage.yaml` | `dhis2-export-to-storage` | An export left behind as a file: `storage.write` takes the export's `body` and reports the URI it landed at. |
 | `dhis2-import-from-storage.yaml` | `dhis2-import-from-storage` | A month moved through a file: export, `storage.write`, `storage.read`, import -- both of storage's doors in one document. |
 

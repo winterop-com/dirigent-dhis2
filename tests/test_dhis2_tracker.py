@@ -45,6 +45,28 @@ async def test_the_kind_names_the_collection_path(ctx: FakeContext, dhis2: Dhis2
     assert route.last.url.params.get_list("filter") == ["w75KJ2mc4zz:like:Anna"]
 
 
+async def test_an_enrollments_filter_rides_through_as_a_query_parameter(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    """The enrollments reader has no filter argument, so the block's contract is kept on the wire itself."""
+    route = dhis2.get(f"{BASE_URL}/api/tracker/enrollments").answers(json(200, {"instances": []}))
+    await call_block(
+        Dhis2TrackerOperator(),
+        {
+            "connection": CONNECTION,
+            "kind": "enrollments",
+            "program": "IpHINAT79UW",
+            "status": "ACTIVE",
+            "updated_after": "2026-01-01",
+            "filter": "w75KJ2mc4zz:like:Anna",
+        },
+        ctx,
+    )
+    params = route.last.url.params
+    assert route.last.url.path == "/api/tracker/enrollments"
+    assert params.get_list("filter") == ["w75KJ2mc4zz:like:Anna"]
+    assert params["programStatus"] == "ACTIVE"
+    assert params["updatedAfter"] == "2026-01-01"
+
+
 async def test_a_refused_read_is_classified_by_its_status(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     dhis2.get(EVENTS).answers(json(500, {}))
     with pytest.raises(BlockFailure) as refused:

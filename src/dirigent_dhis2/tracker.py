@@ -45,7 +45,10 @@ class Dhis2TrackerConfig(BlockModel):
     """The DHIS2 ``fields=`` selector; the instance's own default when unset."""
 
     filter: str | list[str] | None = None
-    """One or more DHIS2 ``filter=`` expressions on the collection's attributes."""
+    """One or more DHIS2 ``filter=`` expressions on the collection's attributes. Tracked
+    entities and events take one; the enrollments collection has no attribute filter of its
+    own, so a filter given for it rides through as a plain query parameter the instance may
+    ignore."""
 
     status: str | None = None
     """The status to read, where the collection has one: an enrollment or event ``status``."""

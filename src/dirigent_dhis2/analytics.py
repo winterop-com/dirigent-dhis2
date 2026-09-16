@@ -30,6 +30,10 @@ NOTIFIER = "notifier"
 JOB_TYPE = "job_type"
 
 #: The handle key holding the poll cursor: the notification identifiers already streamed in.
+#:
+#: It holds every identifier seen so far, because the client's poll tells new rows from old
+#: by membership. A table rebuild's story is a few hundred rows at most, so the handle stays
+#: small; it is not trimmed.
 CURSOR = "cursor"
 
 #: How many notification messages the output keeps, from the end of the task's story.
@@ -160,14 +164,15 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
                     message=f"the instance has reported nothing for task {handle.ref} since it was submitted",
                 )
             return ProbeResult(status=ProbeStatus.RUNNING, message="the task is still running", meta=advanced)
+        # A settled outcome carries no cursor on purpose. The client only reports the task
+        # complete when the terminal row is new to it, so a cursor advanced past that row
+        # would make any later probe of the same handle answer "running" for good. Leaving
+        # the cursor where it is means a re-probe reads the terminal row again and settles
+        # again, which is the at-least-once the contract asks for.
         terminal = poll.new[-1] if poll.new else None
         if terminal is not None and _level(terminal) == "ERROR":
             return ProbeResult(status=ProbeStatus.FAILED, message=f"the task failed: {terminal.message or ''}")
-        return ProbeResult(
-            status=ProbeStatus.SUCCEEDED,
-            message=terminal.message if terminal is not None else None,
-            meta=advanced,
-        )
+        return ProbeResult(status=ProbeStatus.SUCCEEDED, message=terminal.message if terminal is not None else None)
 
     async def fetch(
         self, handle: RemoteHandle, config: Dhis2AnalyticsRunConfig, ctx: StepContext

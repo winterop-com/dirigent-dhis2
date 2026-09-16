@@ -19,7 +19,7 @@ import the instance did not take fails the step with the conflicts it named.
 - Two [formats](formats.md), `dhis2-uid` and `dhis2-period`, that a schema asserts against by
   writing `format:`.
 - Seven [blocks](blocks.md): six operators and one sensor, all in the `dhis2` group.
-- One [example](examples.md) document per operation, across five shelves.
+- One [example](examples.md) document per operation, across six shelves.
 
 ## Install
 
