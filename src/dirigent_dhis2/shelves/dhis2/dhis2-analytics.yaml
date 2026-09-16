@@ -21,8 +21,6 @@ requires:
     - dhis2.analytics_run
     - dhis2.data_value_set_export
     - dhis2.data_set_complete
-  connections:
-    - dhis2-production
 
 connections:
   dhis2-production:
