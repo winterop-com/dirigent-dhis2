@@ -28,7 +28,7 @@ greater than zero.
 A connection carries a personal access token or a basic username and password, and the model
 refuses anything else:
 
-- both an `api_token` and a `basic_username` is refused,
+- an `api_token` beside a `basic_username` or a `basic_password` is refused,
 - neither is refused,
 - a `basic_username` without a `basic_password` is refused.
 

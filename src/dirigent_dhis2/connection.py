@@ -39,7 +39,7 @@ class Dhis2ConnectionConfig(BlockModel):
     @model_validator(mode="after")
     def _require_one_credential(self) -> "Dhis2ConnectionConfig":
         """Reject a config carrying both credential kinds, neither, or half of the basic pair."""
-        if self.api_token is not None and self.basic_username:
+        if self.api_token is not None and (self.basic_username or self.basic_password is not None):
             raise ValueError("a dhis2 connection takes an api_token or basic credentials, not both")
         if self.api_token is None and not self.basic_username:
             raise ValueError("a dhis2 connection needs an api_token or basic credentials")
