@@ -4,7 +4,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from dirigent_dhis2 import DHIS2_FORMATS
-from dirigent_dhis2.formats import is_period, is_uid
+from dirigent_dhis2.formats import is_code, is_period, is_uid
 from dirigent_testing import FakeContext
 
 
@@ -34,6 +34,19 @@ def test_a_bad_dhis2_period_is_rejected(value: object) -> None:
     assert not is_period(value)
 
 
+@pytest.mark.parametrize("value", ["DE_359596", "OU-222702", "ANC 1st visit", "x", "a" * 50, "Ærø 1"])
+def test_a_dhis2_code_is_one_to_fifty_characters_on_one_line(value: str) -> None:
+    assert is_code(value)
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["", " ", " DE_359596", "DE_359596 ", "DE_\n359596", "a" * 51, 359596, None],
+)
+def test_a_bad_dhis2_code_is_rejected(value: object) -> None:
+    assert not is_code(value)
+
+
 #: A shape a validate.schema gate would carry, asserting the pack's formats on the id and period.
 _SCHEMA = {
     "type": "object",
@@ -41,6 +54,7 @@ _SCHEMA = {
     "properties": {
         "dataElement": {"type": "string", "format": "dhis2-uid"},
         "period": {"type": "string", "format": "dhis2-period"},
+        "code": {"type": "string", "format": "dhis2-code"},
     },
 }
 
@@ -66,5 +80,10 @@ def test_a_bad_dhis2_period_fails_the_gate_where_the_pack_is_installed(block_ctx
     assert _errors(block_ctx, {"dataElement": "fbfJHSPpUQD", "period": "2024-01"})
 
 
+def test_a_bad_dhis2_code_fails_the_gate_where_the_pack_is_installed(block_ctx: FakeContext) -> None:
+    block_ctx.formats = DHIS2_FORMATS
+    assert _errors(block_ctx, {"dataElement": "fbfJHSPpUQD", "period": "202401", "code": " padded "})
+
+
 def test_the_format_is_a_passing_annotation_where_the_pack_is_not_installed(block_ctx: FakeContext) -> None:
-    assert _errors(block_ctx, {"dataElement": "not-a-uid", "period": "2024-01"}) == []
+    assert _errors(block_ctx, {"dataElement": "not-a-uid", "period": "2024-01", "code": ""}) == []

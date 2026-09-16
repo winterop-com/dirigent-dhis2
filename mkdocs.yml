@@ -1,5 +1,5 @@
 site_name: dirigent-dhis2
-site_description: The DHIS2 adapter pack for dirigent. A connection kind, two formats, and the blocks for one instance.
+site_description: The DHIS2 adapter pack for dirigent. A connection kind, three formats, and the blocks for one instance.
 site_url: https://winterop-com.github.io/dirigent-dhis2/
 repo_url: https://github.com/winterop-com/dirigent-dhis2
 edit_uri: ""

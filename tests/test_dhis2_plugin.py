@@ -22,7 +22,7 @@ def test_the_pack_contributes_the_dhis2_blocks() -> None:
     assert contribution.api_version == API_VERSION
     assert sorted(contribution.block_ids()) == DHIS2_BLOCKS
     assert [connection.id for connection in contribution.connection_kinds] == ["dhis2"]
-    assert sorted(contribution.formats) == ["dhis2-period", "dhis2-uid"]
+    assert sorted(contribution.formats) == ["dhis2-code", "dhis2-period", "dhis2-uid"]
     assert contribution.notifiers == []
     assert contribution.storage_backends == []
 
