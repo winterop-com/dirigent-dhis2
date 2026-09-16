@@ -36,9 +36,13 @@ jobs:
       - name: Sync the environment
         run: uv sync --locked
 
-      # --strict fails the build on any warning, including a broken internal link.
+      # --strict fails the build on any warning, including a broken internal link. The
+      # variable silences Material's notice about MkDocs 2.0, which the pin below 2 in
+      # pyproject.toml already answers.
       - name: Build the site
         run: uv run mkdocs build --strict
+        env:
+          NO_MKDOCS_2_WARNING: "1"
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@v5
