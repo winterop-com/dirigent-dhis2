@@ -74,11 +74,54 @@ async def test_a_summary_of_error_on_200_is_rejected_the_same_way(ctx: FakeConte
 
 
 async def test_an_atomic_import_that_ignored_values_is_rejected(ctx: FakeContext, dhis2: Dhis2Server) -> None:
-    dhis2.post(IMPORT).answers(json(409, summary("WARNING", imported=2, ignored=5)))
+    dhis2.post(IMPORT).answers(json(409, summary("WARNING", ignored=5)))
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
     assert refused.value.error_class is ErrorClass.REJECTED
     assert "took nothing" in refused.value.message
+
+
+async def test_an_atomic_import_the_instance_took_half_of_names_what_landed(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    """DHIS2 commits the good values beside the conflicts under ALL, so the failure must say so."""
+    dhis2.post(IMPORT).answers(json(409, summary("WARNING", updated=1, ignored=1)))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
+    assert refused.value.error_class is ErrorClass.REJECTED
+    assert "took 1 values and refused 1" in refused.value.message
+    assert "took nothing" not in refused.value.message
+
+
+async def test_a_dry_run_leaves_the_completeness_claim_out(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    """DHIS2 2.41 and 2.42 register the data set complete even under dryRun, so a rehearsal must not ask."""
+    route = dhis2.post(IMPORT).answers(json(200, summary("SUCCESS", imported=1)))
+    document = {**DOCUMENT, "orgUnit": "ou1", "completeDate": "2026-04-01"}
+    await call_block(
+        Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": document, "dry_run": True}, ctx
+    )
+    sent = jsonlib.loads(route.last.content)
+    assert "completeDate" not in sent
+    assert sent == {**DOCUMENT, "orgUnit": "ou1"}
+    assert any(level == "warning" and "completeDate" in message for level, message, _ in ctx.log.entries)
+
+
+async def test_a_real_import_sends_the_completeness_claim(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    route = dhis2.post(IMPORT).answers(json(200, summary("SUCCESS", imported=1)))
+    document = {**DOCUMENT, "orgUnit": "ou1", "completeDate": "2026-04-01"}
+    await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": document}, ctx)
+    assert jsonlib.loads(route.last.content)["completeDate"] == "2026-04-01"
+
+
+@pytest.mark.parametrize("body", [{}, {"httpStatus": "OK", "status": "OK"}], ids=["empty", "no-summary"])
+async def test_a_200_without_an_import_summary_is_not_a_success(
+    ctx: FakeContext, dhis2: Dhis2Server, body: dict[str, str]
+) -> None:
+    dhis2.post(IMPORT).answers(json(200, body))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
+    assert refused.value.error_class is ErrorClass.REJECTED
+    assert "without an import summary" in refused.value.message
 
 
 async def test_a_tolerant_import_that_ignored_values_still_settles(ctx: FakeContext, dhis2: Dhis2Server) -> None:

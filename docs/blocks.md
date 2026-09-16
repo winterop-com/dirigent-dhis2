@@ -76,8 +76,11 @@ Submits the job to `/api/resourceTables/analytics`, then follows the task's noti
 each probe streams the messages new since its cursor into the run's log, and the feed's own
 completion is what ends the step. A task that has written nothing fifteen minutes after
 submission is taken to be gone, because DHIS2 answers a task it never had exactly the way it
-answers one that has not spoken yet. DHIS2 offers no way to stop a running analytics job, so a
-cancelled step leaves the job to finish on the instance.
+answers one that has not spoken yet. A feed that is empty after it had spoken is gone at once:
+an instance that restarts drops every task's notifications, and the job with them. Collecting
+the result asks for the terminal notification, and a feed without one fails the step as
+transient rather than answering an empty story as a success. DHIS2 offers no way to stop a
+running analytics job, so a cancelled step leaves the job to finish on the instance.
 
 **Config**
 
@@ -135,8 +138,15 @@ Not idempotent.
 Sends the document in `data_values`, written in the step or referenced from an upstream
 output (a set held in storage comes in through `storage.read`), and reads the import summary as the instance's verdict: a 409 carrying a summary is that
 verdict too, not a transport failure. A summary whose status is `ERROR` fails the step with the
-first conflicts named, and so does a `WARNING` that took nothing under `atomic_mode: ALL`. Both
-failures are `rejected`, so the same document is not retried against the same instance.
+first conflicts named, and so does a `WARNING` with ignored values under `atomic_mode: ALL`.
+DHIS2 does not honour `ALL` as the rollback it describes: on every supported major the good
+values are committed beside the conflicts, so that failure names how many values landed. A 200
+without an import summary in it fails the step too, since nothing then says the import took.
+Every one of these failures is `rejected`, so the same document is not retried against the same
+instance.
+
+A dry run sends the document without its `completeDate`, and says so in the log. DHIS2 2.41 and
+2.42 register the data set complete under `dryRun=true`, and a rehearsal must persist nothing.
 
 **Config**
 
@@ -144,9 +154,9 @@ failures are `rejected`, so the same document is not retried against the same in
 | --- | --- | --- | --- | --- |
 | `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
 | `data_values` | `any` | yes |  | The data value set document to send, written in the step or referenced from one. |
-| `dry_run` | `boolean` |  | `false` | Whether the instance validates the import without writing anything. |
+| `dry_run` | `boolean` |  | `false` | Whether the instance validates the import without writing anything. A `completeDate` in the document is left out of a dry run: DHIS2 2.41 and 2.42 register the data set complete even under dryRun, and a rehearsal must persist nothing. |
 | `import_strategy` | `"CREATE" or "UPDATE" or "CREATE_AND_UPDATE" or "DELETE"` |  | `"CREATE_AND_UPDATE"` | What the import may do to existing values: CREATE, UPDATE, CREATE_AND_UPDATE, or DELETE. |
-| `atomic_mode` | `"ALL" or "NONE"` |  | `"ALL"` | ALL refuses the whole import on any conflict; NONE takes what it can. |
+| `atomic_mode` | `"ALL" or "NONE"` |  | `"ALL"` | ALL asks the instance to refuse the whole import on any conflict; NONE takes what it can. DHIS2 does not always honour ALL and may commit the good values beside the conflicts, so a failure under ALL names what landed. |
 
 **Output**
 

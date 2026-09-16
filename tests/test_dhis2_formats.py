@@ -85,5 +85,30 @@ def test_a_bad_dhis2_code_fails_the_gate_where_the_pack_is_installed(block_ctx: 
     assert _errors(block_ctx, {"dataElement": "fbfJHSPpUQD", "period": "202401", "code": " padded "})
 
 
+#: A shape that admits an absent value beside a held one, the way JSON Schema spells "optional".
+_NULLABLE = {
+    "type": "object",
+    "properties": {
+        "dataElement": {"type": ["string", "null"], "format": "dhis2-uid"},
+        "period": {"type": ["string", "null"], "format": "dhis2-period"},
+        "code": {"type": ["string", "null"], "format": "dhis2-code"},
+    },
+}
+
+
+def test_a_format_speaks_only_on_a_string_so_a_nullable_field_admits_null(block_ctx: FakeContext) -> None:
+    block_ctx.formats = DHIS2_FORMATS
+    validator = Draft202012Validator(_NULLABLE, format_checker=block_ctx.format_checker())
+    assert list(validator.iter_errors({"dataElement": None, "period": None, "code": None})) == []  # pyright: ignore[reportUnknownMemberType]
+    assert list(validator.iter_errors({"dataElement": "not-a-uid", "period": None, "code": None}))  # pyright: ignore[reportUnknownMemberType]
+
+
+@pytest.mark.parametrize("name", sorted(DHIS2_FORMATS))
+def test_a_contributed_checker_passes_what_is_not_a_string(name: str) -> None:
+    assert DHIS2_FORMATS[name](None)
+    assert DHIS2_FORMATS[name](123)
+    assert not DHIS2_FORMATS[name]("")
+
+
 def test_the_format_is_a_passing_annotation_where_the_pack_is_not_installed(block_ctx: FakeContext) -> None:
     assert _errors(block_ctx, {"dataElement": "not-a-uid", "period": "2024-01", "code": ""}) == []
