@@ -30,7 +30,7 @@ from dirigent_dhis2.export import (
     Dhis2DataValueSetExportOperator,
     Dhis2DataValueSetExportOutput,
 )
-from dirigent_dhis2.formats import DHIS2_FORMATS, is_period, is_uid
+from dirigent_dhis2.formats import DHIS2_FORMATS, is_code, is_period, is_uid
 from dirigent_dhis2.imports import (
     Dhis2DataValueSetImportConfig,
     Dhis2DataValueSetImportOperator,
@@ -117,6 +117,7 @@ __all__ = [
     "build_client",
     "classify",
     "client_for",
+    "is_code",
     "is_period",
     "is_uid",
     "plugin",

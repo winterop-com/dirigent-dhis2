@@ -2,7 +2,7 @@
 
 **The DHIS2 adapter pack for dirigent.**
 
-The pack contributes one connection kind, two JSON Schema formats, and seven blocks that speak
+The pack contributes one connection kind, three JSON Schema formats, and seven blocks that speak
 DHIS2's asynchronous jobs, import summaries, completeness registrations, metadata, tracker and
 analytics reads as first-class steps. A pipeline that names `dhis2.data_value_set_export` says
 what it wants of the instance; it does not assemble the call out of raw HTTP, parse the import
@@ -16,8 +16,8 @@ import the instance did not take fails the step with the conflicts it named.
 
 - The [`dhis2` connection kind](connection.md): one instance, its credential, and the client
   built from it.
-- Two [formats](formats.md), `dhis2-uid` and `dhis2-period`, that a schema asserts against by
-  writing `format:`.
+- Three [formats](formats.md), `dhis2-uid`, `dhis2-period` and `dhis2-code`, that a schema
+  asserts against by writing `format:`.
 - Seven [blocks](blocks.md): six operators and one sensor, all in the `dhis2` group.
 - One [example](examples.md) document per operation, across six shelves.
 
@@ -37,7 +37,7 @@ uv add dirigent-dhis2
 
 Installing it is the whole of the configuration. The `dirigent.plugins.v1` entry point in the
 pack's `pyproject.toml` is what an instance discovers it by, so after a restart the blocks are
-in `dg blocks`, `dhis2` is a connection kind, and the two formats assert. There is no config
+in `dg blocks`, `dhis2` is a connection kind, and the three formats assert. There is no config
 file to edit and no registry to touch.
 
 ## Its relation to dirigent

@@ -1,6 +1,6 @@
 # The DHIS2 formats
 
-The pack contributes two JSON Schema formats. In JSON Schema `format` is an annotation that
+The pack contributes three JSON Schema formats. In JSON Schema `format` is an annotation that
 asserts nothing on its own; dirigent's engine always hands its validator a checker, so a
 `format` written in a schema this instance holds is enforced. Every format an installed pack
 contributes joins the engine's own in that checker.
@@ -9,6 +9,7 @@ contributes joins the engine's own in that checker.
 | --- | --- | --- |
 | `dhis2-uid` | a DHIS2 UID: one letter, then ten alphanumerics | `ImspTQPwCqd`, `BfMAe6Itzgt` |
 | `dhis2-period` | a DHIS2 ISO period of one of the common types | `2026`, `202601`, `20260115`, `2026Q1`, `2026W03` |
+| `dhis2-code` | a DHIS2 code: one to fifty characters, not padded, on one line | `DE_359596`, `OU_222702`, `ANC 1st visit` |
 
 A format only ever narrows a `string`: a value of the wrong type is caught by `type`, and the
 checker speaks only once the value is already a string.
@@ -36,6 +37,18 @@ The rarer period types are not covered: bi-weekly (`YYYYBiWn`), the weekly varia
 on another day (`YYYYWedWn`, `YYYYThuWn`, `YYYYSatWn`, `YYYYSunWn`), bi-monthly (`YYYYMMB`),
 six-monthly (`YYYYSn`), and the financial-year variants (`YYYYApril`, `YYYYJuly`, `YYYYOct`). A
 schema that has to accept one of those uses `pattern` rather than this format.
+
+## `dhis2-code`
+
+The `code` property every identifiable object in DHIS2 carries, and the key `idScheme=CODE`
+addresses it by. DHIS2 caps a code at fifty characters and puts no character class on it, so
+neither does this format: one to fifty characters, with no whitespace at either end and no
+line break, matched whole. `DE_359596`, `OU-222702` and `ANC 1st visit` all pass; an empty
+string, a padded ` DE_359596 `, and a fifty-one-character string are refused.
+
+An instance that keeps its codes to a house convention, say upper-case letters, digits and
+underscores, writes that as a `pattern` beside the format. The format holds what DHIS2
+itself holds; the convention is the schema author's.
 
 ## Using one in a schema
 

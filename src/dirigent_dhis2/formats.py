@@ -30,6 +30,12 @@ _PERIOD = re.compile(
     re.VERBOSE,
 )
 
+#: A DHIS2 code: the ``code`` property every identifiable object carries, which DHIS2 caps at
+#: fifty characters and puts no character class on. This asks for one to fifty characters with
+#: no whitespace at either end and no line break, so a padded or empty code is refused while
+#: ``DE_359596``, ``OU-222702`` and ``ANC 1st visit`` all pass.
+_CODE = re.compile(r"\S(.{0,48}\S)?")
+
 
 def is_uid(value: object) -> bool:
     """Whether the value is a DHIS2 UID: a letter followed by ten alphanumerics."""
@@ -41,8 +47,14 @@ def is_period(value: object) -> bool:
     return isinstance(value, str) and _PERIOD.fullmatch(value) is not None
 
 
+def is_code(value: object) -> bool:
+    """Whether the value is a DHIS2 code: one to fifty characters, not padded, on one line."""
+    return isinstance(value, str) and _CODE.fullmatch(value) is not None
+
+
 #: The format checkers this pack contributes, by the name a schema writes in ``format``.
 DHIS2_FORMATS: dict[str, FormatCheck] = {
     "dhis2-uid": is_uid,
     "dhis2-period": is_period,
+    "dhis2-code": is_code,
 }

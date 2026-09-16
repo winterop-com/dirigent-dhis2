@@ -3,8 +3,8 @@
 Documentation: <https://winterop-com.github.io/dirigent-dhis2/>
 
 The DHIS2 adapter pack for [dirigent](https://github.com/winterop-com/dirigent). It
-contributes the `dhis2` connection kind, two JSON Schema formats (`dhis2-uid` and
-`dhis2-period`), and the blocks that speak DHIS2's asynchronous jobs, import summaries,
+contributes the `dhis2` connection kind, three JSON Schema formats (`dhis2-uid`,
+`dhis2-period` and `dhis2-code`), and the blocks that speak DHIS2's asynchronous jobs, import summaries,
 completeness registrations, metadata, tracker and analytics reads as first-class steps,
 rather than composing them out of raw HTTP:
 
