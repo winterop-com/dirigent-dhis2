@@ -138,6 +138,28 @@ async def test_a_completed_task_probes_as_succeeded(ctx: FakeContext, dhis2: Dhi
     assert probed.message == "analytics tables updated"
 
 
+async def test_a_succeeded_probe_leaves_the_cursor_so_a_re_probe_settles_again(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    """The client reports completion only for a terminal row it has not seen, so the cursor stops short of it."""
+    dhis2.get(TASK_URL).answers(
+        json(
+            200,
+            task_feed(
+                notification("analytics tables updated", time=T3, completed=True, uid="n3"),
+                notification("started", time=T1, uid="n1"),
+            ),
+        )
+    )
+    config = Dhis2AnalyticsRunConfig.model_validate({"connection": CONNECTION})
+    operator = Dhis2AnalyticsRunOperator()
+    first = await operator.probe(handle(cursor("n1")), config, ctx.as_context())
+    assert first.status is ProbeStatus.SUCCEEDED
+    assert first.meta is None
+    again = await operator.probe(handle(cursor("n1")), config, ctx.as_context())
+    assert again.status is ProbeStatus.SUCCEEDED
+
+
 async def test_a_task_ending_in_error_probes_as_failed(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     dhis2.get(TASK_URL).answers(
         json(200, task_feed(notification("out of memory", time=T2, level="ERROR", completed=True, uid="e1")))
