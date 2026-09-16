@@ -7,21 +7,25 @@ wherever this pack is installed and stays a passing annotation on an instance wi
 
 import re
 
+from dhis2w_client import UID_RE
+
 from dirigent_plugin import FormatCheck
 
-#: DHIS2's 11-character UID: a letter, then ten alphanumerics.
-_UID = re.compile(r"[A-Za-z][A-Za-z0-9]{10}")
+#: DHIS2's 11-character UID: a letter, then ten alphanumerics, as dhis2w-client spells it.
+_UID = UID_RE
 
 #: DHIS2 ISO period strings, common types only: yearly YYYY, monthly YYYYMM, daily YYYYMMDD,
-#: quarterly YYYYQn, and weekly YYYYWnn. The rarer types -- bi-monthly (YYYYMMB), six-monthly
-#: (YYYYSn), and the financial-year variants (YYYYApril, YYYYJuly, YYYYOct) -- are not covered.
+#: quarterly YYYYQn, and weekly YYYYWn with the week zero-padded or not, the way DHIS2 itself
+#: reads it. The rarer types -- bi-weekly (YYYYBiWn), the weekly variants (YYYYWedWn,
+#: YYYYThuWn, YYYYSatWn, YYYYSunWn), bi-monthly (YYYYMMB), six-monthly (YYYYSn), and the
+#: financial-year variants (YYYYApril, YYYYJuly, YYYYOct) -- are not covered.
 _PERIOD = re.compile(
     r"""
     \d{4}                                              # YYYY yearly
     | \d{4}(0[1-9]|1[0-2])                             # YYYYMM monthly
     | \d{4}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])        # YYYYMMDD daily
     | \d{4}Q[1-4]                                      # YYYYQn quarterly
-    | \d{4}W([1-9]|[1-4]\d|5[0-3])                     # YYYYWnn weekly
+    | \d{4}W(0?[1-9]|[1-4]\d|5[0-3])                   # YYYYWn weekly, 1-53, zero-padded or not
     """,
     re.VERBOSE,
 )
