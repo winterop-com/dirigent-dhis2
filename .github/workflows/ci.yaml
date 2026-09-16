@@ -25,3 +25,6 @@ jobs:
         run: uv run pyright
       - name: Test
         run: uv run pytest
+      # --strict fails on any warning, so a broken link is caught here rather than on main.
+      - name: Docs
+        run: uv run mkdocs build --strict

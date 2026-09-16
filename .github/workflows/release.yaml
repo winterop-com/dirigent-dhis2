@@ -37,6 +37,13 @@ jobs:
           version=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml | head -1)
           [ "$version" = "$tag" ] || { echo "pyproject carries $version, tag says $tag"; exit 1; }
 
+      # A tag is not a reason to skip the tests: what publishes is what passed.
+      - name: Sync
+        run: uv sync --locked
+
+      - name: Test
+        run: uv run pytest
+
       - name: Build the wheel and sdist
         run: uv build
 
