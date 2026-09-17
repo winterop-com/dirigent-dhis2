@@ -43,6 +43,14 @@ jobs:
         env:
           NO_MKDOCS_2_WARNING: "1"
 
+      # The tutorial is published as a page and as paper. Chromium prints the built page,
+      # so the PDF lands inside site/ and ships with it.
+      - name: Install Chromium
+        run: uv run --with playwright playwright install --with-deps chromium
+
+      - name: Print the tutorial to PDF
+        run: uv run --with playwright python scripts/docs_pdf.py --skip-build
+
       - name: Upload the site
         uses: actions/upload-pages-artifact@v5
         with:

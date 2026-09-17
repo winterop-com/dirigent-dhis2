@@ -48,6 +48,14 @@ uv run pytest
 NO_MKDOCS_2_WARNING=1 uv run mkdocs build --strict
 ```
 
+The tutorial is published as a page and as paper. The PDF is printed from the built site with
+headless Chromium, lands in `site/`, and is never committed:
+
+```bash
+uv run --with playwright playwright install chromium
+uv run --with playwright python scripts/docs_pdf.py
+```
+
 That is what CI runs. The variable silences Material's notice about MkDocs 2.0. The lock file is committed and CI syncs against it, so a pack build is
 reproducible; the ecosystem's nightly integration is what proves the pack against a live
 instance.

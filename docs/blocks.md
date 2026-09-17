@@ -275,7 +275,8 @@ Every block inherits one classifier, so retry policy means the same thing across
 | What happened | Class |
 | --- | --- |
 | The instance answered 5xx | `transient` |
-| The instance answered 4xx, or refused the credential | `rejected` |
+| The instance answered 429, rate limiting | `transient` |
+| The instance answered any other 4xx, or refused the credential | `rejected` |
 | The client does not speak the instance's version | `rejected` |
 | A connection or read failure on the wire | `transient` |
 
