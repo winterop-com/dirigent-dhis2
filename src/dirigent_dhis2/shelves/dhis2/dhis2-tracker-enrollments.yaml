@@ -75,5 +75,5 @@ steps:
       ou_mode: DESCENDANTS
       status: "${params.status}"
       updated_after: "${params.changed_since}"
-      fields: enrollment,trackedEntity,program,orgUnit,status,enrolledAt,updatedAt
+      fields: [enrollment, trackedEntity, program, orgUnit, status, enrolledAt, updatedAt]
       page_size: 50

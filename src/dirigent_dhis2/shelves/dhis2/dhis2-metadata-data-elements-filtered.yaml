@@ -14,6 +14,9 @@
 # inside the referenced object, so categoryCombo[id,name] brings back two fields of the
 # category combination rather than the whole of it. ":owner" and ":identifiable" are the
 # named projections DHIS2 defines, and ":owner" is the one a metadata migration wants.
+# Written as a list, as here, the nested selector is quoted: YAML allows no bracket or comma
+# in an unquoted item of a [...] list. Written as one string, id,name,categoryCombo[id,name]
+# needs no quotes at all.
 #
 # order sorts the answer server-side, so a diff between two runs is a diff about the data
 # rather than about the order rows happened to come back in.
@@ -57,7 +60,7 @@ steps:
     config:
       connection: dhis2-demo
       resource: dataElements
-      fields: id,name,shortName,valueType,domainType,categoryCombo[id,name]
+      fields: [id, name, shortName, valueType, domainType, "categoryCombo[id,name]"]
       filter:
         - "domainType:eq:${params.domain}"
         - "valueType:in:[NUMBER,INTEGER]"

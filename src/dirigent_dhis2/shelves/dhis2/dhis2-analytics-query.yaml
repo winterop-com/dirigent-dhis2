@@ -36,6 +36,5 @@ steps:
       dimension:
         - dx:Uvn6LCg7dVU
         - pe:LAST_12_MONTHS
-      filter:
-        - ou:ImspTQPwCqd
+      filter: ou:ImspTQPwCqd
       output_id_scheme: NAME

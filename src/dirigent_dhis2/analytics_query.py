@@ -9,7 +9,7 @@ from pydantic import BaseModel, JsonValue, model_validator
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
-from dirigent_dhis2.web import Dhis2Operator, refuse
+from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
 from dirigent_plugin import BlockFailure, ErrorClass, OperatorSpec, StepContext
 
 #: The aggregate analytics endpoint the client's analytics accessor reads.
@@ -32,8 +32,10 @@ class Dhis2AnalyticsQueryConfig(BlockModel):
     dimension: list[str] = []
     """The DHIS2 ``dimension=`` axes, such as ``dx:fbfJHSPpUQD`` or ``pe:LAST_12_MONTHS``."""
 
-    filter: list[str] = []
-    """The DHIS2 ``filter=`` axes, fixing a dimension the result is not broken down by."""
+    filter: str | list[str] = []
+    """The DHIS2 ``filter=`` axes, fixing a dimension the result is not broken down by: one
+    string such as ``ou:ImspTQPwCqd``, or a list such as ``[ou:ImspTQPwCqd, pe:2026Q1]`` that
+    is sent as one ``filter=`` each."""
 
     program: str | None = None
     """The uid of the program an ``event`` or ``enrollment`` query reads; unused for aggregate."""
@@ -75,8 +77,9 @@ def _params(config: Dhis2AnalyticsQueryConfig) -> dict[str, Any]:
     params: dict[str, Any] = {}
     if config.dimension:
         params["dimension"] = config.dimension
-    if config.filter:
-        params["filter"] = config.filter
+    filters = query_terms(filter=config.filter).filter
+    if filters is not None:
+        params["filter"] = filters
     if config.start_date is not None:
         params["startDate"] = config.start_date
     if config.end_date is not None:
@@ -132,7 +135,7 @@ class Dhis2AnalyticsQueryOperator(Dhis2Operator[Dhis2AnalyticsQueryConfig, Dhis2
             grid = await query(
                 config.program,
                 dimension=config.dimension or None,
-                filter=config.filter or None,
+                filter=query_terms(filter=config.filter).filter,
                 start_date=config.start_date,
                 end_date=config.end_date,
                 page=config.page,

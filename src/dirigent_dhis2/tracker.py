@@ -9,7 +9,7 @@ from pydantic import BaseModel, JsonValue
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
-from dirigent_dhis2.web import Dhis2Operator, refuse
+from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
 from dirigent_plugin import OperatorSpec, StepContext
 
 #: The tracker export root the three object kinds hang off.
@@ -41,13 +41,19 @@ class Dhis2TrackerConfig(BlockModel):
     """How the org unit is interpreted: ``SELECTED``, ``CHILDREN``, ``DESCENDANTS``,
     ``ACCESSIBLE``, ``CAPTURE``, or ``ALL``."""
 
-    fields: str | None = None
-    """The DHIS2 ``fields=`` selector; the instance's own default when unset."""
+    fields: str | list[str] | None = None
+    """The DHIS2 ``fields=`` selector, as one string such as ``event,status`` or a list such as
+    ``[event, status]`` that is sent comma-joined; the instance's own default when unset.
+    Inside a YAML flow list a nested selector such as ``dataValues[dataElement,value]`` must be
+    quoted, as in ``[event, "dataValues[dataElement,value]"]``, because YAML refuses an
+    unquoted bracket or comma in a flow item."""
 
     filter: str | list[str] | None = None
-    """One or more DHIS2 ``filter=`` expressions on the collection's attributes. Tracked
-    entities and events take one; the enrollments collection has no attribute filter of its
-    own, so a filter given for it rides through as a plain query parameter the instance may
+    """One or more DHIS2 ``filter=`` expressions on the collection's attributes: one string
+    such as ``w75KJ2mc4zz:like:Anna``, or a list such as
+    ``[w75KJ2mc4zz:like:Anna, zDhUuAYrxNC:like:Kelly]`` that is sent as one ``filter=`` each.
+    Tracked entities and events take one; the enrollments collection has no attribute filter of
+    its own, so a filter given for it rides through as a plain query parameter the instance may
     ignore."""
 
     status: str | None = None
@@ -97,14 +103,15 @@ class Dhis2TrackerOperator(Dhis2Operator[Dhis2TrackerConfig, Dhis2TrackerOutput]
 
     async def _read(self, tracker: TrackerAccessor, config: Dhis2TrackerConfig) -> JsonValue:
         """Dispatch on the collection ``kind`` to the tracker accessor that reads it."""
+        terms = query_terms(fields=config.fields, filter=config.filter)
         if config.kind == "trackedEntities":
             return await tracker.tracked_entities(
                 program=config.program,
                 org_unit=config.org_unit,
                 ou_mode=config.ou_mode,
                 status=config.status,
-                fields=config.fields,
-                filter=config.filter,
+                fields=terms.fields,
+                filter=terms.filter,
                 page=config.page,
                 page_size=config.page_size,
                 updated_after=config.updated_after,
@@ -112,28 +119,24 @@ class Dhis2TrackerOperator(Dhis2Operator[Dhis2TrackerConfig, Dhis2TrackerOutput]
         if config.kind == "enrollments":
             # The enrollments reader has no ``filter`` argument; the collection's filter rides
             # through as an extra query param so the block's contract still applies.
-            filter_param = None
-            if config.filter is not None:
-                values = [config.filter] if isinstance(config.filter, str) else config.filter
-                filter_param = {"filter": values}
             return await tracker.enrollments(
                 program=config.program,
                 org_unit=config.org_unit,
                 ou_mode=config.ou_mode,
                 status=config.status,
-                fields=config.fields,
+                fields=terms.fields,
                 page=config.page,
                 page_size=config.page_size,
                 updated_after=config.updated_after,
-                extra_params=filter_param,
+                extra_params=None if terms.filter is None else {"filter": terms.filter},
             )
         return await tracker.events(
             program=config.program,
             org_unit=config.org_unit,
             ou_mode=config.ou_mode,
             status=config.status,
-            fields=config.fields,
-            filter=config.filter,
+            fields=terms.fields,
+            filter=terms.filter,
             page=config.page,
             page_size=config.page_size,
             updated_after=config.updated_after,

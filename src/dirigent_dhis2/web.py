@@ -1,12 +1,16 @@
-"""What the DHIS2 blocks share: turning a dhis2w-client failure into what the engine acts on.
+"""What the DHIS2 blocks share: how a dhis2w-client failure is classified, and how a query is shaped.
 
 Every block in the pack inherits its classification from the base classes here: a DHIS2
 refusal carries its status, and anything else falls to the plugin contract's default rule.
+Every block that narrows a read hands its ``fields``, ``filter`` and ``order`` to
+:func:`query_terms` before the request is built.
 
 The status helper duplicates the one in ``dirigent-blocks`` on purpose: an adapter pack may
 not depend on that package, and the roadmap lifts a helper into ``common`` only once a
 second pack has duplicated it.
 """
+
+from dataclasses import dataclass
 
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError, UnsupportedVersionError
 from pydantic import BaseModel
@@ -62,6 +66,52 @@ def classify(error: Exception) -> ErrorClass:
             return ErrorClass.REJECTED
         case _:
             return classify_default(error)
+
+
+@dataclass(frozen=True, slots=True)
+class QueryTerms:
+    """A read's ``fields``, ``filter`` and ``order``, in the shape DHIS2 reads them off the wire."""
+
+    fields: str | None
+    """The one ``fields=`` value, its selectors comma-joined."""
+
+    filter: list[str] | None
+    """The ``filter=`` expressions, sent as one query parameter each."""
+
+    order: str | None
+    """The one ``order=`` value, its terms comma-joined."""
+
+
+def query_terms(
+    *,
+    fields: str | list[str] | None = None,
+    filter: str | list[str] | None = None,
+    order: str | list[str] | None = None,
+) -> QueryTerms:
+    """Put a document's query terms into the shape DHIS2 reads them in.
+
+    A document writes each term as one string or as a list. DHIS2 reads ``fields`` and
+    ``order`` as a single parameter whose terms are comma-joined, and takes ``filter`` once per
+    expression, so a list is joined for the first two and repeated for the third. A string is
+    one term and passes through unchanged; an empty list is no term at all.
+    """
+    return QueryTerms(fields=_joined(fields), filter=_repeated(filter), order=_joined(order))
+
+
+def _joined(terms: str | list[str] | None) -> str | None:
+    """Join a ``fields`` or ``order`` list into the one comma-joined value DHIS2 reads."""
+    if terms is None or isinstance(terms, str):
+        return terms
+    return ",".join(terms) or None
+
+
+def _repeated(terms: str | list[str] | None) -> list[str] | None:
+    """Spread a ``filter`` into the expressions it is sent as, one parameter each."""
+    if terms is None:
+        return None
+    if isinstance(terms, str):
+        return [terms]
+    return list(terms) or None
 
 
 class Dhis2Operator[ConfigT: BaseModel, OutputT: BaseModel](Operator[ConfigT, OutputT]):
