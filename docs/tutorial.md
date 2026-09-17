@@ -47,7 +47,7 @@ uv sync
 ```
 
 ```text
-2026-09-17T01:33:32.467+02:00 [info    ] initialised   [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.16.0 packs=["dirigent-dhis2"]
+2026-09-17T02:08:21.491+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.16.1 packs=["dirigent-dhis2"]
 ```
 
 It creates the state directory, migrates the schema, creates the first admin, and mints that
@@ -68,14 +68,18 @@ instance's own key. So the instance needs one before it will store the connectio
 and start the instance with it, in a second terminal, in this directory:
 
 ```bash
-export DIRIGENT_SECRET_KEY=$(uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+export DIRIGENT_SECRET_KEY="$(uv run dg secret-key)"
 uv run dg dev
 ```
+
+`dg secret-key` mints one and writes it as a single plain line, terminal or pipe alike, which
+is what makes that substitution work.
 
 `dg dev` is one process holding the API, the web UI, the scheduler, one worker and a SQLite
 file under `.dirigent/state/`. It keeps running; leave it. The UI is at
 `http://127.0.0.1:3333`, and `admin` logs in there with the password you just gave. Keep the
-key: a restart without the same one cannot open the secrets it stored.
+key: it is the only thing that can open the secrets it stored, so a restart without it finds
+a connection it cannot read.
 
 Back in the first terminal, the pack is in the catalog because it is installed -- there is no
 registration step and no config file:
@@ -125,7 +129,7 @@ uv run dg connection create dhis2 play \
 ```
 
 ```text
-2026-09-17T01:34:12.697+02:00 [info    ] created   [connection.created] code=play connection_kind=dhis2 name="DHIS2 play demo" config={"base_url":"https://play.im.dhis2.org/stable-2-43-1","api_token":null,"basic_username":"admin","verify_tls":true,"timeout":"30s","basic_password":"***"}
+2026-09-17T02:09:08.356+02:00 [info    ] created                        [connection.created] code=play connection_kind=dhis2 name="DHIS2 play demo" config={"base_url":"https://play.im.dhis2.org/stable-2-43-1","api_token":null,"basic_username":"admin","verify_tls":true,"timeout":"30s","basic_password":"***"}
 ```
 
 The password is already withheld in the record the command answers with, and in every read
@@ -142,7 +146,7 @@ uv run dg connection check play
 ```
 
 ```text
-2026-09-17T01:34:15.002+02:00 [info    ] healthy   [connection.checked] code=play healthy=true version=2.43.1
+2026-09-17T02:13:24.567+02:00 [info    ] healthy                        [connection.checked] code=play healthy=true version=2.43.1
 ```
 
 That one line is four facts: the URL resolves, TLS is as configured, the credential is
@@ -226,10 +230,10 @@ uv run dg validate pipelines/dhis2-tutorial.yaml
 ```
 
 ```text
-2026-09-17T01:34:17.045+02:00 [info    ] valid   [validation] code=dhis2-tutorial document=pipelines/dhis2-tutorial.yaml checked="document, offline"
+2026-09-17T01:34:17.045+02:00 [info    ] valid                          [validation] code=dhis2-tutorial document=pipelines/dhis2-tutorial.yaml checked="document, offline"
   each step under the last one it waits for
     read  (dhis2.metadata)
-2026-09-17T01:34:17.047+02:00 [info    ] valid   [validated] documents=1 invalid=0
+2026-09-17T01:34:17.047+02:00 [info    ] valid                          [validated] documents=1 invalid=0
 ```
 
 Then store it on the instance and run it:
@@ -605,7 +609,7 @@ update dhis2-tutorial  version 3 (/home/you/dhis2-tutorial/pipelines/dhis2-tutor
 ```
 
 ```text
-2026-09-17T01:36:49.105+02:00 [info    ] import summary   [log rehearse] status=SUCCESS imported=0 updated=2 ignored=0 deleted=0 conflict_count=0
+2026-09-17T01:36:49.105+02:00 [info    ] import summary                 [log rehearse] status=SUCCESS imported=0 updated=2 ignored=0 deleted=0 conflict_count=0
 
 steps
 ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━┓
