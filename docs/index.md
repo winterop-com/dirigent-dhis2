@@ -12,6 +12,9 @@ Every block classifies its failures the way DHIS2 means them: an instance whose 
 client does not speak is refused rather than retried, a transport failure is transient, and an
 import the instance did not take fails the step with the conflicts it named.
 
+New to dirigent and DHIS2 together? [**The tutorial**](tutorial.md) is one read, one schema
+gate and one rehearsed write against the public play demo, end to end.
+
 ## What is in it
 
 - The [`dhis2` connection kind](connection.md): one instance, its credential, and the client
