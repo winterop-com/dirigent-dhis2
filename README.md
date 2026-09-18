@@ -1,5 +1,11 @@
 # dirigent-dhis2
 
+[![PyPI](https://img.shields.io/pypi/v/dirigent-dhis2?label=pypi)](https://pypi.org/project/dirigent-dhis2/)
+[![Python](https://img.shields.io/pypi/pyversions/dirigent-dhis2)](https://pypi.org/project/dirigent-dhis2/)
+[![CI](https://github.com/winterop-com/dirigent-dhis2/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/winterop-com/dirigent-dhis2/actions/workflows/ci.yaml)
+[![Release](https://img.shields.io/github/v/release/winterop-com/dirigent-dhis2?label=release)](https://github.com/winterop-com/dirigent-dhis2/releases)
+[![Docs](https://img.shields.io/badge/docs-winterop--com.github.io%2Fdirigent--dhis2-2b2f38)](https://winterop-com.github.io/dirigent-dhis2/)
+
 Documentation: <https://winterop-com.github.io/dirigent-dhis2/>
 
 The DHIS2 adapter pack for [dirigent](https://github.com/winterop-com/dirigent). It
