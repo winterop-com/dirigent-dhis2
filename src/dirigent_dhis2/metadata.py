@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, JsonValue
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
-from dirigent_dhis2.web import Dhis2Operator, refuse
+from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
 from dirigent_plugin import BlockFailure, ErrorClass, OperatorSpec, StepContext
 
 #: A DHIS2 collection name as it appears in the API path: lower camel case, letters and digits.
@@ -31,20 +31,25 @@ class Dhis2MetadataConfig(BlockModel):
     ``dataElements``, ``dataSets``, ``indicators``, ``programs``, ``optionSets``,
     ``trackedEntityTypes``, and the rest the version-bound client knows."""
 
-    fields: str | None = None
-    """The DHIS2 ``fields=`` selector, such as ``id,name,valueType``; the instance's own
-    default when unset."""
+    fields: str | list[str] | None = None
+    """The DHIS2 ``fields=`` selector, as one string such as ``id,name,valueType`` or a list
+    such as ``[id, name, valueType]`` that is sent comma-joined; the instance's own default
+    when unset. Inside a YAML flow list a nested selector such as ``parent[id,code]`` must be
+    quoted, as in ``[id, "parent[id,code]"]``, because YAML refuses an unquoted bracket or
+    comma in a flow item."""
 
     filter: str | list[str] | None = None
-    """One or more DHIS2 ``filter=`` expressions, such as ``level:eq:2``. A single string is
-    one filter; a list is several, ANDed unless the resource is told otherwise."""
+    """One or more DHIS2 ``filter=`` expressions: one string such as ``level:eq:2``, or a list
+    such as ``[level:eq:2, name:like:Bo]`` that is sent as one ``filter=`` each, ANDed unless
+    the resource is told otherwise."""
 
     paging: bool = False
     """Whether the read is paged. Off by default: a metadata read wants the whole collection,
     not the first page of it."""
 
-    order: list[str] | None = None
-    """The DHIS2 ``order=`` terms, such as ``name:asc``."""
+    order: str | list[str] | None = None
+    """The DHIS2 ``order=`` terms: one string such as ``name:asc``, or a list such as
+    ``[level:asc, name:asc]`` that is sent comma-joined, the first term sorting first."""
 
     page: int | None = None
     """The 1-based page to read, when ``paging`` is on."""
@@ -60,6 +65,7 @@ class Dhis2MetadataOutput(BlockModel):
     """The parsed response: the collection under its own key, and a ``pager`` when paged."""
 
     duration_ms: int
+    """How long the read took."""
 
 
 def accessor_name(resource: str) -> str:
@@ -98,14 +104,15 @@ class Dhis2MetadataOperator(Dhis2Operator[Dhis2MetadataConfig, Dhis2MetadataOutp
     async def execute(self, config: Dhis2MetadataConfig, ctx: StepContext) -> Dhis2MetadataOutput:
         """Read the collection through the version-bound accessor, classifying an HTTP refusal."""
         started = time.monotonic()
-        filters = [config.filter] if isinstance(config.filter, str) else config.filter
+        terms = query_terms(fields=config.fields, filter=config.filter, order=config.order)
         async with client_for(ctx, config.connection) as client:
             resource = _accessor(client, config.resource)
             try:
                 body = await resource.list_raw(
-                    fields=config.fields,
-                    filters=filters,
-                    order=config.order,
+                    fields=terms.fields,
+                    filters=terms.filter,
+                    # The accessor repeats what it is given, so the joined order rides as its one item.
+                    order=None if terms.order is None else [terms.order],
                     page=config.page,
                     page_size=config.page_size,
                     paging=config.paging,

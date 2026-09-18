@@ -51,7 +51,7 @@ those two modes require a `program`.
 | `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
 | `mode` | `"aggregate" or "event" or "enrollment"` | yes |  | Which analytics query to run: `aggregate` over `/api/analytics`, or an `event` or `enrollment` query over `/api/analytics/{events,enrollments}/query`. |
 | `dimension` | `string[]` |  | `[]` | The DHIS2 `dimension=` axes, such as `dx:fbfJHSPpUQD` or `pe:LAST_12_MONTHS`. |
-| `filter` | `string[]` |  | `[]` | The DHIS2 `filter=` axes, fixing a dimension the result is not broken down by. |
+| `filter` | `string or string[]` |  | `[]` | The DHIS2 `filter=` axes, fixing a dimension the result is not broken down by: one string such as `ou:ImspTQPwCqd`, or a list such as `[ou:ImspTQPwCqd, pe:2026Q1]` that is sent as one `filter=` each. |
 | `program` | `string or null` |  | `null` | The uid of the program an `event` or `enrollment` query reads; unused for aggregate. |
 | `start_date` | `string or null` |  | `null` | The ISO start of the query window, for the query kinds that take one. |
 | `end_date` | `string or null` |  | `null` | The ISO end of the query window, for the query kinds that take one. |
@@ -153,7 +153,7 @@ A dry run sends the document without its `completeDate`, and says so in the log.
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
-| `data_values` | `any` | yes |  | The data value set document to send, written in the step or referenced from one. |
+| `data_values` | `any` | yes |  | The data value set document to send, written in the step or referenced from one; a set held in storage comes in through storage.read. |
 | `dry_run` | `boolean` |  | `false` | Whether the instance validates the import without writing anything. A `completeDate` in the document is left out of a dry run: DHIS2 2.41 and 2.42 register the data set complete even under dryRun, and a rehearsal must persist nothing. |
 | `import_strategy` | `"CREATE" or "UPDATE" or "CREATE_AND_UPDATE" or "DELETE"` |  | `"CREATE_AND_UPDATE"` | What the import may do to existing values: CREATE, UPDATE, CREATE_AND_UPDATE, or DELETE. |
 | `atomic_mode` | `"ALL" or "NONE"` |  | `"ALL"` | ALL asks the instance to refuse the whole import on any conflict; NONE takes what it can. DHIS2 does not always honour ALL and may commit the good values beside the conflicts, so a failure under ALL names what landed. |
@@ -188,10 +188,10 @@ the whole collection, not its first page.
 | --- | --- | --- | --- | --- |
 | `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
 | `resource` | `string` | yes |  | The DHIS2 collection name, as it appears in the API path: `organisationUnits`, `dataElements`, `dataSets`, `indicators`, `programs`, `optionSets`, `trackedEntityTypes`, and the rest the version-bound client knows. |
-| `fields` | `string or null` |  | `null` | The DHIS2 `fields=` selector, such as `id,name,valueType`; the instance's own default when unset. |
-| `filter` | `string or string[] or null` |  | `null` | One or more DHIS2 `filter=` expressions, such as `level:eq:2`. A single string is one filter; a list is several, ANDed unless the resource is told otherwise. |
+| `fields` | `string or string[] or null` |  | `null` | The DHIS2 `fields=` selector, as one string such as `id,name,valueType` or a list such as `[id, name, valueType]` that is sent comma-joined; the instance's own default when unset. Inside a YAML flow list a nested selector such as `parent[id,code]` must be quoted, as in `[id, "parent[id,code]"]`, because YAML refuses an unquoted bracket or comma in a flow item. |
+| `filter` | `string or string[] or null` |  | `null` | One or more DHIS2 `filter=` expressions: one string such as `level:eq:2`, or a list such as `[level:eq:2, name:like:Bo]` that is sent as one `filter=` each, ANDed unless the resource is told otherwise. |
 | `paging` | `boolean` |  | `false` | Whether the read is paged. Off by default: a metadata read wants the whole collection, not the first page of it. |
-| `order` | `string[] or null` |  | `null` | The DHIS2 `order=` terms, such as `name:asc`. |
+| `order` | `string or string[] or null` |  | `null` | The DHIS2 `order=` terms: one string such as `name:asc`, or a list such as `[level:asc, name:asc]` that is sent comma-joined, the first term sorting first. |
 | `page` | `integer or null` |  | `null` | The 1-based page to read, when `paging` is on. |
 | `page_size` | `integer or null` |  | `null` | How many rows a page holds, when `paging` is on. |
 
@@ -224,8 +224,8 @@ them.
 | `program` | `string or null` |  | `null` | The uid of the program to scope the read to. |
 | `org_unit` | `string or null` |  | `null` | The uid of the organisation unit to read within. |
 | `ou_mode` | `"SELECTED" or "CHILDREN" or "DESCENDANTS" or "ACCESSIBLE" or "CAPTURE" or "ALL" or null` |  | `null` | How the org unit is interpreted: `SELECTED`, `CHILDREN`, `DESCENDANTS`, `ACCESSIBLE`, `CAPTURE`, or `ALL`. |
-| `fields` | `string or null` |  | `null` | The DHIS2 `fields=` selector; the instance's own default when unset. |
-| `filter` | `string or string[] or null` |  | `null` | One or more DHIS2 `filter=` expressions on the collection's attributes. Tracked entities and events take one; the enrollments collection has no attribute filter of its own, so a filter given for it rides through as a plain query parameter the instance may ignore. |
+| `fields` | `string or string[] or null` |  | `null` | The DHIS2 `fields=` selector, as one string such as `event,status` or a list such as `[event, status]` that is sent comma-joined; the instance's own default when unset. Inside a YAML flow list a nested selector such as `dataValues[dataElement,value]` must be quoted, as in `[event, "dataValues[dataElement,value]"]`, because YAML refuses an unquoted bracket or comma in a flow item. |
+| `filter` | `string or string[] or null` |  | `null` | One or more DHIS2 `filter=` expressions on the collection's attributes: one string such as `w75KJ2mc4zz:like:Anna`, or a list such as `[w75KJ2mc4zz:like:Anna, zDhUuAYrxNC:like:Kelly]` that is sent as one `filter=` each. Tracked entities and events take one; the enrollments collection has no attribute filter of its own, so a filter given for it rides through as a plain query parameter the instance may ignore. |
 | `status` | `string or null` |  | `null` | The status to read, where the collection has one: an enrollment or event `status`. |
 | `updated_after` | `string or null` |  | `null` | Read only rows changed at or after this ISO instant. |
 | `page` | `integer or null` |  | `null` | The 1-based page to read. |

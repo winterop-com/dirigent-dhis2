@@ -34,4 +34,4 @@ steps:
       connection: dhis2-demo
       resource: dataElements
       fields: id,name,valueType,domainType
-      order: [name:asc]
+      order: name:asc

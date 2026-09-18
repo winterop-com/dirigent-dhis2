@@ -41,6 +41,7 @@ class Dhis2DataValueSetExportOutput(BlockModel):
     """The exported data value set, the value the next step works on."""
 
     duration_ms: int
+    """How long the export took."""
 
 
 class Dhis2DataValueSetExportOperator(Dhis2Operator[Dhis2DataValueSetExportConfig, Dhis2DataValueSetExportOutput]):

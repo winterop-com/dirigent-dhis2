@@ -3,15 +3,17 @@
 import importlib
 from typing import Any, cast
 
+import httpx2
 import pytest
 from pydantic import ValidationError
 
-from dhis2server import BASE_URL, CONNECTION, Dhis2Server, json
+from dhis2server import BASE_URL, CONNECTION, Dhis2Server, Route, json
 from dirigent_dhis2.metadata import Dhis2MetadataConfig, Dhis2MetadataOperator, Dhis2MetadataOutput, accessor_name
 from dirigent_plugin import BlockFailure, ErrorClass
 from dirigent_testing import FakeContext, call_block
 
 DATA_ELEMENTS = f"{BASE_URL}/api/dataElements"
+ORG_UNITS = f"{BASE_URL}/api/organisationUnits"
 READ = {
     "pager": {"page": 1, "pageCount": 1, "total": 1},
     "dataElements": [{"id": "fbfJHSPpUQD", "name": "BCG doses", "valueType": "NUMBER"}],
@@ -33,32 +35,58 @@ async def test_a_metadata_read_carries_the_collection(ctx: FakeContext, dhis2: D
     assert params["paging"] == "false"
 
 
-async def test_a_single_filter_string_is_sent_as_one_filter(ctx: FakeContext, dhis2: Dhis2Server) -> None:
-    route = dhis2.get(DATA_ELEMENTS).answers(json(200, READ))
-    await call_block(
-        Dhis2MetadataOperator(),
-        {"connection": CONNECTION, "resource": "dataElements", "filter": "domainType:eq:AGGREGATE"},
-        ctx,
-    )
-    assert route.last.url.params.get_list("filter") == ["domainType:eq:AGGREGATE"]
+async def _sent(ctx: FakeContext, route: Route, terms: dict[str, str | list[str]]) -> httpx2.URL:
+    """Read the org units narrowed by these terms, and give back the URL the instance was asked."""
+    await call_block(Dhis2MetadataOperator(), {"connection": CONNECTION, "resource": "organisationUnits", **terms}, ctx)
+    return route.last.url
 
 
-async def test_a_list_of_filters_is_sent_as_several(ctx: FakeContext, dhis2: Dhis2Server) -> None:
-    route = dhis2.get(DATA_ELEMENTS).answers(json(200, READ))
-    await call_block(
-        Dhis2MetadataOperator(),
-        {
-            "connection": CONNECTION,
-            "resource": "dataElements",
-            "filter": ["domainType:eq:AGGREGATE", "valueType:eq:NUMBER"],
-        },
-        ctx,
-    )
-    assert route.last.url.params.get_list("filter") == ["domainType:eq:AGGREGATE", "valueType:eq:NUMBER"]
+@pytest.mark.parametrize(
+    ("term", "written", "listed", "wire"),
+    [
+        pytest.param(
+            "fields",
+            "id,name,parent[id,code]",
+            ["id", "name", "parent[id,code]"],
+            ["id,name,parent[id,code]"],
+            id="nested-fields",
+        ),
+        pytest.param("filter", "level:eq:2", ["level:eq:2"], ["level:eq:2"], id="filter"),
+        pytest.param(
+            "order", "level:asc,name:asc", ["level:asc", "name:asc"], ["level:asc,name:asc"], id="two-term-order"
+        ),
+    ],
+)
+async def test_a_query_term_sends_the_same_request_as_a_string_or_a_list(
+    ctx: FakeContext, dhis2: Dhis2Server, term: str, written: str, listed: list[str], wire: list[str]
+) -> None:
+    route = dhis2.get(ORG_UNITS).answers(json(200, {"organisationUnits": []}))
+    as_string = await _sent(ctx, route, {term: written})
+    as_list = await _sent(ctx, route, {term: listed})
+    assert as_list.query == as_string.query
+    assert as_list.params.get_list(term) == wire
+
+
+async def test_a_filter_pair_is_sent_as_the_two_filters_it_holds(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    """A filter list repeats ``filter=`` rather than joining it, and DHIS2 ANDs what is repeated."""
+    route = dhis2.get(ORG_UNITS).answers(json(200, {"organisationUnits": []}))
+    level = await _sent(ctx, route, {"filter": "level:eq:2"})
+    name = await _sent(ctx, route, {"filter": "name:like:Bo"})
+    pair = await _sent(ctx, route, {"filter": ["level:eq:2", "name:like:Bo"]})
+    assert pair.params.get_list("filter") == [*level.params.get_list("filter"), *name.params.get_list("filter")]
+    assert pair.params.get_list("filter") == ["level:eq:2", "name:like:Bo"]
+    assert "rootJunction" not in pair.params
+
+
+@pytest.mark.parametrize("term", ["fields", "filter", "order"])
+@pytest.mark.parametrize("listed", [[1, 2], [["id"]], [None]], ids=["numbers", "nested-list", "null"])
+def test_a_query_term_list_of_anything_but_strings_is_refused_at_config(term: str, listed: list[object]) -> None:
+    with pytest.raises(ValidationError):
+        Dhis2MetadataConfig.model_validate({"connection": "c", "resource": "dataElements", term: listed})
 
 
 async def test_paging_sends_the_page_and_size(ctx: FakeContext, dhis2: Dhis2Server) -> None:
-    route = dhis2.get(f"{BASE_URL}/api/organisationUnits").answers(json(200, {"organisationUnits": []}))
+    route = dhis2.get(ORG_UNITS).answers(json(200, {"organisationUnits": []}))
     await call_block(
         Dhis2MetadataOperator(),
         {"connection": CONNECTION, "resource": "organisationUnits", "paging": True, "page": 2, "page_size": 50},

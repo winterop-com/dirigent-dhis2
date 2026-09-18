@@ -1,4 +1,4 @@
-"""Tests for what the blocks share: classifying a dhis2w-client failure the way the engine needs."""
+"""Tests for what the blocks share: classifying a dhis2w-client failure, and shaping a query's terms."""
 
 import httpx2
 import pytest
@@ -7,7 +7,7 @@ from dhis2w_client.errors import AuthenticationError, Dhis2ApiError, Unsupported
 from dhis2server import BASE_URL, CONNECTION, serve
 from dirigent_dhis2 import Dhis2Plugin
 from dirigent_dhis2.metadata import Dhis2MetadataOperator
-from dirigent_dhis2.web import classify, refuse
+from dirigent_dhis2.web import QueryTerms, classify, query_terms, refuse
 from dirigent_plugin import AnyOperator, AnySensor, BlockFailure, ErrorClass
 from dirigent_testing import FakeContext, call_block
 
@@ -74,3 +74,26 @@ async def test_an_instance_version_the_client_cannot_speak_is_rejected(
     with pytest.raises(UnsupportedVersionError) as raised:
         await call_block(operator, {"connection": CONNECTION, "resource": "dataElements"}, ctx)
     assert operator.classify_error(raised.value) is ErrorClass.REJECTED
+
+
+def test_a_list_is_joined_for_fields_and_order_and_repeated_for_filter() -> None:
+    terms = query_terms(
+        fields=["id", "parent[id,code]"],
+        filter=["level:eq:2", "name:like:Bo"],
+        order=["level:asc", "name:asc"],
+    )
+    assert terms == QueryTerms(
+        fields="id,parent[id,code]",
+        filter=["level:eq:2", "name:like:Bo"],
+        order="level:asc,name:asc",
+    )
+
+
+def test_a_string_is_one_term_passed_through_unchanged() -> None:
+    terms = query_terms(fields="id,parent[id,code]", filter="level:eq:2", order="level:asc,name:asc")
+    assert terms == QueryTerms(fields="id,parent[id,code]", filter=["level:eq:2"], order="level:asc,name:asc")
+
+
+@pytest.mark.parametrize("absent", [None, []], ids=["unset", "empty"])
+def test_an_unset_or_empty_term_is_no_term(absent: list[str] | None) -> None:
+    assert query_terms(fields=absent, filter=absent, order=absent) == QueryTerms(fields=None, filter=None, order=None)
