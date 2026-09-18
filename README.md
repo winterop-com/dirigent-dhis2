@@ -1,18 +1,20 @@
 # dirigent-dhis2
 
 [![PyPI](https://img.shields.io/pypi/v/dirigent-dhis2?label=pypi)](https://pypi.org/project/dirigent-dhis2/)
-[![Python](https://img.shields.io/pypi/pyversions/dirigent-dhis2)](https://pypi.org/project/dirigent-dhis2/)
+[![Python](https://img.shields.io/badge/python-3.13%2B-2b2f38)](https://pypi.org/project/dirigent-dhis2/)
 [![CI](https://github.com/winterop-com/dirigent-dhis2/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/winterop-com/dirigent-dhis2/actions/workflows/ci.yaml)
 [![Release](https://img.shields.io/github/v/release/winterop-com/dirigent-dhis2?label=release)](https://github.com/winterop-com/dirigent-dhis2/releases)
 [![Docs](https://img.shields.io/badge/docs-winterop--com.github.io%2Fdirigent--dhis2-2b2f38)](https://winterop-com.github.io/dirigent-dhis2/)
 
-Documentation: <https://winterop-com.github.io/dirigent-dhis2/>
+Documentation: <https://winterop-com.github.io/dirigent-dhis2/>. New to dirigent and DHIS2
+together? [**The tutorial**](https://winterop-com.github.io/dirigent-dhis2/tutorial/) is one
+read, one schema gate and one rehearsed write against the public play demo, end to end.
 
 The DHIS2 adapter pack for [dirigent](https://github.com/winterop-com/dirigent). It
 contributes the `dhis2` connection kind, three JSON Schema formats (`dhis2-uid`,
-`dhis2-period` and `dhis2-code`), and the blocks that speak DHIS2's asynchronous jobs, import summaries,
-completeness registrations, metadata, tracker and analytics reads as first-class steps,
-rather than composing them out of raw HTTP:
+`dhis2-period` and `dhis2-code`), and the blocks that speak DHIS2's asynchronous jobs, import
+summaries, completeness registrations, metadata, tracker and analytics reads as first-class
+steps, rather than composing them out of raw HTTP:
 
 | Block | Kind | What it does |
 | --- | --- | --- |
@@ -23,6 +25,10 @@ rather than composing them out of raw HTTP:
 | `dhis2.metadata` | operator | Reads one metadata collection through the version-bound generic accessor. |
 | `dhis2.tracker` | operator | Reads a page of tracked entities, enrollments or events from `/api/tracker`. |
 | `dhis2.data_set_complete` | sensor | Holds a run until a data set is marked complete for the period. |
+
+Where a block takes DHIS2's own query terms, either shape does: `fields`, `filter` and `order`
+each accept one string, spelled as the API spells it -- `id,name,valueType`, `level:eq:2`,
+`name:asc` -- or a list, which the pack comma-joins or repeats as the resource wants.
 
 Every block classifies its failures the dhis2w-client way: an instance whose version the
 client does not speak is refused rather than retried, and a transport failure is transient.
@@ -54,21 +60,23 @@ uv run pytest
 NO_MKDOCS_2_WARNING=1 uv run mkdocs build --strict
 ```
 
+That block is what CI runs on every push and pull request. The variable silences Material's
+notice about MkDocs 2.0. The lock file is committed and CI syncs against it, so a pack build is
+reproducible; the ecosystem's nightly integration is what proves the pack still composes with
+every other pack in one catalog.
+
 The tutorial is published as a page and as paper. The PDF is printed from the built site with
-headless Chromium, lands in `site/`, and is never committed:
+headless Chromium, lands in `site/`, and is never committed. The `pages` workflow prints it on
+every push to main, from the site it has just built; locally it is both steps:
 
 ```bash
 uv run --with playwright playwright install chromium
 uv run --with playwright python scripts/docs_pdf.py
 ```
 
-That is what CI runs. The variable silences Material's notice about MkDocs 2.0. The lock file is committed and CI syncs against it, so a pack build is
-reproducible; the ecosystem's nightly integration is what proves the pack against a live
-instance.
-
 `tests/` exercises every block against a mocked DHIS2 instance, and `tests/test_examples.py`
-validates the example documents against the pack's own catalog. The examples run standalone,
-each carrying the connection it uses.
+validates the example documents against the pack's own catalog. Every shelf but `starters/`
+runs standalone, each document carrying the connection it uses.
 
 ## Examples
 
