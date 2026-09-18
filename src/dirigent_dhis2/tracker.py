@@ -76,6 +76,7 @@ class Dhis2TrackerOutput(BlockModel):
     """The parsed response: the objects under ``instances`` and the ``page`` block DHIS2 sends."""
 
     duration_ms: int
+    """How long the read took."""
 
 
 class Dhis2TrackerOperator(Dhis2Operator[Dhis2TrackerConfig, Dhis2TrackerOutput]):

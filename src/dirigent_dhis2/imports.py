@@ -61,9 +61,17 @@ class Dhis2DataValueSetImportOutput(BlockModel):
     """The summary's own word: SUCCESS, WARNING, or ERROR."""
 
     imported: int
+    """How many values were created."""
+
     updated: int
+    """How many values were revised."""
+
     ignored: int
+    """How many values the instance did not take."""
+
     deleted: int
+    """How many values were removed."""
+
     conflicts: list[Dhis2ImportConflict]
     """Every value the instance refused, empty when the import was clean."""
 

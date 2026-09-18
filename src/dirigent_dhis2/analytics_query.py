@@ -70,6 +70,7 @@ class Dhis2AnalyticsQueryOutput(BlockModel):
     """The parsed response: the analytics grid, its headers, metaData, and rows."""
 
     duration_ms: int
+    """How long the query took."""
 
 
 def _params(config: Dhis2AnalyticsQueryConfig) -> dict[str, Any]:

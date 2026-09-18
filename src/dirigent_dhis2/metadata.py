@@ -65,6 +65,7 @@ class Dhis2MetadataOutput(BlockModel):
     """The parsed response: the collection under its own key, and a ``pager`` when paged."""
 
     duration_ms: int
+    """How long the read took."""
 
 
 def accessor_name(resource: str) -> str:
