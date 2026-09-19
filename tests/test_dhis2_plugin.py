@@ -1,10 +1,12 @@
 """Tests for the DHIS2 pack's plugin wiring."""
 
+from typing import Any, cast
+
 from pluginkit import PluginManager
 
-from dirigent_common import API_VERSION
+from dirigent_common import API_VERSION, HumaneJsonSchema
 from dirigent_dhis2 import Dhis2Plugin, plugin
-from dirigent_plugin import ENTRY_POINT_GROUP, PROJECT_NAME, contribute, markers
+from dirigent_plugin import ENTRY_POINT_GROUP, PROJECT_NAME, AnyOperator, AnySensor, contribute, markers
 
 DHIS2_BLOCKS = [
     "dhis2.analytics_query",
@@ -32,6 +34,21 @@ def test_every_dhis2_block_shelves_under_the_dhis2_group() -> None:
     groups = {operator.spec.id: operator.spec.group for operator in contribution.operators}
     groups.update({sensor.spec.id: sensor.spec.group for sensor in contribution.sensors})
     assert groups == {block_id: "dhis2" for block_id in DHIS2_BLOCKS}
+
+
+def test_every_dhis2_block_marks_its_connection_field_as_a_reference() -> None:
+    """The marker is what draws the connection's kind, health and settings under the step's box."""
+    contribution = Dhis2Plugin().contribute()
+    blocks: list[AnyOperator | AnySensor] = [*contribution.operators, *contribution.sensors]
+    assert len(blocks) == len(DHIS2_BLOCKS)
+    for block in blocks:
+        schema = block.config_model.model_json_schema(mode="serialization", schema_generator=HumaneJsonSchema)
+        field = cast("dict[str, Any]", schema["properties"]["connection"])
+        ref = cast("str", field["$ref"]).removeprefix("#/$defs/")
+        target = cast("dict[str, Any]", schema["$defs"][ref])
+        assert target["x-dirigent-ref"] == "connection", block.spec.id
+        assert target["type"] == "string", block.spec.id
+        assert field["description"], block.spec.id
 
 
 def test_no_dhis2_block_declares_itself_unsafe() -> None:

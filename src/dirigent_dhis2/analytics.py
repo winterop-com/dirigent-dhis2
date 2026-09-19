@@ -12,6 +12,7 @@ from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.web import Dhis2Operator, refuse
 from dirigent_plugin import (
     BlockFailure,
+    ConnectionRef,
     ErrorClass,
     OperatorSpec,
     ProbeResult,
@@ -51,7 +52,7 @@ GONE_AFTER: Final = timedelta(minutes=15)
 class Dhis2AnalyticsRunConfig(BlockModel):
     """What one analytics tables run asks of the instance."""
 
-    connection: str
+    connection: ConnectionRef
     """The code of the dhis2 connection naming the instance."""
 
     last_years: int | None = None

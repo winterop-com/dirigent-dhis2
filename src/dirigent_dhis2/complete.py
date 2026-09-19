@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.web import Dhis2Sensor, refuse
-from dirigent_plugin import NotYet, SensorSpec, StepContext
+from dirigent_plugin import ConnectionRef, NotYet, SensorSpec, StepContext
 
 #: Where completion registrations are read.
 REGISTRATIONS_PATH: Final = "/api/completeDataSetRegistrations"
@@ -18,7 +18,7 @@ REGISTRATIONS_PATH: Final = "/api/completeDataSetRegistrations"
 class Dhis2DataSetCompleteConfig(BlockModel):
     """Which data set window the run is waiting on."""
 
-    connection: str
+    connection: ConnectionRef
     """The code of the dhis2 connection naming the instance."""
 
     data_set: str

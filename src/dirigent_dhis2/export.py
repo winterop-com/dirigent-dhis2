@@ -9,7 +9,7 @@ from pydantic import BaseModel, JsonValue
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.web import Dhis2Operator, refuse
-from dirigent_plugin import OperatorSpec, RemoteHandle, StepContext
+from dirigent_plugin import ConnectionRef, OperatorSpec, RemoteHandle, StepContext
 
 #: Where data value sets are read and written.
 DATA_VALUE_SETS_PATH: Final = "/api/dataValueSets.json"
@@ -18,7 +18,7 @@ DATA_VALUE_SETS_PATH: Final = "/api/dataValueSets.json"
 class Dhis2DataValueSetExportConfig(BlockModel):
     """Which data value set to read."""
 
-    connection: str
+    connection: ConnectionRef
     """The code of the dhis2 connection naming the instance."""
 
     data_set: str

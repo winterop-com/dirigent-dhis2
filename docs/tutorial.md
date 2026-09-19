@@ -47,7 +47,7 @@ uv sync
 ```
 
 ```text
-2026-09-19T16:16:01.860+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.16.6 packs=["dirigent-dhis2"]
+2026-09-20T00:52:52.672+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.16.7 packs=["dirigent-dhis2"]
 ```
 
 It creates the state directory, migrates the schema, creates the first admin, and mints that
@@ -152,7 +152,7 @@ That one line is four facts: the URL resolves, TLS is as configured, the credent
 accepted, and the instance's version is **2.43.1** -- its own word for itself, read from
 `/api/system/info` rather than guessed from an `/api/N` path.
 
-![The Connections screen with one row: DHIS2 play demo, kind dhis2, code play, healthy, checked five minutes ago.](images/tutorial/connections.png)
+![The Connections screen with one row: DHIS2 play demo, kind dhis2, code play, healthy, checked four minutes ago.](images/tutorial/connections.png)
 
 *The connection on the Connections screen. The config summary is on the row; the password is not.*
 
@@ -303,7 +303,7 @@ uv run dg runs show 01a0ac92-38dc-737a-8ab2-ffa099350a63 --json \
 Two facilities, each with the four fields `fields=` asked for. The same run is on the Runs
 screen of the UI, and choosing a step opens what it produced:
 
-![A run in the UI: one step, read, succeeded in 676 milliseconds, its output showing the two organisation units.](images/tutorial/run-first.png)
+![A run in the UI: one step, read, succeeded in 802 milliseconds, its output showing the two organisation units.](images/tutorial/run-first.png)
 
 *The run's only step, and the answer it stored, on the Runs screen.*
 
@@ -531,6 +531,13 @@ steps
 ![The Schemas screen with the tutorial's schema selected, its JSON shown beside the list.](images/tutorial/schema.png)
 
 *The shape the instance now holds. Any pipeline on this instance may gate on it by code.*
+
+The step's `schema` box shows the same shape: the code it names opens to the body the instance
+holds.
+
+![The pipeline editor with the check step selected, its schema box naming tutorial-org-units, the row under it opened on the schema's body and a link to Open in Schemas.](images/tutorial/step-check.png)
+
+*The code in the box, the shape behind it, and a link to the row it came from.*
 
 ## 5. The send
 
