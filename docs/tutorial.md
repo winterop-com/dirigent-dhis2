@@ -47,39 +47,38 @@ uv sync
 ```
 
 ```text
-2026-09-17T02:08:21.491+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.16.1 packs=["dirigent-dhis2"]
+2026-09-19T16:16:01.860+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.16.6 packs=["dirigent-dhis2"]
 ```
 
 It creates the state directory, migrates the schema, creates the first admin, and mints that
 admin one token -- shown once, and written to the project's `.env`, where the `local` profile
-reads it. Nothing else has to be pasted anywhere. `uv sync` then builds the project's
-environment from the `pyproject.toml` it wrote, so every `uv run dg` below is the runtime this
-project pins, with the pack in it.
+reads it. Nothing has to be pasted anywhere. `uv sync` then builds the project's environment
+from the `pyproject.toml` it wrote, so every `uv run dg` below is the runtime this project
+pins, with the pack in it.
 
-The last line it prints is the one that matters next:
+The last lines it prints are about the other thing it wrote into that `.env`:
 
 ```text
-No DIRIGENT_SECRET_KEY is set, so a connection carrying a credential cannot be
-stored until it is.
+DIRIGENT_SECRET_KEY is in .env beside it, and every command run in
+this directory reads it: it is what connection secrets are sealed with, and
+under another key the instance cannot open what it stored.
 ```
 
-A DHIS2 connection carries a password, and a connection secret is encrypted at rest with the
-instance's own key. So the instance needs one before it will store the connection. Mint one
-and start the instance with it, in a second terminal, in this directory:
+The connection in the next section carries a DHIS2 password, and a connection secret is sealed
+at rest with that key. A project's `.env` is a settings layer, so the key is in force for every
+command run in this directory, `dg dev` included, and there is nothing to export. Keep the
+file: a secret is sealed under the key that was set when it was stored, and an instance running
+under a different key finds a connection it cannot read.
+
+Start the instance in a second terminal, in this directory:
 
 ```bash
-export DIRIGENT_SECRET_KEY="$(uv run dg secret-key)"
 uv run dg dev
 ```
 
-`dg secret-key` mints one and writes it as a single plain line, terminal or pipe alike, which
-is what makes that substitution work.
-
 `dg dev` is one process holding the API, the web UI, the scheduler, one worker and a SQLite
 file under `.dirigent/state/`. It keeps running; leave it. The UI is at
-`http://127.0.0.1:3333`, and `admin` logs in there with the password you just gave. Keep the
-key: it is the only thing that can open the secrets it stored, so a restart without it finds
-a connection it cannot read.
+`http://127.0.0.1:3333`, and `admin` logs in there with the password you just gave.
 
 Back in the first terminal, the pack is in the catalog because it is installed -- there is no
 registration step and no config file:
