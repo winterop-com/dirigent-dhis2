@@ -10,7 +10,7 @@ from pydantic import BaseModel, JsonValue, model_validator
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
-from dirigent_plugin import BlockFailure, ErrorClass, OperatorSpec, StepContext
+from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, StepContext
 
 #: The aggregate analytics endpoint the client's analytics accessor reads.
 AGGREGATE_ENDPOINT: Final = "/api/analytics.json"
@@ -22,7 +22,7 @@ AnalyticsMode = Literal["aggregate", "event", "enrollment"]
 class Dhis2AnalyticsQueryConfig(BlockModel):
     """What one analytics query asks of the instance."""
 
-    connection: str
+    connection: ConnectionRef
     """The code of the dhis2 connection naming the instance."""
 
     mode: AnalyticsMode

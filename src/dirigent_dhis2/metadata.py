@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, JsonValue
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
-from dirigent_plugin import BlockFailure, ErrorClass, OperatorSpec, StepContext
+from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, StepContext
 
 #: A DHIS2 collection name as it appears in the API path: lower camel case, letters and digits.
 RESOURCE_PATTERN: Final = r"^[a-z][A-Za-z0-9]*$"
@@ -23,7 +23,7 @@ _CAMEL_BOUNDARY: Final = re.compile(r"(?<!^)(?=[A-Z])")
 class Dhis2MetadataConfig(BlockModel):
     """Which metadata resource to read, and how the collection is narrowed."""
 
-    connection: str
+    connection: ConnectionRef
     """The code of the dhis2 connection naming the instance."""
 
     resource: str = Field(pattern=RESOURCE_PATTERN)

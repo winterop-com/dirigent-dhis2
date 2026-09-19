@@ -10,7 +10,7 @@ from pydantic import BaseModel, JsonValue
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
-from dirigent_plugin import OperatorSpec, StepContext
+from dirigent_plugin import ConnectionRef, OperatorSpec, StepContext
 
 #: The tracker export root the three object kinds hang off.
 TRACKER_PATH: Final = "/api/tracker"
@@ -25,7 +25,7 @@ OrgUnitMode = Literal["SELECTED", "CHILDREN", "DESCENDANTS", "ACCESSIBLE", "CAPT
 class Dhis2TrackerConfig(BlockModel):
     """Which tracker collection to read, and how it is scoped."""
 
-    connection: str
+    connection: ConnectionRef
     """The code of the dhis2 connection naming the instance."""
 
     kind: TrackerKind

@@ -11,7 +11,7 @@ from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.export import DATA_VALUE_SETS_PATH
 from dirigent_dhis2.web import Dhis2Operator, refuse
-from dirigent_plugin import BlockFailure, ErrorClass, OperatorSpec, RemoteHandle, StepContext
+from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, RemoteHandle, StepContext
 
 #: How many conflicts a refusal names before pointing at the rest.
 NAMED_CONFLICTS = 3
@@ -33,7 +33,7 @@ class Dhis2ImportConflict(BlockModel):
 class Dhis2DataValueSetImportConfig(BlockModel):
     """What one import sends, and how the instance is told to take it."""
 
-    connection: str
+    connection: ConnectionRef
     """The code of the dhis2 connection naming the instance."""
 
     data_values: JsonValue
