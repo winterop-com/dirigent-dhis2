@@ -134,8 +134,21 @@ async def test_an_aggregate_refusal_is_classified_by_its_status(ctx: FakeContext
             ctx,
         )
     assert refused.value.error_class is ErrorClass.REJECTED
+    assert refused.value.code == "dhis2.answered"
 
 
 def test_an_event_query_without_a_program_is_refused_at_config() -> None:
     with pytest.raises(ValidationError):
         Dhis2AnalyticsQueryConfig(connection=CONNECTION, mode="event", dimension=["pe:LAST_MONTH"])
+
+
+async def test_an_event_query_that_reached_the_block_without_a_program_is_refused_with_a_code(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    """The config validator holds this shut, so the block's own guard is driven around it."""
+    config = Dhis2AnalyticsQueryConfig.model_construct(connection=CONNECTION, mode="event", program=None)
+    with pytest.raises(BlockFailure) as refused:
+        await Dhis2AnalyticsQueryOperator().execute(config, ctx.as_context())
+    assert refused.value.error_class is ErrorClass.REJECTED
+    assert refused.value.code == "dhis2.analytics_query.no_program"
+    assert refused.value.params["mode"] == "event"

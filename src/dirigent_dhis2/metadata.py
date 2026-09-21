@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, JsonValue
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
+from dirigent_dhis2.messages import METADATA_UNKNOWN_RESOURCE
 from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
 from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, StepContext
 
@@ -83,10 +84,7 @@ def _accessor(client: Dhis2Client, resource: str) -> Any:
     """
     candidate = getattr(client.resources, accessor_name(resource), None)
     if candidate is None or not callable(getattr(candidate, "list_raw", None)):
-        raise BlockFailure(
-            f"the instance's version knows no metadata resource named {resource!r}",
-            error_class=ErrorClass.REJECTED,
-        )
+        raise BlockFailure(METADATA_UNKNOWN_RESOURCE, error_class=ErrorClass.REJECTED, resource=resource)
     return candidate
 
 
