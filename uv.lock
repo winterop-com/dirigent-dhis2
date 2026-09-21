@@ -295,16 +295,12 @@ wheels = [
 [[package]]
 name = "dirigent-common"
 version = "0.17.2"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-common&branch=main#115cc7be514522230640e6f7151af4aa919ddd72" }
 dependencies = [
     { name = "httpx2" },
     { name = "jinja2" },
     { name = "jsonschema", extra = ["format-nongpl"] },
     { name = "pydantic" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e3/fe/46baf47ae636258419553203bb4a4a0ee63e8f101b78fc6a858222ebe73e/dirigent_common-0.17.2.tar.gz", hash = "sha256:a0a3eacbf0616a4c0f629fc4ff24535e08c93a9a46d615cde58383b4d352a350", size = 16261, upload-time = "2026-09-21T12:06:45.626Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/ba/284bbb70f3d3bec21a44df832e3c20ff639b31af5c7e3452235bc2486241/dirigent_common-0.17.2-py3-none-any.whl", hash = "sha256:77d3b1da0db1468639f058f722c52e4b32367bf06e89b3b9d2638eb5e5e4397d", size = 23278, upload-time = "2026-09-21T12:06:43.972Z" },
 ]
 
 [[package]]
@@ -337,13 +333,13 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "dhis2w-client", specifier = ">=1.14,<2" },
-    { name = "dirigent-common", specifier = "==0.17.2" },
-    { name = "dirigent-plugin", specifier = "==0.17.2" },
+    { name = "dirigent-common", git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-common&branch=main" },
+    { name = "dirigent-plugin", git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-plugin&branch=main" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "dirigent-testing", specifier = "==0.17.2" },
+    { name = "dirigent-testing", git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-testing&branch=main" },
     { name = "jsonschema", specifier = ">=4" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-material", specifier = ">=9.7.7" },
@@ -361,22 +357,18 @@ dev = [
 [[package]]
 name = "dirigent-plugin"
 version = "0.17.2"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-plugin&branch=main#115cc7be514522230640e6f7151af4aa919ddd72" }
 dependencies = [
     { name = "dirigent-common" },
     { name = "httpx2" },
     { name = "pluginkit" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7b/7b/179bb4f4f4aa2ea480ed6a73d1fc027f223077bfcde04497d0871a36d928/dirigent_plugin-0.17.2.tar.gz", hash = "sha256:51edf1d94d99d042eef4564f5081c58fab350474954502a6ae6b491d81bb57c1", size = 20688, upload-time = "2026-09-21T12:06:43.739Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/5b/f04495e1f2d70e08b0ef4b36de95b64b43318ad83d73013c55fc84ce44bb/dirigent_plugin-0.17.2-py3-none-any.whl", hash = "sha256:a23841bf5a12c9353d5821ad16fc2303a1e5d20737f8538ea9745710594c87a9", size = 24541, upload-time = "2026-09-21T12:06:42.604Z" },
-]
 
 [[package]]
 name = "dirigent-testing"
 version = "0.17.2"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/winterop-com/dirigent?subdirectory=packages%2Fdirigent-testing&branch=main#115cc7be514522230640e6f7151af4aa919ddd72" }
 dependencies = [
     { name = "dirigent-common" },
     { name = "dirigent-plugin" },
@@ -384,10 +376,6 @@ dependencies = [
     { name = "pydantic" },
     { name = "pytest" },
     { name = "pyyaml" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/10/2d/f06366a64aa879601cdfd7c1be340c8044d9af449888891a3a6faad2c348/dirigent_testing-0.17.2.tar.gz", hash = "sha256:4141eabc28915499237ba315cbc0e844fe71905350738bdcac031baada751e1f", size = 10184, upload-time = "2026-09-21T12:07:06.125Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6b/be/8c43c769f9bfd2f1a0dbc7c85169e5fc8ed14c66fb7f8f9d59b03f0adc50/dirigent_testing-0.17.2-py3-none-any.whl", hash = "sha256:0dfe9a6616d1876f7e6f4b5380addc755ec96fe53659fde2b6f35c7a1874f3dd", size = 13639, upload-time = "2026-09-21T12:07:05.005Z" },
 ]
 
 [[package]]

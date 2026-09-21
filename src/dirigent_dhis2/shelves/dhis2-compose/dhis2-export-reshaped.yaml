@@ -21,6 +21,12 @@
 # a program and the payload stays data.
 #
 #   dg run --local examples/dhis2-compose/dhis2-export-reshaped.yaml
+#
+# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
+# requires.connections rather than carrying it, so create a `dhis2` connection under that code
+# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
+# rename it in the copy. Then replace the program with the shape the system downstream actually
+# reads, and send the answer on with http.request or storage.write.
 
 format: dirigent/v1
 kind: pipeline
@@ -28,7 +34,7 @@ code: dhis2-export-reshaped
 name: Export, then reshape
 description: Export a data value set and reshape it into per-data-element totals with jq.
 
-tags: [dhis2, transform]
+tags: [dhis2, transform, starter]
 
 requires:
   blocks:

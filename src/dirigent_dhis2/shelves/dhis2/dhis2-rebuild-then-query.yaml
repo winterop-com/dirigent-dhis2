@@ -18,6 +18,12 @@
 # whose scope does not cover what the query reads is a rebuild that changes nothing.
 #
 #   dg run --local examples/dhis2/dhis2-rebuild-then-query.yaml
+#
+# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
+# requires.connections rather than carrying it, so create a `dhis2` connection under that code
+# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
+# rename it in the copy. Then put the indicator and org unit you report on in the query, and
+# add a schedule so the report is current every morning.
 
 format: dirigent/v1
 kind: pipeline
@@ -25,7 +31,7 @@ code: dhis2-rebuild-then-query
 name: Rebuild, then read
 description: Rebuild the analytics tables and read an indicator out of them once the job is done.
 
-tags: [dhis2, analytics]
+tags: [dhis2, analytics, starter]
 
 concurrency: skip
 

@@ -3,9 +3,10 @@
 ``check_pack_examples`` re-derives the structural half of the engine's preflight over the
 pack's own ``Contribution`` and its ``dhis2`` shelf's documents: each is a ``dirigent/v1``
 pipeline coded after its file, every block a step names is one the pack contributes, each
-config fits that block's published schema, and a named connection is carried. The
-``dhis2-http`` shelf is deliberately built from generic ``http.*`` blocks this pack
-does not contribute, so it is out of scope for a single-pack conformance check.
+config fits that block's published schema, and a named connection is one the document either
+carries or lists under ``requires.connections``. The ``dhis2-http`` shelf is deliberately
+built from generic ``http.*`` blocks this pack does not contribute, so it is out of scope for
+a single-pack conformance check.
 
 ``dhis2-compose`` mixes the two: ``dhis2.*`` steps beside engine blocks such as
 ``transform.jq`` and ``validate.schema``. Its ``dhis2.*`` steps are held to the same catalog
@@ -35,13 +36,6 @@ COMPOSE_DIR = SHELVES / "dhis2-compose"
 
 #: The validation shelf: a metadata read gated on the engine's own ``validate.schema``.
 VALIDATE_DIR = SHELVES / "validate"
-
-#: The starter shelf: the same flows written the way an instance accepts them, naming a
-#: connection rather than carrying one.
-STARTERS_DIR = SHELVES / "starters"
-
-#: The connection every starter names, and the kind it is.
-STARTER_CONNECTION = "dhis2"
 
 #: What the pack itself puts in the catalog, checked once and reused by both tests.
 CONTRIBUTION = Dhis2Plugin().contribute()
@@ -135,35 +129,33 @@ def test_the_pack_carries_a_curated_set_of_starters() -> None:
 
 
 def test_a_starter_clears_the_bar_for_being_copied() -> None:
+    """A starter is a flow that says what it is for and resolves every connection it names.
+
+    A copy strips the carried ``connections:`` and names their codes under
+    ``requires.connections``, so either half satisfies a step: what the document carries, and
+    what it requires.
+    """
     for path in _starters():
         document = cast("dict[str, Any]", yaml.safe_load(path.read_text()))
-        assert len(cast("dict[str, Any]", document.get("steps", {}))) >= 2, f"{path.name}: a starter is a flow"
-        assert not document.get("connections"), f"{path.name}: a starter names its connections, it does not carry them"
-        assert not document.get("schemas"), f"{path.name}: a starter names its schemas, it does not carry them"
+        steps = cast("dict[str, Any]", document.get("steps", {}))
+        assert len(steps) >= 2, f"{path.name}: a starter is a flow"
         assert document.get("description"), f"{path.name}: a starter says what it is for"
-        required = cast("dict[str, Any]", document.get("requires", {}))
-        assert STARTER_CONNECTION in cast("list[str]", required.get("connections", [])), (
-            f"{path.name}: a starter declares the connection it names in requires.connections"
-        )
-
-
-def test_every_starter_is_on_the_starter_shelf() -> None:
-    for path in _starters():
-        assert path.parent == STARTERS_DIR, f"{path.name}: a starter belongs on the starters shelf"
+        carried = set(cast("dict[str, Any]", document.get("connections", {})))
+        required = set(cast("dict[str, Any]", document.get("requires", {})).get("connections", []))
+        for name, step in steps.items():
+            named = cast("dict[str, Any]", cast("dict[str, Any]", step).get("config", {})).get("connection")
+            if named is None:
+                continue
+            assert named in carried | required, (
+                f"{path.name}: step {name!r} names connection {named!r}, neither carried nor required"
+            )
 
 
 def test_every_starter_uses_the_pack_blocks_correctly(tmp_path: Path) -> None:
-    """A starter names its connection, so the single-pack check is given one to find.
-
-    ``check_pack_examples`` insists a step's connection is carried by the document, which is
-    the one thing a starter must not do. Writing the connection in on the way to the check
-    holds the starters to the same catalog as every other shelf.
-    """
-    documents = sorted(STARTERS_DIR.rglob("*.yaml"))
+    """A starter sits on whichever shelf its blocks put it on, and is held to the catalog there."""
+    documents = _starters()
     assert documents, "there are no starters to check"
     for path in documents:
-        document = _only_pack_steps(path)
-        document["connections"] = {STARTER_CONNECTION: {"kind": "dhis2", "config": {"base_url": "https://example.org"}}}
-        (tmp_path / path.name).write_text(yaml.safe_dump(document, sort_keys=False))
+        (tmp_path / path.name).write_text(yaml.safe_dump(_only_pack_steps(path), sort_keys=False))
     issues = check_pack_examples(CONTRIBUTION, tmp_path)
     assert issues == [], "\n".join(issues)

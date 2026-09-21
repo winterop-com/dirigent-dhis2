@@ -25,6 +25,13 @@
 # into a step.
 #
 #   dg run --local examples/dhis2-compose/dhis2-import-from-storage.yaml
+#
+# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
+# requires.connections rather than carrying it, so create a `dhis2` connection under that code
+# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
+# rename it in the copy. Then point the import at a second connection so the two ends are
+# different instances, and choose a durable target for the save if the file should outlive the
+# run's scratch space.
 
 format: dirigent/v1
 kind: pipeline
@@ -32,7 +39,7 @@ code: dhis2-import-from-storage
 name: Move a data value set through storage
 description: Export a data value set, write it to storage, read it back, and import it as a dry run.
 
-tags: [dhis2, storage]
+tags: [dhis2, storage, starter]
 
 requires:
   blocks:
