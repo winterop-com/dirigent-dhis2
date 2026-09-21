@@ -282,3 +282,26 @@ Every block inherits one classifier, so retry policy means the same thing across
 
 A refusal's message is the instance's own words when it gave any: a DHIS2 web message's
 `message`, and the reason phrase when the body was not one.
+
+## Every refusal carries a code
+
+A refusal is catalogued: it carries a stable dotted code beside the sentence it renders, so a
+stream of run records is selected by code however the English is later reworded --
+`jq 'select(.error_code == "dhis2.import.refused")'`. The code is API and the text is not. The
+last three are what the connection kind refuses at validation.
+
+| Code | Text |
+| --- | --- |
+| `dhis2.answered` | `{where} answered {status}: {remote}` |
+| `dhis2.analytics.no_task_reference` | `the analytics job submission answered without a task reference to follow` |
+| `dhis2.analytics.task_disappeared` | `task {task} disappeared before its result could be collected` |
+| `dhis2.analytics.no_result` | `task {task} has no result to collect: the instance holds no terminal notification for it` |
+| `dhis2.import.no_summary` | `{where} answered without an import summary, so nothing says the import took` |
+| `dhis2.import.refused` | `the import was refused: {detail}` |
+| `dhis2.import.took_nothing` | `the import took nothing: {detail}` |
+| `dhis2.import.partial` | `the import took {taken} values and refused {ignored} despite atomic_mode ALL: {detail}` |
+| `dhis2.metadata.unknown_resource` | `the instance's version knows no metadata resource named '{resource}'` |
+| `dhis2.analytics_query.no_program` | `a {mode} analytics query needs a program to read under` |
+| `dhis2.connection.both_credentials` | `a dhis2 connection takes an api_token or basic credentials, not both` |
+| `dhis2.connection.no_credential` | `a dhis2 connection needs an api_token or basic credentials` |
+| `dhis2.connection.no_basic_password` | `basic credentials need a basic_password beside the basic_username` |

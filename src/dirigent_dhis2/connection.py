@@ -7,6 +7,7 @@ from dhis2w_client import Dhis2Client, Profile, build_auth_provider
 from pydantic import BaseModel, Field, SecretStr, model_validator
 
 from dirigent_common import BlockModel, Duration, HealthReport
+from dirigent_dhis2.messages import BOTH_CREDENTIALS, NO_BASIC_PASSWORD, NO_CREDENTIAL
 from dirigent_plugin import ConnectionKind, StepContext
 
 
@@ -40,11 +41,11 @@ class Dhis2ConnectionConfig(BlockModel):
     def _require_one_credential(self) -> "Dhis2ConnectionConfig":
         """Reject a config carrying both credential kinds, neither, or half of the basic pair."""
         if self.api_token is not None and (self.basic_username or self.basic_password is not None):
-            raise ValueError("a dhis2 connection takes an api_token or basic credentials, not both")
+            raise ValueError(BOTH_CREDENTIALS.render())
         if self.api_token is None and not self.basic_username:
-            raise ValueError("a dhis2 connection needs an api_token or basic credentials")
+            raise ValueError(NO_CREDENTIAL.render())
         if self.basic_username and self.basic_password is None:
-            raise ValueError("basic credentials need a basic_password beside the basic_username")
+            raise ValueError(NO_BASIC_PASSWORD.render())
         return self
 
 

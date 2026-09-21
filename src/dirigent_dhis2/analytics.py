@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
+from dirigent_dhis2.messages import ANALYTICS_NO_RESULT, ANALYTICS_NO_TASK_REFERENCE, ANALYTICS_TASK_DISAPPEARED
 from dirigent_dhis2.web import Dhis2Operator, refuse
 from dirigent_plugin import (
     BlockFailure,
@@ -140,10 +141,7 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
         task_ref = envelope.task_ref()
         endpoint = envelope.notifier_endpoint()
         if task_ref is None or endpoint is None:
-            raise BlockFailure(
-                "the analytics job submission answered without a task reference to follow",
-                error_class=ErrorClass.REJECTED,
-            )
+            raise BlockFailure(ANALYTICS_NO_TASK_REFERENCE, error_class=ErrorClass.REJECTED)
         job_type, task_uid = task_ref
         ctx.log.info("analytics job submitted", notifier=endpoint)
         return RemoteHandle(block_id=self.spec.id, ref=task_uid, meta={NOTIFIER: endpoint, JOB_TYPE: job_type})
@@ -212,8 +210,7 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
             except Dhis2ApiError as error:
                 if error.status_code == 404:
                     raise BlockFailure(
-                        f"task {handle.ref} disappeared before its result could be collected",
-                        error_class=ErrorClass.TRANSIENT,
+                        ANALYTICS_TASK_DISAPPEARED, error_class=ErrorClass.TRANSIENT, task=handle.ref
                     ) from error
                 raise refuse(error, f"GET {handle.meta[NOTIFIER]}") from error
             except AuthenticationError as error:
@@ -221,10 +218,7 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
         story = poll.new
         terminal = story[-1] if story and story[-1].completed else None
         if terminal is None:
-            raise BlockFailure(
-                f"task {handle.ref} has no result to collect: the instance holds no terminal notification for it",
-                error_class=ErrorClass.TRANSIENT,
-            )
+            raise BlockFailure(ANALYTICS_NO_RESULT, error_class=ErrorClass.TRANSIENT, task=handle.ref)
         return Dhis2AnalyticsRunOutput(
             task_id=handle.ref,
             completed_at=_completed_at(terminal),

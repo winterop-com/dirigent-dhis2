@@ -10,6 +10,7 @@ from pydantic import BaseModel, JsonValue
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.export import DATA_VALUE_SETS_PATH
+from dirigent_dhis2.messages import IMPORT_NO_SUMMARY, IMPORT_PARTIAL, IMPORT_REFUSED, IMPORT_TOOK_NOTHING
 from dirigent_dhis2.web import Dhis2Operator, refuse
 from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, RemoteHandle, StepContext
 
@@ -122,8 +123,8 @@ def _conflicts(envelope: WebMessageResponse) -> list[Dhis2ImportConflict]:
     return [Dhis2ImportConflict(object=item.object or "", value=item.value or "") for item in envelope.conflicts()]
 
 
-def _refusal(conflicts: list[Dhis2ImportConflict], counts: dict[str, int]) -> str:
-    """Say what the instance refused, naming the first conflicts and the counts."""
+def _detail(conflicts: list[Dhis2ImportConflict], counts: dict[str, int]) -> str:
+    """Say what the instance refused, naming the first conflicts and counting the rest."""
     named = "; ".join(f"{conflict.object}: {conflict.value}" for conflict in conflicts[:NAMED_CONFLICTS])
     more = len(conflicts) - NAMED_CONFLICTS
     tail = f" (and {more} more)" if more > 0 else ""
@@ -133,22 +134,6 @@ def _refusal(conflicts: list[Dhis2ImportConflict], counts: dict[str, int]) -> st
 def _taken(counts: dict[str, int]) -> int:
     """How many values the summary says landed: imported, updated or deleted."""
     return counts["imported"] + counts["updated"] + counts["deleted"]
-
-
-def _partial(conflicts: list[Dhis2ImportConflict], counts: dict[str, int]) -> str:
-    """Say what an import asked to be atomic did, honestly: what it took and what it refused.
-
-    DHIS2 commits the good values beside the conflicts under ``atomicMode=ALL`` on every
-    supported major, so a WARNING under ALL is not the rollback the mode promises. The
-    failure names the values that landed so the step's reader knows the instance changed.
-    """
-    taken = _taken(counts)
-    if taken == 0:
-        return f"the import took nothing: {_refusal(conflicts, counts)}"
-    return (
-        f"the import took {taken} values and refused {counts['ignored']} despite atomic_mode ALL: "
-        f"{_refusal(conflicts, counts)}"
-    )
 
 
 def _rehearsal(document: JsonValue, ctx: StepContext) -> JsonValue:
@@ -199,19 +184,24 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
             except AuthenticationError as error:
                 raise refuse(error, f"POST {DATA_VALUE_SETS_PATH}") from error
         if not _has_summary(envelope):
-            raise BlockFailure(
-                f"POST {DATA_VALUE_SETS_PATH} answered without an import summary, so nothing says the import took",
-                error_class=ErrorClass.REJECTED,
-            )
+            raise BlockFailure(IMPORT_NO_SUMMARY, error_class=ErrorClass.REJECTED, where=f"POST {DATA_VALUE_SETS_PATH}")
         status = _status(envelope)
         counts = _counts(envelope)
         conflicts = _conflicts(envelope)
         ctx.log.info("import summary", status=status, **counts, conflict_count=len(conflicts))
         if status == "ERROR":
             raise BlockFailure(
-                f"the import was refused: {_refusal(conflicts, counts)}",
-                error_class=ErrorClass.REJECTED,
+                IMPORT_REFUSED, error_class=ErrorClass.REJECTED, detail=_detail(conflicts, counts), **counts
             )
         if status == "WARNING" and counts["ignored"] > 0 and config.atomic_mode == "ALL":
-            raise BlockFailure(_partial(conflicts, counts), error_class=ErrorClass.REJECTED)
+            # DHIS2 commits the good values beside the conflicts under atomicMode=ALL on every
+            # supported major, so the refusal names how many landed.
+            taken = _taken(counts)
+            raise BlockFailure(
+                IMPORT_PARTIAL if taken else IMPORT_TOOK_NOTHING,
+                error_class=ErrorClass.REJECTED,
+                detail=_detail(conflicts, counts),
+                taken=taken,
+                **counts,
+            )
         return Dhis2DataValueSetImportOutput(status=status, conflicts=conflicts, **counts)

@@ -45,6 +45,8 @@ async def test_a_refused_import_answers_409_with_the_summary_and_is_rejected(
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
     assert refused.value.error_class is ErrorClass.REJECTED
+    assert refused.value.code == "dhis2.import.refused"
+    assert refused.value.params["ignored"] == 1
     assert "data element not found" in refused.value.message
 
 
@@ -78,6 +80,7 @@ async def test_an_atomic_import_that_ignored_values_is_rejected(ctx: FakeContext
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
     assert refused.value.error_class is ErrorClass.REJECTED
+    assert refused.value.code == "dhis2.import.took_nothing"
     assert "took nothing" in refused.value.message
 
 
@@ -89,6 +92,7 @@ async def test_an_atomic_import_the_instance_took_half_of_names_what_landed(
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
     assert refused.value.error_class is ErrorClass.REJECTED
+    assert refused.value.code == "dhis2.import.partial"
     assert "took 1 values and refused 1" in refused.value.message
     assert "took nothing" not in refused.value.message
 
@@ -121,6 +125,7 @@ async def test_a_200_without_an_import_summary_is_not_a_success(
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
     assert refused.value.error_class is ErrorClass.REJECTED
+    assert refused.value.code == "dhis2.import.no_summary"
     assert "without an import summary" in refused.value.message
 
 
@@ -140,6 +145,7 @@ async def test_a_409_without_a_summary_is_an_ordinary_refusal(ctx: FakeContext, 
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
     assert refused.value.error_class is ErrorClass.REJECTED
+    assert refused.value.code == "dhis2.answered"
     assert "Import already in progress" in refused.value.message
 
 

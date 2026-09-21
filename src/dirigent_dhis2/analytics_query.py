@@ -9,6 +9,7 @@ from pydantic import BaseModel, JsonValue, model_validator
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
+from dirigent_dhis2.messages import NO_PROGRAM
 from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
 from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, StepContext
 
@@ -59,7 +60,7 @@ class Dhis2AnalyticsQueryConfig(BlockModel):
     def _program_scopes_the_query_kinds_that_need_it(self) -> "Dhis2AnalyticsQueryConfig":
         """An event or enrollment query reads under one program, so it must be named."""
         if self.mode in ("event", "enrollment") and not self.program:
-            raise ValueError(f"a {self.mode} analytics query needs a program to read under")
+            raise ValueError(NO_PROGRAM.render(mode=self.mode))
         return self
 
 
@@ -129,7 +130,7 @@ class Dhis2AnalyticsQueryOperator(Dhis2Operator[Dhis2AnalyticsQueryConfig, Dhis2
         """Read an event or enrollment query grid through the analytics accessor."""
         collection = "events" if config.mode == "event" else "enrollments"
         if config.program is None:
-            raise BlockFailure(f"a {config.mode} analytics query needs a program", error_class=ErrorClass.REJECTED)
+            raise BlockFailure(NO_PROGRAM, error_class=ErrorClass.REJECTED, mode=config.mode)
         extra = {"outputIdScheme": config.output_id_scheme} if config.output_id_scheme is not None else None
         query = analytics.event_query if config.mode == "event" else analytics.enrollment_query
         try:

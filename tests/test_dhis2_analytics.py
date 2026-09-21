@@ -58,6 +58,7 @@ async def test_a_submission_without_a_task_reference_is_rejected(ctx: FakeContex
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
     assert refused.value.error_class is ErrorClass.REJECTED
+    assert refused.value.code == "dhis2.analytics.no_task_reference"
 
 
 async def test_a_refused_submission_is_classified_by_its_status(ctx: FakeContext, dhis2: Dhis2Server) -> None:
@@ -202,6 +203,7 @@ async def test_fetch_on_a_task_that_vanished_is_transient(ctx: FakeContext, dhis
     with pytest.raises(BlockFailure) as refused:
         await Dhis2AnalyticsRunOperator().fetch(handle(), config, ctx.as_context())
     assert refused.value.error_class is ErrorClass.TRANSIENT
+    assert refused.value.code == "dhis2.analytics.task_disappeared"
 
 
 async def test_cancel_reports_that_the_job_cannot_be_told(ctx: FakeContext) -> None:
@@ -262,4 +264,5 @@ async def test_fetch_refuses_a_feed_without_a_terminal_row(ctx: FakeContext, dhi
     with pytest.raises(BlockFailure) as refused:
         await Dhis2AnalyticsRunOperator().fetch(handle(), config, ctx.as_context())
     assert refused.value.error_class is ErrorClass.TRANSIENT
+    assert refused.value.code == "dhis2.analytics.no_result"
     assert "no result to collect" in refused.value.message

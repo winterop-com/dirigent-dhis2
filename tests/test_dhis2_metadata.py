@@ -106,6 +106,8 @@ async def test_a_resource_the_version_does_not_know_is_rejected(ctx: FakeContext
             ctx,
         )
     assert refused.value.error_class is ErrorClass.REJECTED
+    assert refused.value.code == "dhis2.metadata.unknown_resource"
+    assert refused.value.params["resource"] == "notAResource"
 
 
 async def test_a_refused_read_is_classified_by_its_status(ctx: FakeContext, dhis2: Dhis2Server) -> None:

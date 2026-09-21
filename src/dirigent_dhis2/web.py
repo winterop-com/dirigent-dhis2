@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError, UnsupportedVersionError
 from pydantic import BaseModel
 
+from dirigent_dhis2.messages import ANSWERED
 from dirigent_plugin import BlockFailure, ErrorClass, Operator, Sensor, classify_default
 
 
@@ -48,7 +49,7 @@ def describe(error: Dhis2ApiError | AuthenticationError) -> str:
 def refuse(error: Dhis2ApiError | AuthenticationError, where: str) -> BlockFailure:
     """Turn a dhis2w-client HTTP failure into a classified BlockFailure the engine can act on."""
     status = error.status_code if isinstance(error, Dhis2ApiError) else 401
-    return BlockFailure(f"{where} answered {status}: {describe(error)}", error_class=status_class(status))
+    return BlockFailure(ANSWERED, error_class=status_class(status), where=where, status=status, remote=describe(error))
 
 
 def classify(error: Exception) -> ErrorClass:

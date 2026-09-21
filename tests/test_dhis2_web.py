@@ -6,6 +6,7 @@ from dhis2w_client.errors import AuthenticationError, Dhis2ApiError, Unsupported
 
 from dhis2server import BASE_URL, CONNECTION, serve
 from dirigent_dhis2 import Dhis2Plugin
+from dirigent_dhis2.messages import ANSWERED
 from dirigent_dhis2.metadata import Dhis2MetadataOperator
 from dirigent_dhis2.web import QueryTerms, classify, query_terms, refuse
 from dirigent_plugin import AnyOperator, AnySensor, BlockFailure, ErrorClass
@@ -23,7 +24,10 @@ from dirigent_testing import FakeContext, call_block
         (AuthenticationError("401 Unauthorized at GET /api/x"), ErrorClass.REJECTED),
         (UnsupportedVersionError("2.40.0", ["v41", "v42", "v43"]), ErrorClass.REJECTED),
         (VersionPinMismatchError("v43", "2.41.0"), ErrorClass.REJECTED),
-        (BlockFailure("mine", error_class=ErrorClass.TRANSIENT), ErrorClass.TRANSIENT),
+        (
+            BlockFailure(ANSWERED, error_class=ErrorClass.TRANSIENT, where="GET /api/x", status=503, remote="mine"),
+            ErrorClass.TRANSIENT,
+        ),
         (RuntimeError("something else"), ErrorClass.UNKNOWN),
     ],
     ids=lambda value: type(value).__name__ if isinstance(value, Exception) else str(value),
@@ -45,6 +49,8 @@ def test_a_refusal_carries_the_instance_message() -> None:
     body = {"httpStatus": "Conflict", "status": "ERROR", "message": "Import already in progress"}
     failure = refuse(Dhis2ApiError(409, "Conflict", body=body), "POST /api/dataValueSets")
     assert failure.message == "POST /api/dataValueSets answered 409: Import already in progress"
+    assert failure.code == "dhis2.answered"
+    assert failure.params == {"where": "POST /api/dataValueSets", "status": 409, "remote": "Import already in progress"}
     assert failure.error_class is ErrorClass.REJECTED
 
 
