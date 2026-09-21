@@ -1,6 +1,6 @@
 [project]
 name = "dirigent-dhis2"
-version = "0.17.2"
+version = "0.17.3"
 description = "The DHIS2 adapter pack for dirigent: a connection kind and the blocks for one instance."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -12,8 +12,8 @@ classifiers = [
 ]
 dependencies = [
     "dhis2w-client>=1.14,<2",
-    "dirigent-common==0.17.2",
-    "dirigent-plugin==0.17.2",
+    "dirigent-common==0.17.3",
+    "dirigent-plugin==0.17.3",
 ]
 
 [project.entry-points."dirigent.plugins.v1"]
@@ -21,7 +21,7 @@ dhis2 = "dirigent_dhis2:plugin"
 
 [dependency-groups]
 dev = [
-    "dirigent-testing==0.17.2",
+    "dirigent-testing==0.17.3",
     "jsonschema>=4",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.7",
@@ -35,11 +35,6 @@ dev = [
     "types-jsonschema>=4",
     "types-pyyaml>=6",
 ]
-
-[tool.uv.sources]
-dirigent-common = { git = "https://github.com/winterop-com/dirigent", subdirectory = "packages/dirigent-common", branch = "main" }
-dirigent-plugin = { git = "https://github.com/winterop-com/dirigent", subdirectory = "packages/dirigent-plugin", branch = "main" }
-dirigent-testing = { git = "https://github.com/winterop-com/dirigent", subdirectory = "packages/dirigent-testing", branch = "main" }
 
 [build-system]
 requires = ["uv_build>=0.12.0,<0.13.0"]
