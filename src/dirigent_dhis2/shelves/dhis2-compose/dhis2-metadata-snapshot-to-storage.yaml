@@ -1,0 +1,75 @@
+# Take a snapshot of a metadata collection and keep it.
+#
+# Metadata drifts: a data element is renamed, an org unit is closed, a category combo is
+# swapped underneath a data set, and the pipeline that was correct last quarter starts
+# posting into a cell nobody reads. A snapshot on a schedule is the cheapest answer -- it
+# costs one read and one file, and it turns "when did this change?" into a diff.
+#
+# dhis2.metadata reads one collection through the version-bound generic accessor, so the
+# fields projection is what keeps the answer small: ask for the columns the diff is about,
+# not for :owner.
+#
+# The read is a `dhis2.*` step and the keeping is `storage.write`, which is why the document
+# is on this shelf: no DHIS2 block writes a file, so a snapshot is two hops.
+#
+#   dg run --local examples/dhis2-compose/dhis2-metadata-snapshot-to-storage.yaml
+#   dg run --local examples/dhis2-compose/dhis2-metadata-snapshot-to-storage.yaml --keep
+#
+# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
+# requires.connections rather than carrying it, so create a `dhis2` connection under that code
+# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
+# rename it in the copy. Then choose the collection and the fields you want to watch, point the
+# target at durable storage rather than the run's scratch space, and add a schedule so a
+# snapshot lands every night.
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-metadata-snapshot-to-storage
+name: Snapshot a metadata collection to storage
+description: Read one metadata collection with a fields projection and write it to storage.
+
+tags: [dhis2, metadata, storage, starter]
+
+requires:
+  blocks:
+    - dhis2.metadata
+    - storage.write
+
+params:
+  type: object
+  properties:
+    resource:
+      type: string
+      default: dataElements
+      description: The metadata collection to snapshot, such as dataElements or organisationUnits.
+    fields:
+      type: string
+      default: id,name,shortName,valueType,domainType
+      description: The fields projection the snapshot keeps.
+
+connections:
+  dhis2-demo:
+    kind: dhis2
+    config:
+      base_url: https://play.im.dhis2.org/stable-2-43-1
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  read:
+    block: dhis2.metadata
+    config:
+      connection: dhis2-demo
+      resource: "${params.resource}"
+      fields: "${params.fields}"
+      order: [name:asc]
+
+  save:
+    block: storage.write
+    depends_on: [read]
+    config:
+      # The collection is in the file name so a snapshot per collection leaves one file each
+      # rather than each overwriting the last.
+      target: "${run.scratch}/dhis2/${params.resource}.json"
+      value: ${steps.read.output.body}

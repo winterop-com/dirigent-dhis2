@@ -16,7 +16,8 @@ contributes. A document naming `transform.jq` is correct and simply belongs here
 The pack's tests still hold the `dhis2.*` half of each document below to the same catalog.
 
 Each carries the connection it uses, so it runs standalone against the public play demo.
-Nothing here writes to it.
+Nothing here writes to it. The four tagged `starter` are the ones `dg pipeline new` copies
+into a project, with `dhis2-demo` named under `requires.connections` rather than carried.
 
 | File | What it composes |
 | --- | --- |
@@ -25,6 +26,7 @@ Nothing here writes to it.
 | [dhis2-export-per-org-unit.yaml](dhis2-export-per-org-unit.yaml) | One export per organisation unit with `for_each`, each its own run item, `items: continue` so one district's failure costs only that district; a second fanned `storage.write` adopts the export's grid and writes one file per district, and a manifest lists what landed. |
 | [dhis2-export-to-storage.yaml](dhis2-export-to-storage.yaml) | An export left behind as a file: `storage.write` takes the export's `body` and reports the URI it landed at. |
 | [dhis2-import-from-storage.yaml](dhis2-import-from-storage.yaml) | A month moved through a file: export, `storage.write`, `storage.read`, import -- both of storage's doors in one document. |
+| [dhis2-metadata-snapshot-to-storage.yaml](dhis2-metadata-snapshot-to-storage.yaml) | A metadata collection kept as a file: one `dhis2.metadata` read with a fields projection, written where a schedule can diff it. |
 
 `dhis2-export-validated.yaml` reads a schema the instance holds rather than one it carries,
 so a local run is handed the file:

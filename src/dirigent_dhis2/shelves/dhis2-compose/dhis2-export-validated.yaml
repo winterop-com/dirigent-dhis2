@@ -22,6 +22,12 @@
 #
 #   dg run --local --schema examples/schemas/dhis2-data-value-set.json \
 #     examples/dhis2-compose/dhis2-export-validated.yaml
+#
+# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
+# requires.connections rather than carrying it, so create a `dhis2` connection under that code
+# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
+# rename it in the copy. Then create the schema the gate names, and keep every step that acts
+# on the values behind that gate so nothing downstream sees a payload that did not pass.
 
 format: dirigent/v1
 kind: pipeline
@@ -29,7 +35,7 @@ code: dhis2-export-validated
 name: Export, then check the shape
 description: Export a data value set and validate it against the schema the instance holds.
 
-tags: [dhis2, validate]
+tags: [dhis2, validate, starter]
 
 requires:
   blocks:

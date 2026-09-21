@@ -19,10 +19,11 @@ stage-scoped event read -- lives in [`../dhis2-http/`](../dhis2-http). Documents
 the `storage.write` and `storage.read` steps that are the only way a value becomes a file and
 comes back -- live in [`../dhis2-compose/`](../dhis2-compose).
 
-Each document carries the connection it uses so it runs standalone; an instance you own
-names its connections instead, and a server refuses a document that embeds one, so applying
-these to an instance means creating a `dhis2` connection first and letting the document name
-it. They run against the public play demo, resolved to a versioned host (see
+Each document carries the connection it uses so it runs standalone; a server refuses to store
+one that does, so a copy is what an instance applies. `dg pipeline new` makes that copy from a
+document tagged `starter`: the `connections:` block goes and its code, `dhis2-demo`, is named
+under `requires.connections` instead, so create a `dhis2` connection under that code or rename
+it in the copy. They run against the public play demo, resolved to a versioned host (see
 [`../dhis2-http/README.md`](../dhis2-http/README.md) for the redirect lore the connection
 url depends on).
 

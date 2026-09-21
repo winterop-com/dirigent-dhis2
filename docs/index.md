@@ -22,7 +22,7 @@ gate and one rehearsed write against the public play demo, end to end.
 - Three [formats](formats.md), `dhis2-uid`, `dhis2-period` and `dhis2-code`, that a schema
   asserts against by writing `format:`.
 - Seven [blocks](blocks.md): six operators and one sensor, all in the `dhis2` group.
-- One [example](examples.md) document per operation, across six shelves.
+- One [example](examples.md) document per operation, across five shelves.
 
 ## Install
 

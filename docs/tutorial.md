@@ -805,9 +805,9 @@ pipeline in five versions, and the runs behind them:
 
 ### Where to go next
 
-The pack ships **starters**: the same flows as the rest of its documents, written the way an
-instance accepts them -- naming a connection rather than carrying one, with nothing else to
-strip out.
+Seven of the pack's documents are **starters**: whole flows rather than single calls, each
+one worth beginning a project from. They are not a shelf of their own -- each sits with the
+documents it belongs beside, wearing a `starter` tag.
 
 ```bash
 uv run dg examples list --plugin dhis2 --starter
@@ -817,44 +817,44 @@ uv run dg examples list --plugin dhis2 --starter
 ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
 ┃ code              ┃ name              ┃ tags              ┃ plugin ┃ starter ┃ needs             ┃
 ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
-│ dhis2-export-and… │ Export a data     │ dhis2             │ dhis2  │ *       │ 1 connection, 2   │
-│                   │ value set, then   │                   │        │         │ blocks            │
-│                   │ import it         │                   │        │         │                   │
-│ dhis2-export-gat… │ Export a data     │ dhis2 validate    │ dhis2  │ *       │ 1 connection, 1   │
-│                   │ value set, then   │                   │        │         │ schema, 2 blocks  │
-│                   │ check its shape   │                   │        │         │                   │
-│ dhis2-export-res… │ Export a data     │ dhis2 transform   │ dhis2  │ *       │ 1 connection, 2   │
-│                   │ value set, then   │                   │        │         │ blocks            │
-│                   │ reshape it        │                   │        │         │                   │
-│ dhis2-export-thr… │ Move a data value │ dhis2 storage     │ dhis2  │ *       │ 1 connection, 4   │
-│                   │ set through       │                   │        │         │ blocks            │
+│ dhis2-complete-t… │ A signed-off      │ dhis2 sensor      │ dhis2  │ *       │ 2 blocks          │
+│                   │ month, then the   │                   │        │         │                   │
+│                   │ data              │                   │        │         │                   │
+│ dhis2-rebuild-th… │ Rebuild, then     │ dhis2 analytics   │ dhis2  │ *       │ 2 blocks          │
+│                   │ read              │                   │        │         │                   │
+│ dhis2-rehearse-i… │ Rehearse an       │ dhis2             │ dhis2  │ *       │ 2 blocks          │
+│                   │ import            │                   │        │         │                   │
+│ dhis2-export-res… │ Export, then      │ dhis2 transform   │ dhis2  │ *       │ 2 blocks          │
+│                   │ reshape           │                   │        │         │                   │
+│ dhis2-export-val… │ Export, then      │ dhis2 validate    │ dhis2  │ *       │ 1 schema, 2       │
+│                   │ check the shape   │                   │        │         │ blocks            │
+│ dhis2-import-fro… │ Move a data value │ dhis2 storage     │ dhis2  │ *       │ 4 blocks          │
+│                   │ set through       │                   │        │         │                   │
 │                   │ storage           │                   │        │         │                   │
-│ dhis2-metadata-s… │ Snapshot a        │ dhis2 metadata    │ dhis2  │ *       │ 1 connection, 2   │
-│                   │ metadata          │ storage           │        │         │ blocks            │
+│ dhis2-metadata-s… │ Snapshot a        │ dhis2 metadata    │ dhis2  │ *       │ 2 blocks          │
+│                   │ metadata          │ storage           │        │         │                   │
 │                   │ collection to     │                   │        │         │                   │
 │                   │ storage           │                   │        │         │                   │
-│ dhis2-rebuild-th… │ Rebuild           │ dhis2 analytics   │ dhis2  │ *       │ 1 connection, 2   │
-│                   │ analytics, then   │                   │        │         │ blocks            │
-│                   │ read an indicator │                   │        │         │                   │
-│ dhis2-signed-off… │ Wait for a        │ dhis2 sensor      │ dhis2  │ *       │ 1 connection, 2   │
-│                   │ signed-off month, │                   │        │         │ blocks            │
-│                   │ then export it    │                   │        │         │                   │
 └───────────────────┴───────────────────┴───────────────────┴────────┴─────────┴───────────────────┘
 ```
 
 ```bash
-uv run dg pipeline new dhis2-export-and-import
+uv run dg pipeline new dhis2-rehearse-import
 ```
 
 It copies the document into `pipelines/` verbatim -- comments, the TO MAKE IT YOURS paragraph
-and all -- rewriting only the `code:` line. Each of these names a connection coded `dhis2`
-rather than `play`, so either create a second connection under that code or change the one line
-in your copy. The Examples screen is the same catalogue, and it says per document what this
-instance is still missing:
+and all -- rewriting three lines: the `code:`, the dropped `starter` tag, and the
+`connections:` block, which goes so that the instance will store the document, its code
+`dhis2-demo` named under `requires.connections` instead. Your connection here is coded `play`,
+so either create a second one coded `dhis2-demo` or change that one line in the copy. The
+Examples screen is the same catalogue, and it says per document what this instance is still
+missing:
 
-![The Examples screen filtered to the pack's starters: seven documents, each with its tags and what the instance is missing.](images/tutorial/examples-starters.png)
+![The Examples screen filtered to the pack's starters: seven documents, each with its tags, what it requires, and the note that it carries its connections.](images/tutorial/examples-starters.png)
 
-*The starter shelf, with "1 missing" against each: the `dhis2` connection none of them carry.*
+*The starter set, each row saying it carries its connections and a copy names them. Only the
+schema gate is short of anything here: this instance holds the tutorial's schema, not the one
+that document names.*
 
 From here:
 

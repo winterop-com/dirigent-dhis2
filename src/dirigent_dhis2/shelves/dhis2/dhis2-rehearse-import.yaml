@@ -10,6 +10,12 @@
 #
 #   dg run --local examples/dhis2/dhis2-rehearse-import.yaml
 #   dg run --local examples/dhis2/dhis2-rehearse-import.yaml -p period=202506
+#
+# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
+# requires.connections rather than carrying it, so create a `dhis2` connection under that code
+# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
+# rename it in the copy. Then change the data set, period and org unit to ones your instance
+# has, and turn dry_run off once the summary is what you expect.
 
 format: dirigent/v1
 kind: pipeline
@@ -17,7 +23,7 @@ code: dhis2-rehearse-import
 name: Rehearse an import
 description: Export one month of a data set, then hand it straight back as a dry run.
 
-tags: [dhis2]
+tags: [dhis2, starter]
 
 params:
   type: object

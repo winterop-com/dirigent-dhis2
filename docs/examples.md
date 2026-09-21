@@ -2,7 +2,7 @@
 
 The pack ships one document per operation, small enough to read in a sitting and to lift into a
 real pipeline unchanged. They live in [`src/dirigent_dhis2/shelves/`](https://github.com/winterop-com/dirigent-dhis2/tree/main/src/dirigent_dhis2/shelves),
-on six shelves:
+on five shelves:
 
 | Shelf | What is on it |
 | --- | --- |
@@ -11,7 +11,9 @@ on six shelves:
 | [`dhis2-http/`](#the-generic-http-way) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a completion registration, a stage-scoped event read. |
 | [`validate/`](#a-read-held-to-a-shape) | A metadata read held to a shape: a `fields=` projection gated on `validate.schema`, with the schema carried and named. |
 | [`schemas/`](#schemas) | The JSON Schemas that pin the reads the DHIS2 series makes, applied on their own. |
-| [`starters/`](#starters) | The `starter`-tagged flows: the same work naming a `dhis2` connection rather than carrying one. |
+
+Seven of these documents are also [starters](#starters): whole flows worth beginning a
+project from, which `dg pipeline new` copies.
 
 ## Reaching them once the pack is installed
 
@@ -21,7 +23,7 @@ checkout:
 
 ```bash
 dg examples list --plugin dhis2
-dg examples show dhis2-export-and-import
+dg examples show dhis2-rehearse-import
 ```
 
 ## Running one
@@ -38,14 +40,21 @@ DHIS2 without being edited. The connections these carry name the public play dem
 a versioned host; when DHIS2 moves the stable demo, resolve the alias again and update
 `base_url`.
 
-A server refuses to apply a document that embeds a connection, so applying one to an instance
-means creating a [`dhis2` connection](connection.md) first and letting the document name it:
+A server refuses to store a document that carries a connection, so what an instance applies is
+a copy that names one instead. `dg pipeline new` makes that copy from a [starter](#starters):
+the text verbatim, the `connections:` block gone and its code -- `dhis2-demo` in every document
+here -- named under `requires.connections`. Create a [`dhis2` connection](connection.md) under
+that code, or rename it in the copy:
 
 ```bash
-dg connection create dhis2 play --set base_url=... --set basic_username=... --set basic_password=...
-dg apply examples/dhis2/dhis2-export-data-values.yaml
-dg run dhis2-export-data-values -p period=2026Q1 --watch
+dg connection create dhis2 dhis2-demo --set base_url=... --set basic_username=... --set basic_password=...
+dg pipeline new dhis2-rehearse-import
+dg apply pipelines/dhis2-rehearse-import.yaml
+dg run dhis2-rehearse-import -p period=202507 --watch
 ```
+
+A document that is not a starter is the same edit by hand: drop the `connections:` block and
+name its code under `requires.connections`.
 
 `dg run` takes the pipeline's `code`, which is the second column below. `--watch` streams step
 transitions and block output as the run goes.
@@ -133,6 +142,7 @@ instances is four.
 | `dhis2-export-per-org-unit.yaml` | `dhis2-export-per-org-unit` | One export per organisation unit with `for_each`, `items: continue` so one district's failure costs only that district; a second fanned `storage.write` writes one file per district, and a manifest lists what landed. |
 | `dhis2-export-to-storage.yaml` | `dhis2-export-to-storage` | An export left behind as a file: `storage.write` takes the export's `body` and reports the URI it landed at. |
 | `dhis2-import-from-storage.yaml` | `dhis2-import-from-storage` | A month moved through a file: export, `storage.write`, `storage.read`, import -- both of storage's doors in one document. |
+| `dhis2-metadata-snapshot-to-storage.yaml` | `dhis2-metadata-snapshot-to-storage` | A metadata collection read with a fields projection and kept as a file, the read a schedule repeats to diff metadata drift. |
 
 `dhis2-export-validated.yaml` gates on a schema the instance holds rather than one it carries,
 so a local run is handed the file:
@@ -213,27 +223,30 @@ A schema carries its own identity in its keywords: `$id` becomes the `code` it i
 
 ## Starters
 
-`src/dirigent_dhis2/shelves/starters/`. Every other shelf carries the connection it uses so
-its documents run standalone; a server refuses a carried connection, so none of them apply to
-an instance unedited. This shelf is the other half: the same flows written the way an instance
-accepts them, naming a `dhis2` connection and declaring it under `requires.connections`, with
-nothing carried. Each is tagged `starter`, which is what `dg pipeline new` copies from:
+A starter is a document worth beginning a project from: a flow rather than one call, with the
+comments that say what each hop is for. They are not a shelf of their own -- each one sits with
+the documents it belongs beside, tagged `starter`. The menu is
+`dg examples list --plugin dhis2 --starter`.
+
+Each carries the `dhis2-demo` connection like every other document here, so it runs as it
+stands with `dg run --local`, and a copy is what names that connection instead:
 
 ```bash
-dg connection create dhis2 --kind dhis2 --set base_url=... --set basic_username=... --set basic_password=...
-dg pipeline new dhis2-export-and-import
+dg connection create dhis2 dhis2-demo --set base_url=... --set basic_username=... --set basic_password=...
+dg pipeline new dhis2-rehearse-import
 ```
 
-The copy is verbatim apart from the `code:` line and the dropped `starter` tag, so the
-comments come with it, and each document ends with a TO MAKE IT YOURS paragraph naming the
-edits a real instance needs -- the uids are the play demo's.
+The copy is the document verbatim apart from three lines: the `code:`, the dropped `starter`
+tag, and the `connections:` block, whose code moves to `requires.connections`. The comments
+come with it, and each ends with a TO MAKE IT YOURS paragraph naming the edits a real instance
+needs -- the uids are the play demo's.
 
-| File | Code | What it starts you with |
+| Code | Shelf | What it starts you with |
 | --- | --- | --- |
-| `dhis2-export-and-import.yaml` | `dhis2-export-and-import` | The round trip: read a data value set and hand it to an import, rehearsed with `dry_run`. |
-| `dhis2-export-through-storage.yaml` | `dhis2-export-through-storage` | The same move with the file kept: export, write, read back, import. |
-| `dhis2-export-gated-on-a-schema.yaml` | `dhis2-export-gated-on-a-schema` | An export held to a named schema, so a changed payload stops at the step it arrived in. |
-| `dhis2-export-reshaped-to-totals.yaml` | `dhis2-export-reshaped-to-totals` | An export reshaped with `transform.jq` into the shape the next system reads. |
-| `dhis2-rebuild-then-report.yaml` | `dhis2-rebuild-then-report` | The analytics ordering: rebuild the tables, then read an indicator out of them. |
-| `dhis2-signed-off-then-export.yaml` | `dhis2-signed-off-then-export` | A sensor gate: hold until a month is marked complete, then read it. |
-| `dhis2-metadata-snapshot-to-storage.yaml` | `dhis2-metadata-snapshot-to-storage` | A metadata collection read with a fields projection and written to storage. |
+| `dhis2-rehearse-import` | `dhis2/` | The round trip: read a data value set and hand it to an import, rehearsed with `dry_run`. |
+| `dhis2-complete-then-export` | `dhis2/` | A sensor gate: hold until a month is marked complete, then read it. |
+| `dhis2-rebuild-then-query` | `dhis2/` | The analytics ordering: rebuild the tables, then read an indicator out of them. |
+| `dhis2-export-validated` | `dhis2-compose/` | An export held to a named schema, so a changed payload stops at the step it arrived in. |
+| `dhis2-export-reshaped` | `dhis2-compose/` | An export reshaped with `transform.jq` into the shape the next system reads. |
+| `dhis2-import-from-storage` | `dhis2-compose/` | A month moved through a file: export, write, read back, import. |
+| `dhis2-metadata-snapshot-to-storage` | `dhis2-compose/` | A metadata collection read with a fields projection and written to storage. |

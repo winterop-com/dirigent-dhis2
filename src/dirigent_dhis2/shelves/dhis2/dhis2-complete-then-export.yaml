@@ -10,6 +10,13 @@
 # month nobody signs off inside two days skips the run rather than failing it.
 #
 #   dg run --local examples/dhis2/dhis2-complete-then-export.yaml
+#
+# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
+# requires.connections rather than carrying it, so create a `dhis2` connection under that code
+# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
+# rename it in the copy. Then name the data set and facility you are waiting on, take the
+# period from a param or a schedule's window, and put whatever consumes the month -- an import
+# into a warehouse, a report, a file on a share -- behind the export.
 
 format: dirigent/v1
 kind: pipeline
@@ -17,7 +24,7 @@ code: dhis2-complete-then-export
 name: A signed-off month, then the data
 description: Wait for a data set to be marked complete, then export it.
 
-tags: [dhis2, sensor]
+tags: [dhis2, sensor, starter]
 
 requires:
   blocks:

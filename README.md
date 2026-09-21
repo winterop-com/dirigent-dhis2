@@ -75,8 +75,8 @@ uv run --with playwright python scripts/docs_pdf.py
 ```
 
 `tests/` exercises every block against a mocked DHIS2 instance, and `tests/test_examples.py`
-validates the example documents against the pack's own catalog. Every shelf but `starters/`
-runs standalone, each document carrying the connection it uses.
+validates the example documents against the pack's own catalog. Every document runs standalone,
+carrying the connection it uses.
 
 ## Examples
 
@@ -100,11 +100,12 @@ One file per operation, grouped by how it is built:
 | [`dhis2-http/`](src/dirigent_dhis2/shelves/dhis2-http) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a completion registration, a stage-scoped event read. |
 | [`validate/`](src/dirigent_dhis2/shelves/validate) | A metadata read held to a shape: a `fields=` projection gated on `validate.schema`, with the schema carried and named. |
 | [`schemas/`](src/dirigent_dhis2/shelves/schemas) | The JSON Schemas that pin the reads the DHIS2 series makes, applied on their own. |
-| [`starters/`](src/dirigent_dhis2/shelves/starters) | The documents tagged `starter`: the same flows naming a `dhis2` connection rather than carrying one, which is what `dg pipeline new` copies into a project. |
 
-Each shelf's README lists its files one line each. Every shelf but `starters/` carries the
-connection it uses so each document runs standalone; a server refuses a carried connection,
-so the starters are the ones an instance accepts unedited.
+Each shelf's README lists its files one line each. Every document carries the connection it
+uses, coded `dhis2-demo`, so it runs standalone; a server refuses a carried connection, so what
+an instance applies is a copy that names it instead. The seven documents tagged `starter` are
+the flows `dg pipeline new` makes that copy from, dropping the `connections:` block and naming
+`dhis2-demo` under `requires.connections`.
 
 ## Licence
 
