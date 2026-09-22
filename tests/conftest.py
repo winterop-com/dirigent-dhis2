@@ -32,3 +32,8 @@ def local_ctx(local_block_ctx: FakeContext) -> FakeContext:
 def dhis2(monkeypatch: pytest.MonkeyPatch) -> Dhis2Server:
     """Answer the pack's dhis2w-client from a fake instance, with the version probes scripted."""
     return serve(monkeypatch)
+
+
+@pytest.fixture(autouse=True)
+def _no_connection_outlives_its_loop(no_connection_outlives_its_loop: None) -> None:
+    """Hold every test in this pack to the packaged connection guard."""
