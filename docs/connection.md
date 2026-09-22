@@ -96,6 +96,8 @@ The command writes one `connection.checked` record, carrying the `code`, whether
 `healthy`, the `version` the instance reported, and a `detail` line naming the failure when it
 is not. A check never raises: an unreachable host, a refused credential and a version the
 client does not speak all come back as an unhealthy report with the reason in `detail`.
+A check may also answer neither way: `healthy` is `null` when a kind cannot decide, which
+this kind never does, since an instance either answers `/api/system/info` or it does not.
 
 ## What a block does with it
 
