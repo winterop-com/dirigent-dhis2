@@ -83,11 +83,20 @@ def settings_of(config: BaseModel) -> Dhis2ConnectionConfig:
     return Dhis2ConnectionConfig.model_validate(config.model_dump())
 
 
+#: A ring with a health cross in it, drawn on the 24-unit grid every kind's mark is drawn on.
+DHIS2_MARK = (
+    "M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0Z"
+    "M4 12a8 8 0 1 1 16 0a8 8 0 1 1-16 0Z"
+    "M10.5 7h3v3.5H17v3h-3.5V17h-3v-3.5H7v-3h3.5Z"
+)
+
+
 class Dhis2ConnectionKind(ConnectionKind):
     """The connection kind every block in this pack resolves its instance and credential through."""
 
     id: ClassVar[str] = "dhis2"
     config_model: ClassVar[type[BaseModel]] = Dhis2ConnectionConfig
+    mark: ClassVar[str | None] = DHIS2_MARK
 
     async def check(self, config: BaseModel) -> HealthReport:
         """Ask the instance what it is, proving the credential works, never raising.
