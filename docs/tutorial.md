@@ -154,7 +154,7 @@ accepted, and the instance's version is **2.43.1** -- its own word for itself, r
 
 ![The Connections screen with one row: DHIS2 play demo, kind dhis2, code play, healthy, checked nine minutes ago.](images/tutorial/connections.png)
 
-*The connection on the Connections screen. The config summary is on the row; the password is not.*
+*The connection on the Connections screen: the mark its kind wears, its health, and when it was last checked. The password is nowhere on it.*
 
 **What the kind buys you.** The same instance is reachable with an ordinary `http` connection
 and `http.request` steps -- that is what the [`dhis2-http` shelf](examples.md#the-generic-http-way)
