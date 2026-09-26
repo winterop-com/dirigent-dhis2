@@ -14,11 +14,24 @@
 # message. Nothing here executes code on the worker: no allowlist entry, and no jq or curl
 # installed on the worker either.
 #
-# Postman Echo returns the JSON it received, so the receipt is the final step's output.
+# NEEDS AN INSTANCE TO CALL. The batch is forwarded to the playground, which every dirigent
+# instance serves itself under /api/v1/playground, unauthenticated, so the send is a real
+# request that lands on your own machine rather than on a stranger's service. Start one
+# first, in the project this runs from:
+#
+#   dg dev
+#
+# `dg run --local` mounts no API of its own, so it reaches the playground over the network
+# like anything else. The reads above still go to the public demo, so this document wants
+# both.
+#
+# The playground answers with the request it received, so the receipt is the final step's
+# output: the envelope composed below comes back under `.request.body`, once.
 #
 # Level 2 is the thirteen districts beneath Sierra Leone in the public demo. Choose another
 # configured level to send a different slice:
 #
+#   dg dev &
 #   dg run --local examples/dhis2-http/dhis2-forward-org-units.yaml
 #
 #   dg run --local examples/dhis2-http/dhis2-forward-org-units.yaml -p level=3
@@ -27,7 +40,7 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-forward-org-units
 name: Forward org units to a webhook
-description: Select DHIS2 organisation units, reshape the batch, and send it to Postman Echo.
+description: Select DHIS2 organisation units, reshape the batch, and send it to the playground.
 
 tags: [dhis2, http, storage, transform]
 
@@ -48,6 +61,10 @@ params:
       maximum: 4
       default: 2
       description: The DHIS2 organisation-unit level to send downstream.
+    playground:
+      type: string
+      default: http://127.0.0.1:3333/api/v1/playground
+      description: The playground routes on the instance this forwards to; `dg dev` serves them here.
 
 connections:
   dhis2-demo:
@@ -109,7 +126,9 @@ steps:
     block: http.request
     depends_on: [read_system_info, reshape]
     config:
-      url: https://postman-echo.com/post
+      # No connection: the playground needs no credential, and a parameter is what lets a
+      # run point the forward at an instance on another port without editing the document.
+      url: ${params.playground}/request
       method: POST
       headers:
         X-Dirigent-Example: dhis2-forward-org-units

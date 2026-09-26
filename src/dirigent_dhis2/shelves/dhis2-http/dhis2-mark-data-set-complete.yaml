@@ -18,12 +18,22 @@
 # makes this a sign-off: posting the same entry with completed: false is how a window is
 # reopened, which is the whole of dhis2-mark-data-set-incomplete.yaml.
 #
-# The POST below goes to Postman Echo. This directory reads the shared play demo and writes
+# The POST below goes to the playground. This directory reads the shared play demo and writes
 # nowhere near it, so the document builds the real, correctly parameterised registration and
-# sends it somewhere harmless. Repoint the reporting connection at your own instance, change
-# the path to /api/completeDataSetRegistrations, and the same document performs the real
-# sign-off.
+# sends it somewhere that cannot act on it. Repoint the reporting connection at your own
+# instance, change the path to /api/completeDataSetRegistrations, and the same document
+# performs the real sign-off.
 #
+# NEEDS AN INSTANCE TO CALL. The playground is served by every dirigent instance under
+# /api/v1/playground, unauthenticated, so the sign-off is a real POST that never leaves your
+# machine. Start one first, in the project this runs from:
+#
+#   dg dev
+#
+# `dg run --local` mounts no API of its own and reaches it over the network like anything
+# else; the read above still goes to the public demo.
+#
+#   dg dev &
 #   dg run --local examples/dhis2-http/dhis2-mark-data-set-complete.yaml
 #   dg run --local examples/dhis2-http/dhis2-mark-data-set-complete.yaml -p period=202506
 
@@ -68,10 +78,10 @@ connections:
   reporting:
     kind: http
     config:
-      # Stands in for the instance being written to. Repoint this and the document performs
-      # the real registration, which is the argument for naming a connection rather than
-      # writing a URL into a step.
-      base_url: https://postman-echo.com
+      # The playground, standing in for the instance being written to. Repoint this and the
+      # document performs the real registration, which is the argument for naming a
+      # connection rather than writing a URL into a step.
+      base_url: http://127.0.0.1:3333/api/v1/playground
       timeout: 30s
 
 steps:
@@ -93,7 +103,7 @@ steps:
     depends_on: [read_registration]
     config:
       connection: reporting
-      path: /post
+      path: /request
       method: POST
       body:
         completeDataSetRegistrations:

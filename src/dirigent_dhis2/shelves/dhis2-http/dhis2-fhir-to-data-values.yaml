@@ -29,7 +29,7 @@
 # absent answer and a zero are different facts, and a form that skipped a question must not
 # import a 0 for it.
 #
-# Both POSTs go to Postman Echo, with the request shaped exactly as DHIS2 wants it. The
+# Both POSTs go to the playground, with the request shaped exactly as DHIS2 wants it. The
 # import is staged as a dry run, and on /api/dataValueSets a dry run is `dryRun=true` --
 # /api/metadata spells the same intention `importMode=VALIDATE`, which is the mismatch
 # dhis2-export-data-elements.yaml marks. Repoint the `dhis2-target` connection and drop the
@@ -37,6 +37,17 @@
 # which makes the same call natively and answers with the summary parsed;
 # dhis2-rehearse-import.yaml is that block against a live instance.
 #
+# NEEDS AN INSTANCE TO CALL, and nothing else. The capture is inline and the translation is
+# jq, so the only thing outside this file is the playground every dirigent instance serves
+# itself under /api/v1/playground, unauthenticated. Start one first, in the project this runs
+# from:
+#
+#   dg dev
+#
+# `dg run --local` mounts no API of its own and reaches it over the network like anything
+# else. No DHIS2 is read here, so a local instance is the whole of what this needs.
+#
+#   dg dev &
 #   dg run --local examples/dhis2-http/dhis2-fhir-to-data-values.yaml
 #   dg run --local examples/dhis2-http/dhis2-fhir-to-data-values.yaml -p period=202608
 
@@ -72,8 +83,9 @@ connections:
     kind: http
     config:
       # Stands in for the DHIS2 being imported into. The public demo is for reading, so this
-      # points at a service that exists to be posted to; repoint it and nothing else changes.
-      base_url: https://postman-echo.com
+      # points at the playground the running instance serves itself; repoint it at your own
+      # DHIS2, change each path to the endpoint named in its step, and the calls are real.
+      base_url: http://127.0.0.1:3333/api/v1/playground
       timeout: 30s
 
 params:
@@ -166,7 +178,7 @@ steps:
     depends_on: [translate_to_data_values]
     config:
       connection: dhis2-target
-      path: /post
+      path: /request
       method: POST
       query:
         # A dry run on THIS endpoint is dryRun. On /api/metadata the same intention is
@@ -183,7 +195,7 @@ steps:
     depends_on: [import_data_values]
     config:
       connection: dhis2-target
-      path: /post
+      path: /request
       method: POST
       body:
         completeDataSetRegistrations:
