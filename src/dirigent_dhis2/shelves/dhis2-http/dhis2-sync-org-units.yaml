@@ -25,14 +25,24 @@
 #    parent does not exist yet is a rejection. The `path` field is also what makes a
 #    hierarchy diffable without recursion -- it is the ancestry, written down.
 #
-# The forward at the end goes to Postman Echo and NOT to DHIS2. Everything in this directory
-# reads the shared demo and writes only to a service that exists to be written to; a public
-# demo is not somewhere to practise imports.
+# The forward at the end goes to the playground and NOT to DHIS2. Everything in this
+# directory reads the shared demo and writes only to a receiver that cannot act on what it is
+# sent; a public demo is not somewhere to practise imports.
+#
+# NEEDS AN INSTANCE TO CALL. The playground is served by every dirigent instance under
+# /api/v1/playground, unauthenticated, so the forward is a real POST that never leaves your
+# machine. Start one first, in the project this runs from:
+#
+#   dg dev
+#
+# `dg run --local` mounts no API of its own and reaches it over the network like anything
+# else; the two reads still go to the public demo.
 #
 # The connection is carried here so the document runs standalone. A server refuses to store a
 # document that embeds a credential, which is why applying this one to an instance is refused
 # -- deliberately, and it is what makes `dg run --local` the way to run it.
 #
+#   dg dev &
 #   dg run --local examples/dhis2-http/dhis2-sync-org-units.yaml
 #   dg run --local examples/dhis2-http/dhis2-sync-org-units.yaml -p level=3
 
@@ -52,7 +62,7 @@ description: |
   4. **Order by `path`** -- a parent sorts before its children, which is the order an
      importer needs.
 
-  Reads the public demo, writes only to Postman Echo.
+  Reads the public demo, writes only to the playground.
 
 tags: [dhis2, http, transform]
 
@@ -70,10 +80,12 @@ connections:
       basic_username: admin
       basic_password: district
       timeout: 60s
-  postman-echo:
+  receiver:
     kind: http
     config:
-      base_url: https://postman-echo.com
+      # The downstream system the sync feeds, which here is the playground the running
+      # instance serves itself. Repoint this at the real receiver and the document is a sync.
+      base_url: http://127.0.0.1:3333/api/v1/playground
       timeout: 30s
 
 params:
@@ -164,7 +176,7 @@ steps:
     block: http.request
     depends_on: [build_batch]
     config:
-      connection: postman-echo
-      path: /post
+      connection: receiver
+      path: /request
       method: POST
       body: "${steps.build_batch.output.value}"

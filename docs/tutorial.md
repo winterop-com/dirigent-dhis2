@@ -10,10 +10,11 @@ import at the organisation unit the answer named.
 
     This is the second half of a two-part course.
     [**The basics**](https://winterop-com.github.io/dirigent/basics/), in dirigent's own
-    documentation, makes the same three moves against Postman Echo: one HTTP request, a JSON
-    Schema gate on the answer, and a send built from the validated value. Everything here is
-    that page's shape with DHIS2 in the middle, so do it first and you will recognise every
-    step. This page assumes nothing else.
+    documentation, makes the same three moves against the playground, the request-and-response
+    service every dirigent instance serves itself: one HTTP request, a JSON Schema gate on the
+    answer, and a send built from the validated value. Everything here is that page's shape
+    with a real DHIS2 in the middle, so do it first and you will recognise every step. This
+    page assumes nothing else.
 
     A printable copy of this page:
     [**tutorial.pdf**](https://winterop-com.github.io/dirigent-dhis2/tutorial.pdf).

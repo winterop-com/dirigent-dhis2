@@ -63,7 +63,17 @@ Two things to know before a run comes back empty. The demo shifts its data era f
 release, and every document that reads data takes the period as a parameter for that reason: an
 empty answer is usually a period outside the era rather than a wrong read. And nothing in these
 examples writes to the demo -- every import is a `dry_run`, and every write in the `dhis2-http`
-shelf is posted somewhere harmless.
+shelf is posted at the [playground](https://winterop-com.github.io/dirigent/playground/), the
+request-and-response service every dirigent instance serves itself under `/api/v1/playground`.
+
+That last one is why six documents on that shelf want an instance running before the run:
+`dg run --local` builds a throwaway database and mounts no API of its own, so it reaches the
+playground over the network like anything else.
+
+```bash
+dg dev &
+dg run --local examples/dhis2-http/dhis2-sync-org-units.yaml
+```
 
 ## The native adapter
 
@@ -164,7 +174,7 @@ no adapter, or a DHIS2 call this pack does not yet cover.
 | `dhis2-org-unit-levels.yaml` | `dhis2-org-unit-levels` | The configured hierarchy levels. |
 | `dhis2-org-units.yaml` | `dhis2-org-units` | A compact snapshot of every organisation unit, written to storage as a file. |
 | `dhis2-org-unit-detail.yaml` | `dhis2-org-unit-detail` | One parameterized organisation unit and its children. |
-| `dhis2-forward-org-units.yaml` | `dhis2-forward-org-units` | Select, reshape with `transform.jq`, and send an organisation-unit batch to Postman Echo. |
+| `dhis2-forward-org-units.yaml` | `dhis2-forward-org-units` | Select, reshape with `transform.jq`, and send an organisation-unit batch to the playground. |
 | `dhis2-run-analytics.yaml` | `dhis2-run-analytics` | Start an analytics-table update and poll the asynchronous task with `http.ready` -- what `dhis2.analytics_run` does for you. |
 | `dhis2-sync-org-units.yaml` | `dhis2-sync-org-units` | An organisation-unit sync: count before fetching, bound the read, ask for fields, order by `path`. |
 | `dhis2-export-data-elements.yaml` | `dhis2-export-data-elements` | A metadata export with `fields=:owner`, and the import vocabulary: `importStrategy`, `atomicMode`, `importMode=VALIDATE`. |
@@ -175,6 +185,11 @@ no adapter, or a DHIS2 call this pack does not yet cover.
 | `dhis2-mark-data-set-complete.yaml` | `dhis2-mark-data-set-complete` | Reading a completion registration, and the POST that signs a period off. |
 | `dhis2-mark-data-set-incomplete.yaml` | `dhis2-mark-data-set-incomplete` | Both ways of reopening a signed-off period: `completed: false`, and the outright DELETE. |
 | `dhis2-events-by-stage.yaml` | `dhis2-events-by-stage` | Events of a single program stage in an occurrence window, and the `orgUnitMode`/`ouMode` split. |
+
+The six that write -- forward, sync, the metadata export, the FHIR translation and both
+completeness documents -- post to the playground, so each wants a `dg dev` running.
+`dhis2-fhir-to-data-values.yaml` wants nothing else: its capture is inline, so it reaches no
+DHIS2 at all.
 
 `dhis2-export-data-elements.yaml` marks the sharpest trap in the DHIS2 API: a dry run is
 `importMode=VALIDATE` on `/api/metadata` and `dryRun=true` on `/api/dataValueSets`, and reaching

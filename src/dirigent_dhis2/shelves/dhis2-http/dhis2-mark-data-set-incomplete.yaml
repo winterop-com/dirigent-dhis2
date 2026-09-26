@@ -15,11 +15,21 @@
 # least history: afterwards nothing distinguishes a window that was reopened from one nobody
 # ever signed off.
 #
-# This document builds both, in that order, so the shapes sit side by side. Both go to
-# Postman Echo: this directory does not write to the shared play demo. Repoint the reporting
+# This document builds both, in that order, so the shapes sit side by side. Both go to the
+# playground: this directory does not write to the shared play demo. Repoint the reporting
 # connection and change each path to /api/completeDataSetRegistrations to perform the real
 # thing -- and send one of the two, not both.
 #
+# NEEDS AN INSTANCE TO CALL. The playground is served by every dirigent instance under
+# /api/v1/playground, unauthenticated, so both writes are real requests that never leave your
+# machine. Start one first, in the project this runs from:
+#
+#   dg dev
+#
+# `dg run --local` mounts no API of its own and reaches it over the network like anything
+# else; the read above still goes to the public demo.
+#
+#   dg dev &
 #   dg run --local examples/dhis2-http/dhis2-mark-data-set-incomplete.yaml
 
 format: dirigent/v1
@@ -63,7 +73,9 @@ connections:
   reporting:
     kind: http
     config:
-      base_url: https://postman-echo.com
+      # The playground, standing in for the instance being written to. Its one path answers
+      # all five methods, so the DELETE below travels as a DELETE.
+      base_url: http://127.0.0.1:3333/api/v1/playground
       timeout: 30s
 
 steps:
@@ -85,7 +97,7 @@ steps:
     depends_on: [read_registration]
     config:
       connection: reporting
-      path: /post
+      path: /request
       method: POST
       body:
         completeDataSetRegistrations:
@@ -102,7 +114,7 @@ steps:
     depends_on: [withdraw]
     config:
       connection: reporting
-      path: /delete
+      path: /request
       method: DELETE
       query:
         ds: "${params.data_set}"

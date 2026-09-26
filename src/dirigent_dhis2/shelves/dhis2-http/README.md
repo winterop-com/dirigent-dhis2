@@ -20,6 +20,28 @@ its connections instead, and a server refuses to apply a document that embeds on
 `--connections FILE` replaces a carried connection by code, so these point at your own DHIS2
 without editing them.
 
+## The write target
+
+The six documents that build a write send it to the **playground**, a request-and-response
+service every dirigent instance serves itself under `/api/v1/playground`, unauthenticated. It
+answers with the request it received, so the receipt a document reads back is its own payload
+under `.request.body` -- once, whatever the method.
+
+Five of them name a connection for it, because the connection is what a reader repoints at
+their own DHIS2. `dhis2-forward-org-units.yaml` takes a parameter instead: the playground
+needs no credential, and there is nothing for a connection to hold.
+
+That makes those six need a live instance even for a `--local` run, because `dg run --local`
+builds a throwaway database and mounts no API of its own:
+
+```bash
+dg dev &
+dg run --local examples/dhis2-http/dhis2-sync-org-units.yaml
+```
+
+`dhis2-fhir-to-data-values.yaml` needs only that one: its capture is inline, so it reaches no
+DHIS2 at all. The other five read the play demo as well.
+
 ## The demo redirect
 
 `https://play.dhis2.org/demo` is a stable alias. It responds with a redirect to a versioned
@@ -44,7 +66,7 @@ curl -sSI https://play.dhis2.org/demo
 | [dhis2-org-unit-levels.yaml](dhis2-org-unit-levels.yaml) | The configured hierarchy levels. |
 | [dhis2-org-units.yaml](dhis2-org-units.yaml) | A compact snapshot of every organisation unit, written to storage as a file. |
 | [dhis2-org-unit-detail.yaml](dhis2-org-unit-detail.yaml) | One parameterized organisation unit and its children. |
-| [dhis2-forward-org-units.yaml](dhis2-forward-org-units.yaml) | Select, reshape with `transform.jq`, and send an organisation-unit batch to Postman Echo -- nothing on the allowlist. |
+| [dhis2-forward-org-units.yaml](dhis2-forward-org-units.yaml) | Select, reshape with `transform.jq`, and send an organisation-unit batch to the playground -- nothing on the allowlist. |
 | [dhis2-run-analytics.yaml](dhis2-run-analytics.yaml) | Start an analytics-table update and poll the asynchronous DHIS2 task with `http.ready` -- what the native `dhis2.analytics_run` does for you. |
 | [dhis2-sync-org-units.yaml](dhis2-sync-org-units.yaml) | An organisation-unit sync: count before fetching, bound the read, ask for fields, order by `path`. |
 | [dhis2-export-data-elements.yaml](dhis2-export-data-elements.yaml) | A metadata export with `fields=:owner`, and the import vocabulary -- `importStrategy`, `atomicMode`, `importMode=VALIDATE`. |
@@ -57,10 +79,11 @@ curl -sSI https://play.dhis2.org/demo
 | [dhis2-events-by-stage.yaml](dhis2-events-by-stage.yaml) | Events of a single program stage in an occurrence window, and the `orgUnitMode`/`ouMode` split. |
 
 The metadata, export and tracker examples only read DHIS2; the forwarding, sync, metadata
-export, FHIR and completeness examples write solely to Postman Echo. That is the rule for this directory: the play demo is shared, so
-nothing here practises an import against it. Every document that builds a write builds the
-real request, correctly parameterised, and posts it somewhere harmless -- repoint its target
-connection and the same document performs the real thing.
+export, FHIR and completeness examples write solely to the playground. That is the rule for
+this directory: the play demo is shared, so nothing here practises an import against it.
+Every document that builds a write builds the real request, correctly parameterised, and
+posts it at a receiver that cannot act on it -- repoint its target and the same document
+performs the real thing.
 
 `dhis2-export-data-elements.yaml` marks the sharpest trap in the DHIS2 API: a dry run is
 `importMode=VALIDATE` on `/api/metadata` and `dryRun=true` on `/api/dataValueSets`, and

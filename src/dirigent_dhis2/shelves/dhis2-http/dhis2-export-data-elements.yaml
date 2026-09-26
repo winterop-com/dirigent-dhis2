@@ -34,10 +34,21 @@
 # and UID that caused it, while /api/dataValueSets answers with a flat conflicts[] list. A
 # pipeline that reads one shape will read nothing from the other.
 #
-# The POST below goes to Postman Echo. The document builds a real, correctly parameterised
-# import request and then sends it somewhere harmless: the shared demo is for reading. Point
-# `staging` at your own instance and the same document performs the real dry run.
+# The POST below goes to the playground. The document builds a real, correctly parameterised
+# import request and then sends it somewhere that cannot act on it: the shared demo is for
+# reading. Point `staging` at your own instance and the same document performs the real dry
+# run.
 #
+# NEEDS AN INSTANCE TO CALL. The playground is served by every dirigent instance under
+# /api/v1/playground, unauthenticated, so the staged import is a real HTTP request that never
+# leaves your machine. Start one first, in the project this runs from:
+#
+#   dg dev
+#
+# `dg run --local` mounts no API of its own and reaches it over the network like anything
+# else; the export above still reads the public demo.
+#
+#   dg dev &
 #   dg run --local examples/dhis2-http/dhis2-export-data-elements.yaml
 #   dg run --local examples/dhis2-http/dhis2-export-data-elements.yaml -p group_filter=Anaemia
 
@@ -79,10 +90,11 @@ connections:
   staging:
     kind: http
     config:
-      # Stands in for the instance being imported INTO. Repoint this connection and the
-      # document performs the real dry run without an edit -- which is the whole argument for
-      # naming a connection rather than writing a URL in a step.
-      base_url: https://postman-echo.com
+      # The playground, standing in for the instance being imported INTO. Point this at your
+      # own DHIS2 and change the step's path to /api/metadata to perform the real dry run:
+      # the base URL lives here rather than in a step, so moving between instances is one
+      # edit however many steps name the connection.
+      base_url: http://127.0.0.1:3333/api/v1/playground
       timeout: 30s
 
 params:
@@ -154,7 +166,7 @@ steps:
     depends_on: [export_bundle, inspect_bundle]
     config:
       connection: staging
-      path: /post
+      path: /request
       method: POST
       query:
         importStrategy: CREATE_AND_UPDATE
