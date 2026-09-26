@@ -47,7 +47,7 @@ uv sync
 ```
 
 ```text
-2026-09-25T23:08:52.737+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.18.4 packs=["dirigent-dhis2"]
+2026-09-26T10:41:26.026+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.19.0 packs=["dirigent-dhis2"]
 ```
 
 It creates the state directory, migrates the schema, creates the first admin, and mints that
@@ -128,7 +128,7 @@ uv run dg connection create dhis2 play \
 ```
 
 ```text
-2026-09-25T23:09:45.078+02:00 [info    ] created                        [connection.created] code=play connection_kind=dhis2 name="DHIS2 play demo" config={"base_url":"https://play.im.dhis2.org/stable-2-43-1","api_token":null,"basic_username":"admin","verify_tls":true,"timeout":"30s","basic_password":"***"}
+2026-09-26T10:43:05.925+02:00 [info    ] created                        [connection.created] code=play connection_kind=dhis2 name="DHIS2 play demo" config={"base_url":"https://play.im.dhis2.org/stable-2-43-1","api_token":null,"basic_username":"admin","verify_tls":true,"timeout":"30s","basic_password":"***"}
 ```
 
 The password is already withheld in the record the command answers with, and in every read
@@ -145,7 +145,7 @@ uv run dg connection check play
 ```
 
 ```text
-2026-09-25T23:09:52.175+02:00 [info    ] healthy                        [connection.checked] code=play healthy=true version=2.43.1
+2026-09-26T10:43:08.719+02:00 [info    ] healthy                        [connection.checked] code=play healthy=true version=2.43.1
 ```
 
 That one line is four facts: the URL resolves, TLS is as configured, the credential is
@@ -229,10 +229,10 @@ uv run dg validate pipelines/dhis2-tutorial.yaml
 ```
 
 ```text
-2026-09-25T23:10:02.682+02:00 [info    ] valid                          [validation] code=dhis2-tutorial document=pipelines/dhis2-tutorial.yaml checked="document, offline"
+2026-09-26T10:43:21.343+02:00 [info    ] valid                          [validation] code=dhis2-tutorial document=pipelines/dhis2-tutorial.yaml checked="document, offline"
   each step under the last one it waits for
     read  (dhis2.metadata)
-2026-09-25T23:10:02.685+02:00 [info    ] valid                          [validated] documents=1 invalid=0
+2026-09-26T10:43:21.346+02:00 [info    ] valid                          [validated] documents=1 invalid=0
 ```
 
 Then store it on the instance and run it:
@@ -255,21 +255,21 @@ run 01a0ac92-38dc-737a-8ab2-ffa099350a63
 pipeline      dhis2-tutorial (version 1)
 status        succeeded
 triggered by  admin (token init)
-duration      0.7s
+duration      1.0s
 items         -
 
 steps
 ┏━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━┓
 ┃ step ┃ block          ┃ outcome   ┃ after ┃ attempts ┃ duration ┃ error ┃
 ┡━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━┩
-│ read │ dhis2.metadata │ succeeded │ -     │ 1        │ 0.7s     │ -     │
+│ read │ dhis2.metadata │ succeeded │ -     │ 1        │ 1.0s     │ -     │
 └──────┴────────────────┴───────────┴───────┴──────────┴──────────┴───────┘
 
 outputs
 ┏━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ step ┃ output                         ┃
 ┡━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ read │ body={1 keys}  duration_ms=641 │
+│ read │ body={1 keys}  duration_ms=963 │
 └──────┴────────────────────────────────┘
 ```
 
@@ -303,7 +303,7 @@ uv run dg runs show 01a0ac92-38dc-737a-8ab2-ffa099350a63 --json \
 Two facilities, each with the four fields `fields=` asked for. The same run is on the Runs
 screen of the UI, and choosing a step opens what it produced:
 
-![A run in the UI: one step, read, succeeded in 653 milliseconds, its output showing the two organisation units.](images/tutorial/run-first.png)
+![A run in the UI: one step, read, succeeded in 985 milliseconds, its output showing the two organisation units.](images/tutorial/run-first.png)
 
 *The run's only step, and the answer it stored, on the Runs screen.*
 
@@ -360,7 +360,7 @@ uv run dg apply
 ```
 
 ```text
-2026-09-25T23:10:35.720+02:00 [error   ] this document carries its own schemas (tutorial-org-units), which an instance will not store: create them with `dg schema create` and let the document name them in requires.schemas [error] status=422 title="Unprocessable Content" code=server.document_refused params={"detail":"this document carries its own schemas (tutorial-org-units), which an instance will not store: create them with `dg schema create` and let the document name them in requires.schemas"} instance=/api/v1/pipelines/$apply
+2026-09-26T10:43:55.955+02:00 [error   ] this document carries its own schemas (tutorial-org-units), which an instance will not store: create them with `dg schema create` and let the document name them in requires.schemas [error] status=422 title="Unprocessable Content" code=server.document_refused params={"detail":"this document carries its own schemas (tutorial-org-units), which an instance will not store: create them with `dg schema create` and let the document name them in requires.schemas"} instance=/api/v1/pipelines/$apply
   - this document carries its own schemas (tutorial-org-units), which an instance will not store: create them with `dg schema create` and let the document name them in requires.schemas
 ```
 
@@ -396,8 +396,8 @@ steps
 ┏━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ step  ┃ block           ┃ outcome   ┃ after ┃ duration ┃ output                      ┃
 ┡━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ read  │ dhis2.metadata  │ succeeded │ -     │ 1.3s     │ body={1 keys}               │
-│       │                 │           │       │          │ duration_ms=1286            │
+│ read  │ dhis2.metadata  │ succeeded │ -     │ 1.4s     │ body={1 keys}               │
+│       │                 │           │       │          │ duration_ms=1367            │
 │ check │ validate.schema │ succeeded │ read  │ 0.0s     │ value={1 keys}              │
 └───────┴─────────────────┴───────────┴───────┴──────────┴─────────────────────────────┘
 ```
@@ -420,8 +420,8 @@ steps
 ┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
 ┃ step          ┃ block           ┃ outcome   ┃ after ┃ duration ┃ output              ┃
 ┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
-│ read          │ dhis2.metadata  │ succeeded │ -     │ 1.2s     │ body={1 keys}       │
-│               │                 │           │       │          │ duration_ms=1152    │
+│ read          │ dhis2.metadata  │ succeeded │ -     │ 1.5s     │ body={1 keys}       │
+│               │                 │           │       │          │ duration_ms=1457    │
 │ check  1 warn │ validate.schema │ failed    │ read  │ 0.0s     │ -                   │
 └───────────────┴─────────────────┴───────────┴───────┴──────────┴─────────────────────┘
 
@@ -447,7 +447,7 @@ uv run dg run --local pipelines/dhis2-tutorial.yaml \
 ```
 
 ```text
-2026-09-25T23:11:14.230+02:00 [error   ] parameter parent is invalid: 'ImspTQPwCq' is not a 'dhis2-uid' [error] status=3 title=Refused code=cli.guard_refused params={"detail":"parameter parent is invalid: 'ImspTQPwCq' is not a 'dhis2-uid'"}
+2026-09-26T10:44:46.465+02:00 [error   ] parameter parent is invalid: 'ImspTQPwCq' is not a 'dhis2-uid' [error] status=3 title=Refused code=cli.guard_refused params={"detail":"parameter parent is invalid: 'ImspTQPwCq' is not a 'dhis2-uid'"}
 ```
 
 Ten characters instead of eleven. Nothing ran.
@@ -524,7 +524,7 @@ steps
 ┏━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━┓
 ┃ step  ┃ block           ┃ outcome   ┃ after ┃ attempts ┃ duration ┃ error ┃
 ┡━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━┩
-│ read  │ dhis2.metadata  │ succeeded │ -     │ 1        │ 0.7s     │ -     │
+│ read  │ dhis2.metadata  │ succeeded │ -     │ 1        │ 1.0s     │ -     │
 │ check │ validate.schema │ succeeded │ read  │ 1        │ 0.0s     │ -     │
 └───────┴─────────────────┴───────────┴───────┴──────────┴──────────┴───────┘
 ```
@@ -616,22 +616,22 @@ update dhis2-tutorial  version 3 (/home/you/dhis2-tutorial/pipelines/dhis2-tutor
 ```
 
 ```text
-2026-09-25T23:12:09.688+02:00 [info    ] import summary                 [log rehearse] status=SUCCESS imported=0 updated=2 ignored=0 deleted=0 conflict_count=0
+2026-09-26T10:45:42.214+02:00 [info    ] import summary                 [log rehearse] status=SUCCESS imported=0 updated=2 ignored=0 deleted=0 conflict_count=0
 
 steps
 ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━┓
 ┃ step     ┃ block                   ┃ outcome   ┃ after ┃ attempts ┃ duration ┃ error ┃
 ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━┩
-│ read     │ dhis2.metadata          │ succeeded │ -     │ 1        │ 0.6s     │ -     │
+│ read     │ dhis2.metadata          │ succeeded │ -     │ 1        │ 1.4s     │ -     │
 │ check    │ validate.schema         │ succeeded │ read  │ 1        │ 0.0s     │ -     │
-│ rehearse │ dhis2.data_value_set_i… │ succeeded │ check │ 1        │ 0.7s     │ -     │
+│ rehearse │ dhis2.data_value_set_i… │ succeeded │ check │ 1        │ 1.3s     │ -     │
 └──────────┴─────────────────────────┴───────────┴───────┴──────────┴──────────┴───────┘
 
 outputs
 ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ step     ┃ output                                                      ┃
 ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ read     │ body={1 keys}  duration_ms=635                              │
+│ read     │ body={1 keys}  duration_ms=1398                             │
 │ check    │ value={1 keys}                                              │
 │ rehearse │ status=SUCCESS  imported=0  updated=2  ignored=0  deleted=0 │
 └──────────┴─────────────────────────────────────────────────────────────┘
@@ -706,7 +706,7 @@ steps
 ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━┓
 ┃ step     ┃ block               ┃ outcome ┃ after ┃ attempts ┃ queued ┃ running ┃ waiting ┃ items ┃
 ┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━╇━━━━━━━┩
-│ read     │ dhis2.metadata      │ failed  │ -     │ 1        │ 0.1s   │ 0.6s    │ 0.0s    │ -     │
+│ read     │ dhis2.metadata      │ failed  │ -     │ 1        │ 0.2s   │ 1.1s    │ 0.0s    │ -     │
 │ check    │ validate.schema     │ skipped │ read  │ 1        │ 0.0s   │ 0.0s    │ 0.0s    │ -     │
 │ rehearse │ dhis2.data_value_s… │ skipped │ check │ 1        │ 0.0s   │ 0.0s    │ 0.0s    │ -     │
 └──────────┴─────────────────────┴─────────┴───────┴──────────┴────────┴─────────┴─────────┴───────┘
