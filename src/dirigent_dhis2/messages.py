@@ -35,6 +35,15 @@ IMPORT_PARTIAL = DHIS2.define(
     "the import took {taken} values and refused {ignored} despite atomic_mode ALL: {detail}",
 )
 
+# What the three refusals above render as their {detail}: the instance's own conflicts, or
+# the count when it named none.
+
+IMPORT_CONFLICTS_AND_MORE = DHIS2.define("import.conflicts_and_more", "{named} (and {more} more)")
+
+IMPORT_VALUES_IGNORED = DHIS2.define("import.values_ignored", "{ignored} values ignored")
+
+CONNECTION_UNREACHABLE = DHIS2.define("connection.unreachable", "the instance did not answer: {detail}")
+
 METADATA_UNKNOWN_RESOURCE = DHIS2.define(
     "metadata.unknown_resource",
     "the instance's version knows no metadata resource named '{resource}'",

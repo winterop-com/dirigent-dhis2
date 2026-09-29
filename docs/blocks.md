@@ -300,6 +300,9 @@ last three are what the connection kind refuses at validation.
 | `dhis2.import.refused` | `the import was refused: {detail}` |
 | `dhis2.import.took_nothing` | `the import took nothing: {detail}` |
 | `dhis2.import.partial` | `the import took {taken} values and refused {ignored} despite atomic_mode ALL: {detail}` |
+| `dhis2.import.conflicts_and_more` | `{named} (and {more} more)` |
+| `dhis2.import.values_ignored` | `{ignored} values ignored` |
+| `dhis2.connection.unreachable` | `the instance did not answer: {detail}` |
 | `dhis2.metadata.unknown_resource` | `the instance's version knows no metadata resource named '{resource}'` |
 | `dhis2.analytics_query.no_program` | `a {mode} analytics query needs a program to read under` |
 | `dhis2.connection.both_credentials` | `a dhis2 connection takes an api_token or basic credentials, not both` |

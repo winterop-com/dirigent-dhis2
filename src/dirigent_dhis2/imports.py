@@ -10,7 +10,14 @@ from pydantic import BaseModel, JsonValue
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.export import DATA_VALUE_SETS_PATH
-from dirigent_dhis2.messages import IMPORT_NO_SUMMARY, IMPORT_PARTIAL, IMPORT_REFUSED, IMPORT_TOOK_NOTHING
+from dirigent_dhis2.messages import (
+    IMPORT_CONFLICTS_AND_MORE,
+    IMPORT_NO_SUMMARY,
+    IMPORT_PARTIAL,
+    IMPORT_REFUSED,
+    IMPORT_TOOK_NOTHING,
+    IMPORT_VALUES_IGNORED,
+)
 from dirigent_dhis2.web import Dhis2Operator, refuse
 from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, RemoteHandle, StepContext
 
@@ -127,8 +134,9 @@ def _detail(conflicts: list[Dhis2ImportConflict], counts: dict[str, int]) -> str
     """Say what the instance refused, naming the first conflicts and counting the rest."""
     named = "; ".join(f"{conflict.object}: {conflict.value}" for conflict in conflicts[:NAMED_CONFLICTS])
     more = len(conflicts) - NAMED_CONFLICTS
-    tail = f" (and {more} more)" if more > 0 else ""
-    return f"{named}{tail}" if named else f"{counts['ignored']} values ignored"
+    if not named:
+        return IMPORT_VALUES_IGNORED.render(ignored=counts["ignored"])
+    return IMPORT_CONFLICTS_AND_MORE.render(named=named, more=more) if more > 0 else named
 
 
 def _taken(counts: dict[str, int]) -> int:

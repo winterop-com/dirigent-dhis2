@@ -10,6 +10,7 @@ from pydantic import BaseModel, SecretStr, ValidationError
 
 from dhis2server import serve
 from dirigent_dhis2.connection import Dhis2ConnectionConfig, Dhis2ConnectionKind, build_client, settings_of
+from dirigent_dhis2.messages import CONNECTION_UNREACHABLE
 
 
 async def _authorization_sent(monkeypatch: pytest.MonkeyPatch, config: Dhis2ConnectionConfig) -> str:
@@ -115,11 +116,12 @@ async def test_an_unreachable_instance_reports_rather_than_raises(monkeypatch: p
     dhis2.get("http://x/api/system/info").raises(httpx2.ConnectError("refused"))
     report = await Dhis2ConnectionKind().check(Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("t")))
     assert report.healthy is False
-    assert "ConnectError" in (report.detail or "")
+    assert report.detail == CONNECTION_UNREACHABLE.render(detail="refused")
 
 
 async def test_an_unsupported_instance_version_reports_unhealthy(monkeypatch: pytest.MonkeyPatch) -> None:
     serve(monkeypatch, base_url="http://x", version="2.40.0")
     report = await Dhis2ConnectionKind().check(Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr("t")))
     assert report.healthy is False
-    assert "UnsupportedVersionError" in (report.detail or "")
+    assert (report.detail or "").startswith(CONNECTION_UNREACHABLE.render(detail="").rstrip())
+    assert "2.40.0" in (report.detail or "")
