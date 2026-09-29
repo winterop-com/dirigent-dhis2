@@ -4,10 +4,17 @@ from datetime import timedelta
 from typing import ClassVar
 
 from dhis2w_client import Dhis2Client, Profile, build_auth_provider
+from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
 from pydantic import BaseModel, Field, SecretStr, model_validator
 
 from dirigent_common import BlockModel, Duration, HealthReport
-from dirigent_dhis2.messages import BOTH_CREDENTIALS, NO_BASIC_PASSWORD, NO_CREDENTIAL
+from dirigent_dhis2.messages import (
+    BOTH_CREDENTIALS,
+    CONNECTION_UNREACHABLE,
+    NO_BASIC_PASSWORD,
+    NO_CREDENTIAL,
+)
+from dirigent_dhis2.web import describe
 from dirigent_plugin import ConnectionKind, StepContext
 
 
@@ -108,5 +115,16 @@ class Dhis2ConnectionKind(ConnectionKind):
             async with build_client(settings_of(config)) as client:
                 version = client.raw_version
         except Exception as error:  # noqa: BLE001 - a health check reports its verdict, it never raises
-            return HealthReport(healthy=False, detail=f"{type(error).__name__}: {error}")
+            return HealthReport(healthy=False, detail=CONNECTION_UNREACHABLE.render(detail=_reason(error)))
         return HealthReport(healthy=True, version=version or None)
+
+
+def _reason(error: Exception) -> str:
+    """Say why a check failed, in the instance's own words when it gave any.
+
+    A transport failure has no words of its own, and some carry an empty ``str``: the class is
+    the last thing left to say rather than the first thing said.
+    """
+    if isinstance(error, Dhis2ApiError | AuthenticationError):
+        return describe(error)
+    return str(error) or type(error).__name__
