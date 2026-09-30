@@ -37,6 +37,7 @@ from dirigent_dhis2.imports import (
     Dhis2DataValueSetImportOutput,
     Dhis2ImportConflict,
 )
+from dirigent_dhis2.messages import DHIS2
 from dirigent_dhis2.metadata import (
     Dhis2MetadataConfig,
     Dhis2MetadataOperator,
@@ -72,6 +73,7 @@ class Dhis2Plugin:
             sensors=[Dhis2DataSetCompleteSensor()],
             connection_kinds=[Dhis2ConnectionKind()],
             formats=DHIS2_FORMATS,
+            labels=[DHIS2],
         )
 
     # optional=True keeps the pack loadable against a host whose dirigent-plugin predates the
