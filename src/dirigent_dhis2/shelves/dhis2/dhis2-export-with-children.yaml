@@ -46,7 +46,7 @@ connections:
   dhis2-demo:
     kind: dhis2
     config:
-      base_url: https://play.im.dhis2.org/stable-2-43-1
+      base_url: https://play.im.dhis2.org/stable-2-42-6
       basic_username: admin
       basic_password: district
       # A subtree read is a bigger query than a facility read, and the demo is a shared

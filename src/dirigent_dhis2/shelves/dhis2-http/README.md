@@ -46,7 +46,7 @@ DHIS2 at all. The other five read the play demo as well.
 
 `https://play.dhis2.org/demo` is a stable alias. It responds with a redirect to a versioned
 instance on another host; on 30 August 2026 that target was
-`https://play.im.dhis2.org/stable-2-43-1`.
+`https://play.im.dhis2.org/stable-2-42-6`.
 
 Because the redirect crosses hosts, an HTTP client must not forward Basic Auth automatically.
 Dirigent follows a redirect only when a step sets `follow_redirects: true`, and its client
