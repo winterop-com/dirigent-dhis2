@@ -641,7 +641,9 @@ outputs
 DHIS2's import summary is the step's output, parsed: a `status`, the four counts, and the
 conflicts. `updated=2` means the instance resolved both values, checked each against its data
 element's value type, decided it would have revised two existing values -- and then threw the
-result away, because `dry_run` was on. A refused value would be a row in `conflicts` in the
+result away, because `dry_run` was on. The output above was recorded on a demo that already held
+both values; 2.42.6 holds only the first, so there the same rehearsal says `imported=1` and
+`updated=1`, and still writes nothing. A refused value would be a row in `conflicts` in the
 instance's own words, and a summary whose status is `ERROR` fails the step rather than
 reporting success with bad news inside it.
 
