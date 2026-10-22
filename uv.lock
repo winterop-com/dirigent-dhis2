@@ -280,16 +280,16 @@ wheels = [
 
 [[package]]
 name = "dhis2w-client"
-version = "1.31.1"
+version = "1.32.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "geojson-pydantic" },
     { name = "httpx2" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a4/7f/358a5f23eb6ac4fbd84751144b28de574703224edff3f5f5cc52404d4226/dhis2w_client-1.31.1.tar.gz", hash = "sha256:67add8d646d0cc43b3e0ec3ef65eba359cc6a46f8707e49a51a0261b68d371ee", size = 2852127, upload-time = "2026-10-05T22:52:06.481Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/eb/dab271b6ac01212f0e81e2506cc9e1fbbde2a1ea102f66a2b7715d38a01f/dhis2w_client-1.32.0.tar.gz", hash = "sha256:28f97d2285b10b7580ffe89fd6a6e0d9fb7b794e1aaf3bce3dc7ddb711816622", size = 2854983, upload-time = "2026-10-06T13:19:15.031Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e2/81/af92901caacd8673a055fc6d1d1284b08151fc77ce90376cf802e31998a6/dhis2w_client-1.31.1-py3-none-any.whl", hash = "sha256:c49a35ad0b67701a2045cb839a055230c925f6c378e83c03c3fb8ff8bee284c5", size = 4653288, upload-time = "2026-10-05T22:52:00.991Z" },
+    { url = "https://files.pythonhosted.org/packages/52/da/84dfa9aa7efcaa5e3ec72c60e0ebf76ee2b04341ac479cfb7e845853c784/dhis2w_client-1.32.0-py3-none-any.whl", hash = "sha256:4ceacec6fe85a075633d200e2ac383673bb1dd4c3c5d4c97039acf2f688784d1", size = 4656782, upload-time = "2026-10-06T13:19:09.674Z" },
 ]
 
 [[package]]
