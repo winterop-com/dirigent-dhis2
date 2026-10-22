@@ -46,6 +46,32 @@ async def test_an_export_asks_for_the_descendants_when_told_to(ctx: FakeContext,
     assert route.last.url.params["children"] == "true"
 
 
+async def test_an_export_with_descendants_leaves_out_the_document_org_unit(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    values = [
+        {"dataElement": "de1", "orgUnit": "DiszpKrYNg8", "value": "7"},
+        {"dataElement": "de1", "orgUnit": "Rp268JB6Ne4", "value": "3"},
+    ]
+    dhis2.get(EXPORT).answers(json(200, {**EXPORTED, "orgUnit": "ImspTQPwCqd", "dataValues": values}))
+    config = {"connection": CONNECTION, "data_set": "pBOMPrpg1QX", "period": "2026Q1", "org_unit": "ImspTQPwCqd"}
+    output = await call_block(Dhis2DataValueSetExportOperator(), {**config, "children": True}, ctx)
+    assert isinstance(output, Dhis2DataValueSetExportOutput)
+    assert output.body == {"dataSet": "pBOMPrpg1QX", "period": "2026Q1", "dataValues": values}
+
+
+async def test_an_export_of_one_org_unit_keeps_the_document_org_unit(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    exported = {**EXPORTED, "orgUnit": "DiszpKrYNg8"}
+    dhis2.get(EXPORT).answers(json(200, exported))
+    output = await call_block(
+        Dhis2DataValueSetExportOperator(),
+        {"connection": CONNECTION, "data_set": "pBOMPrpg1QX", "period": "2026Q1", "org_unit": "DiszpKrYNg8"},
+        ctx,
+    )
+    assert isinstance(output, Dhis2DataValueSetExportOutput)
+    assert output.body == exported
+
+
 async def test_a_refused_export_is_classified_by_its_status(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     dhis2.get(EXPORT).answers(json(404, {}))
     with pytest.raises(BlockFailure) as refused:

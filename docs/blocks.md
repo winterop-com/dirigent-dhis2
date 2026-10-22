@@ -117,6 +117,10 @@ Reads one data set, for one period, at one organisation unit, and answers with t
 document as its `body`. A run that has to leave the export behind as a file hands that body to
 `storage.write`, which is the only block that puts a value into storage.
 
+With `children`, the body leaves out the document-level `orgUnit` DHIS2 echoes back. An import
+applies that field to every value in place of the value's own, so a body that kept it would
+write each descendant's values onto the org unit the export was asked for.
+
 **Config**
 
 | Field | Type | Required | Default | Description |
@@ -125,7 +129,7 @@ document as its `body`. A run that has to leave the export behind as a file hand
 | `data_set` | `string` | yes |  | The uid of the data set to export. |
 | `period` | `string` | yes |  | An ISO period identifier, such as 2026Q1. |
 | `org_unit` | `string` | yes |  | The uid of the organisation unit to export for. |
-| `children` | `boolean` |  | `false` | Whether the org unit's descendants are included. |
+| `children` | `boolean` |  | `false` | Whether the org unit's descendants are included. The exported document then carries no document-level `orgUnit`, and each value keeps its own. |
 
 **Output**
 
