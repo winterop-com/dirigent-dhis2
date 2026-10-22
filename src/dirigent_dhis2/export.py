@@ -14,6 +14,9 @@ from dirigent_plugin import ConnectionRef, OperatorSpec, RemoteHandle, StepConte
 #: Where data value sets are read and written.
 DATA_VALUE_SETS_PATH: Final = "/api/dataValueSets.json"
 
+#: The document-level org unit, which an import applies to every value over the value's own.
+DOCUMENT_ORG_UNIT: Final = "orgUnit"
+
 
 class Dhis2DataValueSetExportConfig(BlockModel):
     """Which data value set to read."""
@@ -31,7 +34,8 @@ class Dhis2DataValueSetExportConfig(BlockModel):
     """The uid of the organisation unit to export for."""
 
     children: bool = False
-    """Whether the org unit's descendants are included."""
+    """Whether the org unit's descendants are included. The exported document then carries no
+    document-level `orgUnit`, and each value keeps its own."""
 
 
 class Dhis2DataValueSetExportOutput(BlockModel):
@@ -70,7 +74,9 @@ class Dhis2DataValueSetExportOperator(Dhis2Operator[Dhis2DataValueSetExportConfi
                 )
             except (Dhis2ApiError, AuthenticationError) as error:
                 raise refuse(error, f"GET {DATA_VALUE_SETS_PATH}") from error
-        body: JsonValue = exported.model_dump(mode="json", by_alias=True, exclude_none=True)
+        body = exported.model_dump(mode="json", by_alias=True, exclude_none=True)
+        if config.children:
+            body.pop(DOCUMENT_ORG_UNIT, None)
         duration = round((time.monotonic() - started) * 1000)
         ctx.log.info(
             "data value set exported",
