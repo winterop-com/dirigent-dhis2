@@ -10,6 +10,7 @@ from dirigent_dhis2.analytics import (
     CURSOR,
     GONE_AFTER,
     JOB_TYPE,
+    JOINED,
     NOTIFIER,
     Dhis2AnalyticsRunConfig,
     Dhis2AnalyticsRunOperator,
@@ -19,6 +20,7 @@ from dirigent_plugin import BlockFailure, ErrorClass, ProbeStatus, RemoteHandle
 from dirigent_testing import FakeContext, call_block
 
 SUBMIT = f"{BASE_URL}/api/resourceTables/analytics"
+JOBS = f"{BASE_URL}/api/jobConfigurations"
 JOB = "ANALYTICS_TABLE"
 NOTIFIER_PATH = f"/api/system/tasks/{JOB}/tk123"
 TASK_URL = f"{BASE_URL}{NOTIFIER_PATH}"
@@ -33,12 +35,18 @@ def handle(meta: dict[str, str] | None = None) -> RemoteHandle:
     return RemoteHandle(block_id="dhis2.analytics_run", ref="tk123", meta={**base, **(meta or {})})
 
 
+def running(dhis2: Dhis2Server, *uids: str) -> None:
+    """Script the job configurations listing: the analytics jobs the instance is running now."""
+    dhis2.get(JOBS).answers(json(200, {"jobConfigurations": [{"id": uid} for uid in uids]}))
+
+
 def cursor(*identifiers: str) -> dict[str, str]:
     """Seed a handle's cursor with the notification identifiers already streamed in."""
     return {CURSOR: jsonlib.dumps(list(identifiers))}
 
 
 async def test_submitting_hands_back_the_task_reference_to_probe(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    running(dhis2)
     route = dhis2.post(SUBMIT).answers(json(200, submitted()))
     returned = await call_block(
         Dhis2AnalyticsRunOperator(), {"connection": CONNECTION, "last_years": 2, "skip_events": True}, ctx
@@ -53,7 +61,50 @@ async def test_submitting_hands_back_the_task_reference_to_probe(ctx: FakeContex
     assert "skipAggregate" not in request.url.params
 
 
+async def test_a_job_already_running_is_joined_rather_than_submitted_again(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    running(dhis2, "run9")
+    submit = dhis2.post(SUBMIT).answers(json(200, submitted()))
+    returned = await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
+    assert isinstance(returned, RemoteHandle)
+    assert returned.ref == "run9"
+    assert returned.meta[NOTIFIER] == f"/api/system/tasks/{JOB}/run9"
+    assert returned.meta[JOB_TYPE] == JOB
+    assert returned.meta[JOINED] == "true"
+    assert submit.requests == []
+    listing = dhis2.get(JOBS).last
+    assert listing.url.params.get_list("filter") == [f"jobType:eq:{JOB}", "jobStatus:eq:RUNNING"]
+
+
+async def test_join_running_off_submits_without_asking(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.post(SUBMIT).answers(json(200, submitted()))
+    returned = await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION, "join_running": False}, ctx)
+    assert isinstance(returned, RemoteHandle)
+    assert returned.ref == "tk123"
+    assert JOINED not in returned.meta
+    assert ("GET", JOBS) not in dhis2.routes
+
+
+async def test_a_forbidden_job_listing_submits_instead(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(JOBS).answers(json(403, {}))
+    submit = dhis2.post(SUBMIT).answers(json(200, submitted()))
+    returned = await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
+    assert isinstance(returned, RemoteHandle)
+    assert returned.ref == "tk123"
+    assert JOINED not in returned.meta
+    assert len(submit.requests) == 1
+
+
+async def test_a_failed_job_listing_is_classified_by_its_status(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(JOBS).answers(json(503, {}))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
+    assert refused.value.error_class is ErrorClass.TRANSIENT
+
+
 async def test_a_submission_without_a_task_reference_is_rejected(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    running(dhis2)
     dhis2.post(SUBMIT).answers(json(200, {"status": "OK", "response": {}}))
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
@@ -62,6 +113,7 @@ async def test_a_submission_without_a_task_reference_is_rejected(ctx: FakeContex
 
 
 async def test_a_refused_submission_is_classified_by_its_status(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    running(dhis2)
     dhis2.post(SUBMIT).answers(json(503, {}))
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
@@ -195,6 +247,10 @@ async def test_fetch_collects_the_story(ctx: FakeContext, dhis2: Dhis2Server) ->
     assert output.task_id == "tk123"
     assert output.completed_at == T3
     assert output.messages == ["started", "building", "analytics tables updated"]
+    assert output.joined is False
+
+    joined = await Dhis2AnalyticsRunOperator().fetch(handle({JOINED: "true"}), config, ctx.as_context())
+    assert joined.joined is True
 
 
 async def test_fetch_on_a_task_that_vanished_is_transient(ctx: FakeContext, dhis2: Dhis2Server) -> None:

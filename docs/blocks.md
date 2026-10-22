@@ -72,8 +72,11 @@ Run the DHIS2 analytics tables job.
 
 Not idempotent. Polls every 1m unless the step says otherwise.
 
-Submits the job to `/api/resourceTables/analytics`, then follows the task's notification feed:
-each probe streams the messages new since its cursor into the run's log, and the feed's own
+Asks the instance first whether an analytics job is already running, and follows that one
+instead of submitting a second when it is; `join_running: false` always submits, and so does a
+user the instance refuses the job listing. Otherwise it submits the job to
+`/api/resourceTables/analytics`. Either way it then follows the task's notification feed: each
+probe streams the messages new since its cursor into the run's log, and the feed's own
 completion is what ends the step. A task that has written nothing fifteen minutes after
 submission is taken to be gone, because DHIS2 answers a task it never had exactly the way it
 answers one that has not spoken yet. A feed that is empty after it had spoken is gone at once:
@@ -93,6 +96,7 @@ running analytics job, so a cancelled step leaves the job to finish on the insta
 | `skip_events` | `boolean` |  | `false` | Whether event analytics tables are left as they are. |
 | `skip_enrollment` | `boolean` |  | `false` | Whether enrollment analytics tables are left as they are. |
 | `skip_org_unit_ownership` | `boolean` |  | `false` | Whether the org unit ownership table is left as it is. |
+| `join_running` | `boolean` |  | `true` | Whether an analytics job already running on the instance is followed instead of a second one being submitted. The joined job runs with the options it was started with, not these. |
 
 **Output**
 
@@ -101,6 +105,7 @@ running analytics job, so a cancelled step leaves the job to finish on the insta
 | `task_id` | `string` | yes |  | The id the instance gave the job. |
 | `completed_at` | `string or null` |  | `null` | When the task said it was done, in the instance's own timestamp. |
 | `messages` | `string[]` | yes |  | The last few notification messages, oldest first. |
+| `joined` | `boolean` |  | `false` | Whether the step followed a job already running rather than submitting its own. |
 
 ### `dhis2.data_value_set_export`
 

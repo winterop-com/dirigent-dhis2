@@ -4,6 +4,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar, Final
 
+from dhis2w_client import Dhis2Client
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
 from pydantic import BaseModel
 
@@ -30,6 +31,18 @@ NOTIFIER = "notifier"
 
 #: The handle key holding the job type the task poll is keyed by, beside the handle's task uid.
 JOB_TYPE = "job_type"
+
+#: The handle key marking a job this step joined rather than submitted.
+JOINED = "joined"
+
+#: The job type DHIS2 files an analytics tables run under.
+ANALYTICS_JOB_TYPE: Final = "ANALYTICS_TABLE"
+
+#: The status an instance answers the job listing with for a user not allowed to read it.
+FORBIDDEN: Final = 403
+
+#: Where the instance's job configurations are listed, a running analytics job among them.
+JOB_CONFIGURATIONS_PATH: Final = "/api/jobConfigurations"
 
 #: The handle key holding the poll cursor: the notification identifiers already streamed in.
 #:
@@ -74,6 +87,10 @@ class Dhis2AnalyticsRunConfig(BlockModel):
     skip_org_unit_ownership: bool = False
     """Whether the org unit ownership table is left as it is."""
 
+    join_running: bool = True
+    """Whether an analytics job already running on the instance is followed instead of a second
+    one being submitted. The joined job runs with the options it was started with, not these."""
+
 
 class Dhis2AnalyticsRunOutput(BlockModel):
     """What the finished analytics job reported."""
@@ -86,6 +103,9 @@ class Dhis2AnalyticsRunOutput(BlockModel):
 
     messages: list[str]
     """The last few notification messages, oldest first."""
+
+    joined: bool = False
+    """Whether the step followed a job already running rather than submitting its own."""
 
 
 def _level(entry: Any) -> str:
@@ -113,6 +133,37 @@ def _silent_for(ctx: StepContext) -> timedelta:
     return datetime.now(UTC) - started
 
 
+async def _running_job(client: Dhis2Client, ctx: StepContext) -> str | None:
+    """The uid of the analytics job the instance is running now, or None when it runs none.
+
+    The job configuration's status is read rather than the notification feed, because a feed
+    carries the instance's local time and says nothing of whether its job is still alive. A
+    user allowed to run analytics may still be refused the job listing; that answers None.
+    """
+    try:
+        raw = await client.get_raw(
+            JOB_CONFIGURATIONS_PATH,
+            params={
+                "filter": [f"jobType:eq:{ANALYTICS_JOB_TYPE}", "jobStatus:eq:RUNNING"],
+                "fields": "id",
+                "paging": "false",
+            },
+        )
+    except Dhis2ApiError as error:
+        if error.status_code != FORBIDDEN:
+            raise refuse(error, f"GET {JOB_CONFIGURATIONS_PATH}") from error
+        ctx.log.warning("the job listing was refused, so a running analytics job cannot be joined")
+        return None
+    except AuthenticationError as error:
+        raise refuse(error, f"GET {JOB_CONFIGURATIONS_PATH}") from error
+    jobs: list[dict[str, Any]] = raw.get("jobConfigurations") or []
+    for job in jobs:
+        uid = job.get("id")
+        if isinstance(uid, str) and uid:
+            return uid
+    return None
+
+
 class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2AnalyticsRunOutput]):
     """Submits the analytics tables job and follows its notifications until it settles."""
 
@@ -125,8 +176,18 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
     output_model: ClassVar[type[BaseModel]] = Dhis2AnalyticsRunOutput
 
     async def execute(self, config: Dhis2AnalyticsRunConfig, ctx: StepContext) -> RemoteHandle:
-        """Submit the job and hand back the task reference the engine probes."""
+        """Join a running job, or submit one, and hand back the task reference the engine probes."""
         async with client_for(ctx, config.connection) as client:
+            if config.join_running:
+                running = await _running_job(client, ctx)
+                if running is not None:
+                    notifier = f"/api/system/tasks/{ANALYTICS_JOB_TYPE}/{running}"
+                    ctx.log.info("analytics job already running, following it", notifier=notifier)
+                    return RemoteHandle(
+                        block_id=self.spec.id,
+                        ref=running,
+                        meta={NOTIFIER: notifier, JOB_TYPE: ANALYTICS_JOB_TYPE, JOINED: "true"},
+                    )
             try:
                 envelope = await client.maintenance.run_analytics_tables(
                     last_years=config.last_years,
@@ -223,6 +284,7 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
             task_id=handle.ref,
             completed_at=_completed_at(terminal),
             messages=[entry.message or "" for entry in story][-MESSAGE_TAIL:],
+            joined=handle.meta.get(JOINED) == "true",
         )
 
     async def cancel(self, handle: RemoteHandle, config: Dhis2AnalyticsRunConfig, ctx: StepContext) -> bool:
