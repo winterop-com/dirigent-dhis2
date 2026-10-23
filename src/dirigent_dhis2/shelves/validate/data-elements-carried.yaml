@@ -45,7 +45,12 @@ schemas:
             id: { type: string, pattern: "^[A-Za-z][A-Za-z0-9]{10}$" }
             name: { type: string }
             domainType: { enum: [AGGREGATE, TRACKER] }
-            valueType: { enum: [NUMBER, INTEGER, TEXT, LONG_TEXT, BOOLEAN, DATE, DATETIME, PERCENTAGE] }
+            valueType:
+              enum: [TEXT, LONG_TEXT, MULTI_TEXT, LETTER, PHONE_NUMBER, EMAIL, BOOLEAN, TRUE_ONLY,
+                     DATE, DATETIME, TIME, NUMBER, UNIT_INTERVAL, PERCENTAGE, INTEGER,
+                     INTEGER_POSITIVE, INTEGER_NEGATIVE, INTEGER_ZERO_OR_POSITIVE, TRACKER_ASSOCIATE,
+                     USERNAME, COORDINATE, ORGANISATION_UNIT, REFERENCE, AGE, URL, FILE_RESOURCE,
+                     IMAGE, GEOJSON]
 
 steps:
   fetch:

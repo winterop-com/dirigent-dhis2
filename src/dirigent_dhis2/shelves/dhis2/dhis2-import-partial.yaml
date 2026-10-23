@@ -8,19 +8,23 @@
 # rest as conflicts, which is the behaviour ALL delivers anyway, said out loud.
 #
 # NONE is for a feed you do not control -- a district's monthly file, a survey export, an
-# upstream system with its own idea of an uid. Refusing three hundred good values because
-# one row names a data element that was retired last year serves nobody; taking the 299 and
-# naming the one is the behaviour worth having, as long as something reads the conflicts
-# afterwards.
+# upstream system with its own idea of a value. Refusing three hundred good values because
+# one row holds a word where a count belongs serves nobody; taking the 299 and naming the one
+# is the behaviour worth having, as long as something reads the conflicts afterwards.
+#
+# A row naming a data element outside the data set is another matter on 2.43: the instance
+# checks the data set before it reads any value, and refuses the whole document as ERROR
+# whatever the atomic mode. 2.42 still takes the good rows beside it.
 #
 # The block only fails the step on a summary DHIS2 itself calls ERROR. Under NONE a partial
 # import is a WARNING with a non-zero ignored count and a populated conflicts list, and the
 # step succeeds -- so the conflicts are yours to act on. steps.take.output.conflicts is
-# where a downstream step reads them, each entry naming the object and what was wrong with
-# it.
+# where a downstream step reads them: each entry says what was wrong, with the instance's
+# error code and the position of the refused value in the document. 2.42 also names the
+# data element as the object; 2.43 leaves the object empty, so the position is what to read.
 #
-# The second row below names an uid that does not exist, so the summary has something real
-# to report.
+# The second row below holds a value the data element's type refuses, so the summary has
+# something real to report on 2.42 and 2.43 alike.
 #
 #   dg run --local examples/dhis2/dhis2-import-partial.yaml
 
@@ -48,7 +52,7 @@ connections:
   dhis2-demo:
     kind: dhis2
     config:
-      base_url: https://play.im.dhis2.org/stable-2-42-7
+      base_url: https://play.im.dhis2.org/stable-2-43-2
       basic_username: admin
       basic_password: district
       timeout: 60s
@@ -67,12 +71,12 @@ steps:
             categoryOptionCombo: Prlt0C1RF0s
             attributeOptionCombo: HllvX50cXC0
             value: "12"
-          # A well-formed uid that names nothing on this instance: the shape passes, the
-          # lookup does not, and the row lands in conflicts rather than failing the batch.
-          - dataElement: aaaaaaaaaaa
-            categoryOptionCombo: Prlt0C1RF0s
+          # A real data element and category option combo, with a value its integer type
+          # refuses: the row lands in conflicts rather than failing the batch.
+          - dataElement: s46m5MS0hxu
+            categoryOptionCombo: psbwp3CQEhs
             attributeOptionCombo: HllvX50cXC0
-            value: "4"
+            value: "not-a-number"
       # Take what is valid; under the default, ALL, the row above would refuse the batch.
       atomic_mode: NONE
       dry_run: true

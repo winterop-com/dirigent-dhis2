@@ -28,7 +28,7 @@ connections:
   dhis2-demo:
     kind: http
     config:
-      base_url: https://play.im.dhis2.org/stable-2-42-7
+      base_url: https://play.im.dhis2.org/stable-2-43-2
       basic_username: admin
       basic_password: district
       timeout: 1m
