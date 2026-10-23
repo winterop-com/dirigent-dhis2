@@ -19,6 +19,7 @@ would fix it. A bug that is fixed leaves the file.
 - Fix: map an empty body to `{}` only where nothing is the answer (a DELETE, a 204), and raise
   `Dhis2ApiError` for a GET answered 200 with no body; or have `export()` raise when the parsed
   body names no `dataSet`, which every real data value set does.
+- Proposed in winterop-com/dhis2w#894, not yet released.
 
 ### No way to find the running job of a type
 
@@ -29,6 +30,8 @@ would fix it. A bug that is fixed leaves the file.
   through `get_raw` to join a running job instead of submitting a second.
 - Fix: a typed `tasks.running(job_type)` answering the uids of the job configurations of that
   type whose status is `RUNNING`.
+- Proposed in winterop-com/dhis2w#895, not yet released. Once a dhis2w-client release carries it,
+  `dhis2.analytics_run` asks `client.tasks.running("ANALYTICS_TABLE")` in place of `get_raw`.
 
 ## DHIS2
 
