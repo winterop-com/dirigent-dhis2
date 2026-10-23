@@ -1,5 +1,6 @@
 """Tests for dhis2.data_value_set_export: the document it answers with, and its refusals."""
 
+import httpx2
 import pytest
 
 from dhis2server import BASE_URL, CONNECTION, Dhis2Server, json
@@ -93,3 +94,34 @@ async def test_a_refusal_carries_the_instance_message(ctx: FakeContext, dhis2: D
         )
     assert refused.value.error_class is ErrorClass.REJECTED
     assert "no such data set" in refused.value.message
+
+
+async def test_an_empty_answer_fails_rather_than_exporting_nothing(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    """DHIS2 answers 200 with no body at all for an org unit outside the account's scope."""
+    dhis2.get(EXPORT).answers(httpx2.Response(200, content=b""))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(
+            Dhis2DataValueSetExportOperator(),
+            {"connection": CONNECTION, "data_set": "pBOMPrpg1QX", "period": "202507", "org_unit": "ImspTQPwCqd"},
+            ctx,
+        )
+    assert refused.value.code == "dhis2.export.empty_answer"
+    assert refused.value.error_class is ErrorClass.REJECTED
+    assert "ImspTQPwCqd" in refused.value.message
+
+
+async def test_an_export_with_no_values_is_still_an_export(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    empty: dict[str, object] = {
+        "dataSet": "pBOMPrpg1QX",
+        "period": "190001",
+        "orgUnit": "DiszpKrYNg8",
+        "dataValues": [],
+    }
+    dhis2.get(EXPORT).answers(json(200, empty))
+    output = await call_block(
+        Dhis2DataValueSetExportOperator(),
+        {"connection": CONNECTION, "data_set": "pBOMPrpg1QX", "period": "190001", "org_unit": "DiszpKrYNg8"},
+        ctx,
+    )
+    assert isinstance(output, Dhis2DataValueSetExportOutput)
+    assert output.body == empty
