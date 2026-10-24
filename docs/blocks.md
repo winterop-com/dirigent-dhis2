@@ -117,6 +117,16 @@ Reads one data set, for one period, at one organisation unit, and answers with t
 document as its `body`. A run that has to leave the export behind as a file hands that body to
 `storage.write`, which is the only block that puts a value into storage.
 
+An answer with no body at all fails the step as `rejected` with `dhis2.export.empty_answer`:
+DHIS2 answers 200 and nothing else for an org unit outside the account's data scope, where an
+export that found no values still answers with the data set it was asked for.
+
+Every value in the body carries its own `period`, `orgUnit` and `attributeOptionCombo`. DHIS2
+2.43 writes a field once on the set when every value shares it, and a one-unit export's values
+then carry no org unit at all, where 2.42 repeats them on every value; the block copies what the
+set holds down onto each value that lacks it, never over a value's own, so a step reading
+`dataValues[].period` reads the same from either version.
+
 With `children`, the body leaves out the document-level `orgUnit` DHIS2 echoes back. An import
 applies that field to every value in place of the value's own, so a body that kept it would
 write each descendant's values onto the org unit the export was asked for.
@@ -135,7 +145,7 @@ write each descendant's values onto the org unit the export was asked for.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `body` | `any or null` |  | `null` | The exported data value set, the value the next step works on. |
+| `body` | `any or null` |  | `null` | The exported data value set, the value the next step works on. Every value carries its own period, org unit and attribute option combo, whichever version answered. |
 | `duration_ms` | `integer` | yes |  | How long the export took. |
 
 ### `dhis2.data_value_set_import`
@@ -153,6 +163,10 @@ values are committed beside the conflicts, so that failure names how many values
 without an import summary in it fails the step too, since nothing then says the import took.
 Every one of these failures is `rejected`, so the same document is not retried against the same
 instance.
+
+Each conflict carries the instance's `object` and `value`, its `error_code`, and the `indexes`
+of the refused values in the document that was sent. DHIS2 2.43 names no `object`, so there
+the indexes are what says which value it was, and a failure names it as `value #1`.
 
 A dry run sends the document without its `completeDate`, and says so in the log. DHIS2 2.41 and
 2.42 register the data set complete under `dryRun=true`, and a rehearsal must persist nothing.
@@ -302,6 +316,7 @@ last three are what the connection kind refuses at validation.
 | Code | Text |
 | --- | --- |
 | `dhis2.answered` | `{where} answered {status}: {remote}` |
+| `dhis2.export.empty_answer` | `{where} answered with an empty body rather than a data value set, which DHIS2 does when {org_unit} is outside the account's data scope; nothing was exported` |
 | `dhis2.analytics.no_task_reference` | `the analytics job submission answered without a task reference to follow` |
 | `dhis2.analytics.task_disappeared` | `task {task} disappeared before its result could be collected` |
 | `dhis2.analytics.no_result` | `task {task} has no result to collect: the instance holds no terminal notification for it` |

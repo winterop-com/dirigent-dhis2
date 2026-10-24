@@ -6,6 +6,12 @@ DHIS2 = Catalogue("dhis2")
 
 ANSWERED = DHIS2.define("answered", "{where} answered {status}: {remote}")
 
+EXPORT_EMPTY_ANSWER = DHIS2.define(
+    "export.empty_answer",
+    "{where} answered with an empty body rather than a data value set, which DHIS2 does when "
+    "{org_unit} is outside the account's data scope; nothing was exported",
+)
+
 ANALYTICS_NO_TASK_REFERENCE = DHIS2.define(
     "analytics.no_task_reference",
     "the analytics job submission answered without a task reference to follow",
