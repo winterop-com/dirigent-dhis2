@@ -3,8 +3,12 @@
 # The carried schema pins dataElement and orgUnit to format: dhis2-uid and period to
 # format: dhis2-period -- formats this pack contributes -- so a value whose dataElement is not
 # a real 11-character UID, or whose period is not a DHIS2 ISO period, is refused at the gate
-# instead of imported downstream. The schema travels in the document's own top-level schemas:
-# section, so the run needs no schema handed to it; that also means a --local run.
+# instead of imported downstream. DHIS2 2.43 writes the period, and the org unit of a
+# one-unit export, once on the set rather than on every value, where 2.42 repeats them per
+# value; the schema checks them wherever they are, so the gate holds on both.
+#
+# The schema travels in the document's own top-level schemas: section, so the run needs no
+# schema handed to it; that also means a --local run.
 #
 #   dg run --local examples/dhis2-http/dhis2-data-values-validated.yaml
 
@@ -25,7 +29,7 @@ connections:
   dhis2-demo:
     kind: http
     config:
-      base_url: https://play.im.dhis2.org/stable-2-42-7
+      base_url: https://play.im.dhis2.org/stable-2-43-2
       basic_username: admin
       basic_password: district
       timeout: 60s
@@ -42,7 +46,7 @@ schemas:
         type: array
         items:
           type: object
-          required: [dataElement, period, orgUnit, value]
+          required: [dataElement, value]
           properties:
             dataElement: { type: string, format: dhis2-uid }
             period: { type: string, format: dhis2-period }

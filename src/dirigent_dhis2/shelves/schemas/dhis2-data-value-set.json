@@ -9,7 +9,8 @@
     "dataSet": { "type": "string", "format": "dhis2-uid" },
     "period": { "type": "string", "format": "dhis2-period" },
     "orgUnit": { "type": "string", "format": "dhis2-uid" },
-    "completeDate": { "type": "string" },
+    "attributeOptionCombo": { "type": "string", "format": "dhis2-uid" },
+    "completeDate": { "type": ["string", "null"] },
     "dataValues": {
       "type": "array",
       "items": {
