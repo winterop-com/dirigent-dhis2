@@ -67,6 +67,21 @@ def _complete_values(body: dict[str, Any]) -> None:
                 cast("dict[str, Any]", value).setdefault(field, held)
 
 
+def _empty_answer(error: Dhis2ApiError) -> bool:
+    """Say whether the client refused a successful read for answering with no body at all."""
+    return 200 <= error.status_code < 300 and error.body is None
+
+
+def _scope_refusal(config: Dhis2DataValueSetExportConfig) -> BlockFailure:
+    """The refusal for an export DHIS2 answered with nothing, as it does outside the account's data scope."""
+    return BlockFailure(
+        EXPORT_EMPTY_ANSWER,
+        error_class=ErrorClass.REJECTED,
+        where=f"GET {DATA_VALUE_SETS_PATH}",
+        org_unit=config.org_unit,
+    )
+
+
 class Dhis2DataValueSetExportOperator(Dhis2Operator[Dhis2DataValueSetExportConfig, Dhis2DataValueSetExportOutput]):
     """Reads one data value set and hands the parsed document on."""
 
@@ -91,18 +106,16 @@ class Dhis2DataValueSetExportOperator(Dhis2Operator[Dhis2DataValueSetExportConfi
                     org_unit=config.org_unit,
                     children=config.children,
                 )
-            except (Dhis2ApiError, AuthenticationError) as error:
+            except Dhis2ApiError as error:
+                if _empty_answer(error):
+                    raise _scope_refusal(config) from error
+                raise refuse(error, f"GET {DATA_VALUE_SETS_PATH}") from error
+            except AuthenticationError as error:
                 raise refuse(error, f"GET {DATA_VALUE_SETS_PATH}") from error
         body = exported.model_dump(mode="json", by_alias=True, exclude_none=True)
         if not body.get("dataSet"):
-            # A data value set always names the data set it was asked for, values or none; a
-            # body without one is the empty answer an org unit outside the account's scope gets.
-            raise BlockFailure(
-                EXPORT_EMPTY_ANSWER,
-                error_class=ErrorClass.REJECTED,
-                where=f"GET {DATA_VALUE_SETS_PATH}",
-                org_unit=config.org_unit,
-            )
+            # A data value set always names the data set it was asked for, values or none.
+            raise _scope_refusal(config)
         if config.children:
             body.pop(DOCUMENT_ORG_UNIT, None)
         _complete_values(body)
