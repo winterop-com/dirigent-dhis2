@@ -120,6 +120,20 @@ async def test_an_empty_answer_fails_rather_than_exporting_nothing(ctx: FakeCont
     assert "ImspTQPwCqd" in refused.value.message
 
 
+async def test_a_page_standing_in_for_the_api_is_not_taken_for_the_empty_answer(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    """A 200 carrying HTML, such as a login page in front of the API, is refused as what it is."""
+    dhis2.get(EXPORT).answers(httpx2.Response(200, content=b"<html>sign in</html>"))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(
+            Dhis2DataValueSetExportOperator(),
+            {"connection": CONNECTION, "data_set": "pBOMPrpg1QX", "period": "202507", "org_unit": "ImspTQPwCqd"},
+            ctx,
+        )
+    assert refused.value.code == "dhis2.answered"
+
+
 async def test_an_export_with_no_values_is_still_an_export(ctx: FakeContext, dhis2: Dhis2Server) -> None:
     empty: dict[str, object] = {
         "dataSet": "pBOMPrpg1QX",

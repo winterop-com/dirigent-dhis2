@@ -141,14 +141,7 @@ async def _running_job(client: Dhis2Client, ctx: StepContext) -> str | None:
     user allowed to run analytics may still be refused the job listing; that answers None.
     """
     try:
-        raw = await client.get_raw(
-            JOB_CONFIGURATIONS_PATH,
-            params={
-                "filter": [f"jobType:eq:{ANALYTICS_JOB_TYPE}", "jobStatus:eq:RUNNING"],
-                "fields": "id",
-                "paging": "false",
-            },
-        )
+        running = await client.tasks.running(ANALYTICS_JOB_TYPE)
     except Dhis2ApiError as error:
         if error.status_code != FORBIDDEN:
             raise refuse(error, f"GET {JOB_CONFIGURATIONS_PATH}") from error
@@ -156,12 +149,7 @@ async def _running_job(client: Dhis2Client, ctx: StepContext) -> str | None:
         return None
     except AuthenticationError as error:
         raise refuse(error, f"GET {JOB_CONFIGURATIONS_PATH}") from error
-    jobs: list[dict[str, Any]] = raw.get("jobConfigurations") or []
-    for job in jobs:
-        uid = job.get("id")
-        if isinstance(uid, str) and uid:
-            return uid
-    return None
+    return next((job.id for job in running if job.id), None)
 
 
 class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2AnalyticsRunOutput]):

@@ -5,34 +5,6 @@ found by running the pack and its examples for real. Bugs in dirigent-dhis2 itse
 the same session and are not listed. Each entry names where it was seen, what happens, and what
 would fix it. A bug that is fixed leaves the file.
 
-## dhis2w-client
-
-### An empty response body is read as an empty object, so a refused export is an empty set
-
-- Seen: dhis2w-client 1.32.2, against `stable-2-42-7`, 2026-10-23.
-- `Dhis2Client._parse_json` maps any empty successful body to `{}`, which its docstring means
-  for DELETEs and 204-style endpoints. A GET goes through it too, so when DHIS2 answers a data
-  value set export with 200 and no body (see DHIS2 below), `data_values.export()` returns
-  `DataValueSet.model_validate({})`: an empty set, and no error. A caller cannot tell an export
-  that found nothing from one it was not allowed to make.
-- dirigent-dhis2 now refuses an export body that names no data set (`dhis2.export.empty_answer`).
-- Fix: map an empty body to `{}` only where nothing is the answer (a DELETE, a 204), and raise
-  `Dhis2ApiError` for a GET answered 200 with no body; or have `export()` raise when the parsed
-  body names no `dataSet`, which every real data value set does.
-- Proposed in winterop-com/dhis2w#894, not yet released.
-
-### No way to find the running job of a type
-
-- Seen: dhis2w-client 1.32.2, 2026-10-23.
-- `client.tasks` follows a task whose uid is already known, and reads one job configuration by
-  uid. Nothing answers "is an analytics tables job running now, and which". `dhis2.analytics_run`
-  asks `/api/jobConfigurations?filter=jobType:eq:ANALYTICS_TABLE&filter=jobStatus:eq:RUNNING`
-  through `get_raw` to join a running job instead of submitting a second.
-- Fix: a typed `tasks.running(job_type)` answering the uids of the job configurations of that
-  type whose status is `RUNNING`.
-- Proposed in winterop-com/dhis2w#895, not yet released. Once a dhis2w-client release carries it,
-  `dhis2.analytics_run` asks `client.tasks.running("ANALYTICS_TABLE")` in place of `get_raw`.
-
 ## DHIS2
 
 ### 2.42.7: an export outside the account's scope answers 200 with an empty body
