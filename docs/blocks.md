@@ -121,6 +121,12 @@ An answer with no body at all fails the step as `rejected` with `dhis2.export.em
 DHIS2 answers 200 and nothing else for an org unit outside the account's data scope, where an
 export that found no values still answers with the data set it was asked for.
 
+Every value in the body carries its own `period`, `orgUnit` and `attributeOptionCombo`. DHIS2
+2.43 writes a field once on the set when every value shares it, and a one-unit export's values
+then carry no org unit at all, where 2.42 repeats them on every value; the block copies what the
+set holds down onto each value that lacks it, never over a value's own, so a step reading
+`dataValues[].period` reads the same from either version.
+
 With `children`, the body leaves out the document-level `orgUnit` DHIS2 echoes back. An import
 applies that field to every value in place of the value's own, so a body that kept it would
 write each descendant's values onto the org unit the export was asked for.
@@ -139,7 +145,7 @@ write each descendant's values onto the org unit the export was asked for.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `body` | `any or null` |  | `null` | The exported data value set, the value the next step works on. |
+| `body` | `any or null` |  | `null` | The exported data value set, the value the next step works on. Every value carries its own period, org unit and attribute option combo, whichever version answered. |
 | `duration_ms` | `integer` | yes |  | How long the export took. |
 
 ### `dhis2.data_value_set_import`
