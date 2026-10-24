@@ -5,7 +5,7 @@ from typing import ClassVar, Literal
 
 from dhis2w_client import WebMessageResponse
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel, Field, JsonValue
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
@@ -35,7 +35,16 @@ class Dhis2ImportConflict(BlockModel):
     """One value the import refused, in the instance's own words."""
 
     object: str = ""
+    """What the instance named as refused, a data element's uid on 2.42; 2.43 leaves it empty."""
+
     value: str = ""
+    """Why, in the instance's own words."""
+
+    error_code: str | None = None
+    """The instance's code for the refusal, such as E7619."""
+
+    indexes: list[int] = Field(default_factory=list[int])
+    """Where the refused values sit in the document that was sent, counted from zero."""
 
 
 class Dhis2DataValueSetImportConfig(BlockModel):
@@ -127,16 +136,33 @@ def _counts(envelope: WebMessageResponse) -> dict[str, int]:
 
 def _conflicts(envelope: WebMessageResponse) -> list[Dhis2ImportConflict]:
     """Read the summary's conflicts off the typed envelope, empty when the import was clean."""
-    return [Dhis2ImportConflict(object=item.object or "", value=item.value or "") for item in envelope.conflicts()]
+    return [
+        Dhis2ImportConflict(
+            object=item.object or "",
+            value=item.value or "",
+            error_code=item.errorCode,
+            indexes=list(item.indexes or []),
+        )
+        for item in envelope.conflicts()
+    ]
 
 
 def _detail(conflicts: list[Dhis2ImportConflict], counts: dict[str, int]) -> str:
     """Say what the instance refused, naming the first conflicts and counting the rest."""
-    named = "; ".join(f"{conflict.object}: {conflict.value}" for conflict in conflicts[:NAMED_CONFLICTS])
+    named = "; ".join(f"{_subject(conflict)}: {conflict.value}" for conflict in conflicts[:NAMED_CONFLICTS])
     more = len(conflicts) - NAMED_CONFLICTS
     if not named:
         return IMPORT_VALUES_IGNORED.render(ignored=counts["ignored"])
     return IMPORT_CONFLICTS_AND_MORE.render(named=named, more=more) if more > 0 else named
+
+
+def _subject(conflict: Dhis2ImportConflict) -> str:
+    """Name what a conflict refused: the object the instance named, else the values by position."""
+    if conflict.object:
+        return conflict.object
+    if conflict.indexes:
+        return "value " + ", ".join(f"#{index}" for index in conflict.indexes)
+    return "the import"
 
 
 def _taken(counts: dict[str, int]) -> int:

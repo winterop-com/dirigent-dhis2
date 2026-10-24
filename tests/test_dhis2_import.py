@@ -160,3 +160,48 @@ async def test_a_refused_transport_is_classified_by_its_status(ctx: FakeContext,
 def test_an_import_mode_dhis2_does_not_know_is_refused_at_config(field: str) -> None:
     with pytest.raises(ValidationError):
         Dhis2DataValueSetImportConfig.model_validate({"connection": "c", "data_values": {}, field: "MAYBE"})
+
+
+#: A refused value as DHIS2 2.42 names it: by the data element, with the property that failed.
+CONFLICT_42 = {
+    "object": "s46m5MS0hxu",
+    "objects": {"dataElement": "s46m5MS0hxu", "value": "value_not_integer"},
+    "value": "Value must match value type of data element `s46m5MS0hxu`: `Data value is not an integer`",
+    "errorCode": "E7619",
+    "property": "value",
+    "indexes": [1],
+}
+
+#: The same refusal as DHIS2 2.43 names it: no object, only where in the document it sits.
+CONFLICT_43 = {
+    "objects": {"args": "1-not-a-number-INTEGER-value_not_integer"},
+    "value": "Value #1 value `not-a-number` is no valid INTEGER: value_not_integer",
+    "errorCode": "E8122",
+    "indexes": [1],
+}
+
+
+async def test_a_conflict_keeps_the_code_and_the_position_of_what_was_refused(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    dhis2.post(IMPORT).answers(
+        json(200, summary("WARNING", updated=1, ignored=1, conflicts=[CONFLICT_42, CONFLICT_43]))
+    )
+    output = await call_block(
+        Dhis2DataValueSetImportOperator(),
+        {"connection": CONNECTION, "data_values": DOCUMENT, "atomic_mode": "NONE"},
+        ctx,
+    )
+    conflicts = output.model_dump()["conflicts"]
+    assert [(one["object"], one["error_code"], one["indexes"]) for one in conflicts] == [
+        ("s46m5MS0hxu", "E7619", [1]),
+        ("", "E8122", [1]),
+    ]
+
+
+async def test_a_refusal_with_no_object_names_the_value_by_its_position(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.post(IMPORT).answers(json(409, summary("ERROR", ignored=1, conflicts=[CONFLICT_43])))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
+    assert "value #1: Value #1 value `not-a-number` is no valid INTEGER" in refused.value.message
+    assert ": :" not in refused.value.message

@@ -8,8 +8,9 @@ from pydantic import BaseModel, JsonValue
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
+from dirigent_dhis2.messages import EXPORT_EMPTY_ANSWER
 from dirigent_dhis2.web import Dhis2Operator, refuse
-from dirigent_plugin import ConnectionRef, OperatorSpec, RemoteHandle, StepContext
+from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, RemoteHandle, StepContext
 
 #: Where data value sets are read and written.
 DATA_VALUE_SETS_PATH: Final = "/api/dataValueSets.json"
@@ -75,6 +76,15 @@ class Dhis2DataValueSetExportOperator(Dhis2Operator[Dhis2DataValueSetExportConfi
             except (Dhis2ApiError, AuthenticationError) as error:
                 raise refuse(error, f"GET {DATA_VALUE_SETS_PATH}") from error
         body = exported.model_dump(mode="json", by_alias=True, exclude_none=True)
+        if not body.get("dataSet"):
+            # A data value set always names the data set it was asked for, values or none; a
+            # body without one is the empty answer an org unit outside the account's scope gets.
+            raise BlockFailure(
+                EXPORT_EMPTY_ANSWER,
+                error_class=ErrorClass.REJECTED,
+                where=f"GET {DATA_VALUE_SETS_PATH}",
+                org_unit=config.org_unit,
+            )
         if config.children:
             body.pop(DOCUMENT_ORG_UNIT, None)
         duration = round((time.monotonic() - started) * 1000)

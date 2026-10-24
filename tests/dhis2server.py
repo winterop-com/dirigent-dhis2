@@ -155,7 +155,7 @@ def summary(
     updated: int = 0,
     ignored: int = 0,
     deleted: int = 0,
-    conflicts: list[dict[str, str]] | None = None,
+    conflicts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """An import's answer, with the summary wrapped in ``response`` the way DHIS2 answers.
 
