@@ -33,6 +33,26 @@ async def test_a_basic_auth_connection_sends_the_pair(monkeypatch: pytest.Monkey
     assert await _authorization_sent(monkeypatch, config) == expected
 
 
+async def test_a_connection_following_redirects_with_auth_talks_to_where_its_url_redirects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An alias redirecting across host and scheme is followed, and the credential goes to the target."""
+    target = "https://play.im.dhis2.org/stable-2-43-2"
+    dhis2 = serve(monkeypatch, base_url=target, version="2.43.2")
+    dhis2.get("http://play.dhis2.org/2.43/").answers(httpx2.Response(302, headers={"location": f"{target}/"}))
+    me = dhis2.get(f"{target}/api/me").answers(httpx2.Response(200, json={}))
+    config = Dhis2ConnectionConfig(
+        base_url="http://play.dhis2.org/2.43",
+        basic_username="admin",
+        basic_password=SecretStr("district"),
+        follow_redirects_with_auth=True,
+    )
+    async with build_client(config) as client:
+        assert client.base_url == target
+        await client.get_raw("/api/me")
+    assert me.last.headers["authorization"].startswith("Basic ")
+
+
 async def test_the_timeout_and_tls_setting_reach_the_pooled_client(monkeypatch: pytest.MonkeyPatch) -> None:
     """What the connection says about time and certificates is what the client on the wire is built with."""
     serve(monkeypatch, base_url="http://x")

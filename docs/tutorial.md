@@ -19,8 +19,8 @@ import at the organisation unit the answer named.
     A printable copy of this page:
     [**tutorial.pdf**](https://winterop-com.github.io/dirigent-dhis2/tutorial.pdf).
 
-Everything below was run against the public DHIS2 demo,
-`https://play.im.dhis2.org/stable-2-43-2`, version **2.43.2** -- the Sierra Leone database, with
+Everything below was run against the public DHIS2 demo, `https://play.dhis2.org/2.43`, which
+names the newest 2.43 demo and was **2.43.2** at the time -- the Sierra Leone database, with
 the published `admin` / `district` credential. That instance is shared and it resets itself, so
 nothing here writes to it: the one import is a rehearsal, and DHIS2 tells you exactly what it
 would have done.
@@ -123,13 +123,13 @@ One `dhis2` connection is one instance and the credential to reach it. Create it
 ```bash
 uv run dg connection create dhis2 play \
   --name "DHIS2 play demo" \
-  --set base_url=https://play.im.dhis2.org/stable-2-43-2 \
+  --set base_url=https://play.dhis2.org/2.43 \
   --set basic_username=admin \
   --set basic_password=district
 ```
 
 ```text
-2026-09-26T10:43:05.925+02:00 [info    ] created                        [connection.created] code=play connection_kind=dhis2 name="DHIS2 play demo" config={"base_url":"https://play.im.dhis2.org/stable-2-43-2","api_token":null,"basic_username":"admin","verify_tls":true,"timeout":"30s","basic_password":"***"}
+2026-09-26T10:43:05.925+02:00 [info    ] created                        [connection.created] code=play connection_kind=dhis2 name="DHIS2 play demo" config={"base_url":"https://play.dhis2.org/2.43","api_token":null,"basic_username":"admin","verify_tls":true,"follow_redirects_with_auth":false,"timeout":"30s","basic_password":"***"}
 ```
 
 The password is already withheld in the record the command answers with, and in every read
@@ -383,7 +383,7 @@ connections:
   play:
     kind: dhis2
     config:
-      base_url: https://play.im.dhis2.org/stable-2-43-2
+      base_url: https://play.dhis2.org/2.43
       basic_username: admin
       basic_password: district
 ```
