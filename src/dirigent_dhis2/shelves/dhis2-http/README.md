@@ -44,19 +44,14 @@ DHIS2 at all. The other five read the play demo as well.
 
 ## The demo redirect
 
-`https://play.dhis2.org/demo` is a stable alias. It responds with a redirect to a versioned
-instance on another host; on 30 August 2026 that target was
-`https://play.im.dhis2.org/stable-2-43-2`.
+`https://play.dhis2.org/2.43` names the newest 2.43 play demo: it answers with a redirect to
+the versioned instance on another host, `https://play.im.dhis2.org/stable-2-43-2` at the time
+of writing, and moves when DHIS2 publishes the next patch.
 
-Because the redirect crosses hosts, an HTTP client must not forward Basic Auth automatically.
-Dirigent follows a redirect only when a step sets `follow_redirects: true`, and its client
-drops credentials when the origin changes. The connection therefore names the resolved
-versioned instance directly. When DHIS2 moves the stable demo, resolve the alias again and
-update `base_url` in each pipeline's `connections:` block:
-
-```bash
-curl -sSI https://play.dhis2.org/demo
-```
+A client drops the credential when a redirect changes host, so each connection here sets
+`follow_redirects_with_auth: true`. The connection follows `base_url`'s redirect once, without
+the credential, and sends every request to where it landed, credential and method intact, so
+the pipelines follow the demo as it moves.
 
 ## Pipelines
 
