@@ -230,7 +230,7 @@ uv run dg validate pipelines/dhis2-tutorial.yaml
 ```
 
 ```text
-2026-09-26T10:43:21.343+02:00 [info    ] valid                          [validation] code=dhis2-tutorial document=pipelines/dhis2-tutorial.yaml checked="document, offline"
+2026-09-26T10:43:21.343+02:00 [info    ] valid                          [validation] code=dhis2-tutorial document=pipelines/dhis2-tutorial.yaml checked="document and installed blocks"
   each step under the last one it waits for
     read  (dhis2.metadata)
 2026-09-26T10:43:21.346+02:00 [info    ] valid                          [validated] documents=1 invalid=0
