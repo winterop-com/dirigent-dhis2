@@ -26,7 +26,7 @@ connections:
   dhis2-production:
     kind: dhis2
     config:
-      base_url: https://play.im.dhis2.org/stable-2-43-2
+      base_url: https://play.dhis2.org/2.43
       basic_username: admin
       basic_password: district
 

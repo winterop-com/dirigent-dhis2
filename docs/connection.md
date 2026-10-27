@@ -14,6 +14,7 @@ never from a step.
 | `basic_username` | `string or null` |  | `null` | The user half of HTTP basic authentication. |
 | `basic_password` | `string (password) or null` |  | `null` | The secret half of HTTP basic authentication. |
 | `verify_tls` | `boolean` |  | `true` | Whether certificates are verified; turning this off is a per-connection decision. |
+| `follow_redirects_with_auth` | `boolean` |  | `false` | Whether the URL `base_url` redirects to is used whatever its host or scheme, credential and all. |
 | `timeout` | `string (humane-duration)` |  | `"30s"` | The timeout applied to every request through this connection. |
 
 `api_token` and `basic_password` are the secret fields: they are encrypted at rest with the
@@ -34,23 +35,25 @@ refuses anything else:
 
 A refusal happens when the connection is created or updated, not when a step first runs.
 
-## `base_url` names the host that answers
+## A `base_url` that redirects
 
-Name the host the instance actually answers on, with the version pin if it has one. A redirect
-to another origin arrives without the credential, because the client drops the `Authorization`
-header when the origin changes. `https://play.dhis2.org/demo` is an alias that redirects across
-hosts for exactly this reason: resolve it once and name the versioned host it resolves to.
+A client follows `base_url`'s redirects once, without the credential, and talks to where they
+land when the target keeps the scheme, sits on the same registrable domain and answers like
+DHIS2. Anything else keeps `base_url` itself, so an open redirect or a sign-in page never
+receives the credential.
 
-```bash
-curl -sSI https://play.dhis2.org/demo
-```
+`https://play.dhis2.org/2.43` and `https://play.dhis2.org/2.42` are aliases for the newest play
+demo of each major, and resolve this way: a connection naming one follows the demo as it moves.
+`http://play.dhis2.org/2.43` lands on `https://`, a change of scheme that is never followed on its
+own. `follow_redirects_with_auth: true` follows any redirect, to any host or scheme, and sends the
+credential there; set it only on a `base_url` whose redirect you trust.
 
 ## Creating one
 
 ```bash
 dg connection create dhis2 play \
   --name "DHIS2 play demo" \
-  --set base_url=https://play.im.dhis2.org/stable-2-43-2 \
+  --set base_url=https://play.dhis2.org/2.43 \
   --set basic_username=admin \
   --set basic_password=district
 ```

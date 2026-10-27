@@ -24,9 +24,8 @@ class Dhis2ConnectionConfig(BlockModel):
     base_url: str = Field(min_length=1)
     """The instance root every request path is resolved against, version pin included.
 
-    Name the host the instance actually answers on: a redirect to another origin arrives
-    without the credential, because the client drops the Authorization header when the
-    origin changes.
+    A root that redirects is followed once, without the credential, and the target is used
+    when it keeps the scheme, shares the registrable domain and answers like DHIS2.
     """
 
     api_token: SecretStr | None = None
@@ -40,6 +39,9 @@ class Dhis2ConnectionConfig(BlockModel):
 
     verify_tls: bool = True
     """Whether certificates are verified; turning this off is a per-connection decision."""
+
+    follow_redirects_with_auth: bool = False
+    """Whether the URL ``base_url`` redirects to is used whatever its host or scheme, credential and all."""
 
     timeout: Duration = Field(default=timedelta(seconds=30), gt=timedelta(0))
     """The timeout applied to every request through this connection."""
@@ -75,6 +77,7 @@ def build_client(config: Dhis2ConnectionConfig) -> Dhis2Client:
         auth=build_auth_provider(_profile(config)),
         timeout=config.timeout.total_seconds(),
         verify=config.verify_tls,
+        follow_redirects_with_auth=config.follow_redirects_with_auth,
     )
 
 
