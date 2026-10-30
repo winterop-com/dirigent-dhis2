@@ -64,6 +64,8 @@ params:
 
 connections:
   dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
     kind: http
     config:
       base_url: https://play.dhis2.org/2.43
@@ -72,6 +74,8 @@ connections:
       basic_password: district
       timeout: 60s
   reporting:
+    name: Reporting DHIS2
+    description: The instance whose data set registrations are marked complete or incomplete. It points at the playground, which answers what it is sent, so the example runs without a DHIS2.
     kind: http
     config:
       # The playground, standing in for the instance being written to. Its one path answers

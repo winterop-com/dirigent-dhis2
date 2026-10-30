@@ -27,6 +27,8 @@ requires:
 
 connections:
   dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
     kind: http
     config:
       base_url: https://play.dhis2.org/2.43
@@ -37,6 +39,8 @@ connections:
 
 schemas:
   dhis2-data-value-set:
+    title: DHIS2 data value set
+    description: "The envelope GET /api/dataValueSets answers with: the data set, period and organisation unit that were asked for, and the values recorded there. Every identifier is held to the DHIS2 uid format and every period to the DHIS2 period format, so a payload that has moved out from under a pipeline is refused at the gate rather than imported downstream."
     type: object
     required: [dataValues]
     properties:

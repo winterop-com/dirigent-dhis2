@@ -47,6 +47,8 @@ params:
 
 connections:
   dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
     kind: dhis2
     config:
       base_url: https://play.dhis2.org/2.43
