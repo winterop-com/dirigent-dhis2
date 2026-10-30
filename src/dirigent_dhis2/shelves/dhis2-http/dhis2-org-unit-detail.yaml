@@ -12,7 +12,7 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-org-unit-detail
 name: Org unit detail
-description: Read one DHIS2 organisation unit, its hierarchy path, and its immediate children.
+description: Read one organisation unit, its hierarchy path, and its immediate children.
 
 tags: [dhis2, http]
 

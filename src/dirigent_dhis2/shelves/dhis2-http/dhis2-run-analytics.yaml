@@ -30,7 +30,11 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-run-analytics
 name: Run DHIS2 analytics
-description: Start a bounded DHIS2 analytics-table update and watch its asynchronous task complete.
+description: |
+  Start an analytics table update on DHIS2 and wait for it to finish.
+
+  The update is bounded to one recent year of aggregate data. The asynchronous task is polled
+  until DHIS2 reports it complete, and its log is then written to storage.
 
 tags: [dhis2, http, sensor, storage]
 

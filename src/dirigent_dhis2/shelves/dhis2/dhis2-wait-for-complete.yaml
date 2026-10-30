@@ -29,7 +29,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-wait-for-complete
 name: Wait for a data set to be signed off
-description: Hold the run until a data set is marked complete for a period and organisation unit.
+description: |
+  Wait until a data set is marked complete for a period and org unit.
+
+  The run is held until then.
 
 tags: [dhis2, sensor]
 

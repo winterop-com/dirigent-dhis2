@@ -13,7 +13,11 @@ format: dirigent/v1
 kind: pipeline
 code: numbers-only
 name: Data elements, NUMBER only
-description: Fetch only NUMBER-valued data elements with a DHIS2 filter, and prove none slipped through with a schema.
+description: |
+  Fetch only number-valued data elements and check that none slipped through.
+
+  A DHIS2 filter, `valueType:eq:NUMBER`, narrows the read, and the `dhis2-number-data-elements`
+  schema proves none slipped through.
 
 tags: [dhis2, validate, http]
 

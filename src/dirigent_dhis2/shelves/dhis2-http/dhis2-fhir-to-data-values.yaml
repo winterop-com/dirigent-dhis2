@@ -56,14 +56,17 @@ kind: pipeline
 code: dhis2-fhir-to-data-values
 name: FHIR capture to DHIS2 data values
 description: |
-  Translate a FHIR `QuestionnaireResponse` into a DHIS2 `/api/dataValueSets` import.
+  Turn a filled-in FHIR form into a DHIS2 data value import.
+
+  Translates a FHIR `QuestionnaireResponse` into a DHIS2 `/api/dataValueSets` import. As written
+  both requests go to the playground, and the import is a dry run.
 
   The mapping is the integration:
 
   | FHIR | DHIS2 |
   | --- | --- |
   | the questionnaire answered | `dataSet` |
-  | the period extension | `period` |
+  | the `period` parameter | `period` |
   | `subject` -> `Location/<uid>` | `orgUnit` |
   | one answered item | one `dataValue` |
   | `status = completed` | a `completeDataSetRegistration`, written **after** |

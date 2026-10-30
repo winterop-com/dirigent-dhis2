@@ -40,7 +40,11 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-export-per-org-unit
 name: One export per organisation unit
-description: Fan a data value set export out over several organisation units, one run item each.
+description: |
+  Export data values for several org units, each saved to its own file.
+
+  The export fans out over the organisation units, one run item each. A second step writes each
+  export to its own file, and a manifest counts what landed.
 
 tags: [dhis2, storage]
 

@@ -51,7 +51,7 @@ kind: pipeline
 code: dhis2-sync-org-units
 name: DHIS2 organisation-unit sync
 description: |
-  Count the hierarchy, read one level of it, project it, and forward the batch.
+  Count the org units, read one level, trim each record, and forward the batch.
 
   The four habits this teaches are not DHIS2-specific:
 

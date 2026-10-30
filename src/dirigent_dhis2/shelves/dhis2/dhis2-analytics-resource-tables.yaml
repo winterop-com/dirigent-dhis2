@@ -27,7 +27,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-analytics-resource-tables
 name: Rebuild the resource tables
-description: Run the analytics job with every data table skipped, rebuilding only the resource tables.
+description: |
+  Rebuild the resource tables without touching the analytics data tables.
+
+  Runs the analytics job with every data table skipped.
 
 tags: [dhis2, analytics]
 

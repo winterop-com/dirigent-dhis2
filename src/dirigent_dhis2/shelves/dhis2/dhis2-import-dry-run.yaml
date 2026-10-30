@@ -28,7 +28,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-import-dry-run
 name: Rehearse a data value import
-description: Send a small hand-written data value set to DHIS2 as a dry run and read its summary.
+description: |
+  Send a small data value set to DHIS2 as a dry run and read its summary.
+
+  The values are written by hand in the document.
 
 tags: [dhis2]
 

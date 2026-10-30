@@ -40,7 +40,7 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-forward-org-units
 name: Forward org units to a webhook
-description: Select DHIS2 organisation units, reshape the batch, and send it to the playground.
+description: Select org units on DHIS2, reshape the batch, and send it to the playground.
 
 tags: [dhis2, http, storage, transform]
 

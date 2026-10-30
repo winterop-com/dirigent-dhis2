@@ -27,7 +27,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-export-to-storage
 name: Export a data value set to storage
-description: Export one data set's values and write them to a storage URI with storage.write.
+description: |
+  Export one data set's values and save them to a file.
+
+  `storage.write` puts them at a storage URI.
 
 tags: [dhis2, storage]
 

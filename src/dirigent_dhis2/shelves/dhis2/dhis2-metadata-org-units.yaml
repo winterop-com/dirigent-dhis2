@@ -27,7 +27,7 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-metadata-org-units
 name: Organisation units under a parent
-description: Read the organisation units directly beneath one unit, with their hierarchy paths.
+description: Read the org units directly beneath one unit, with their hierarchy paths.
 
 tags: [dhis2, metadata]
 

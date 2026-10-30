@@ -57,7 +57,11 @@ kind: pipeline
 code: dhis2-export-data-elements
 name: DHIS2 data-element export
 description: |
-  Export data-element metadata with `:owner`, inspect it, and stage a validate-only import.
+  Export data element groups and rehearse importing them into another instance.
+
+  Lists the aggregate data elements, exports the groups with `:owner`, inspects the bundle, and
+  stages a validate-only import. As written the import goes to the playground, which answers what
+  it is sent.
 
   Two endpoints, and the vocabulary that makes them safe:
 

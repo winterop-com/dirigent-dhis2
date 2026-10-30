@@ -23,7 +23,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-metadata-paged
 name: One page of a metadata collection
-description: Read a single page of organisation units and the pager that says how many there are.
+description: |
+  Read one page of organisation units and how many there are in total.
+
+  The pager in the answer says how many there are.
 
 tags: [dhis2, metadata]
 

@@ -29,7 +29,11 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-alert-on-threshold
 name: Alert a user group below a threshold
-description: Query an indicator by district and message a user group when any district falls below a threshold.
+description: |
+  Message a user group when an indicator falls below a threshold in any district.
+
+  The indicator is queried by district. As written the threshold is 0, so nothing is sent and the
+  message step is skipped; a higher threshold can send a real message on the shared demo.
 
 tags: [dhis2, analytics, messaging]
 

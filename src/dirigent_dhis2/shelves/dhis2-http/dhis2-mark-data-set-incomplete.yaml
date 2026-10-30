@@ -36,7 +36,12 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-mark-data-set-incomplete
 name: Reopen a signed-off period
-description: Build both ways of unmaking a DHIS2 completion registration, withdrawn and deleted.
+description: |
+  Reopen a signed-off period, by withdrawing the sign-off and by deleting it.
+
+  Builds both ways of unmaking a DHIS2 completion registration: a POST with `completed: false`,
+  which keeps the record, and a DELETE, which removes it. Both go to the playground; against a
+  real instance, send one of the two.
 
 tags: [dhis2, http]
 

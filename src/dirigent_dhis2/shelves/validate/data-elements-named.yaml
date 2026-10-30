@@ -12,7 +12,10 @@ format: dirigent/v1
 kind: pipeline
 code: data-elements-named
 name: Data elements, checked against a named schema
-description: Fetch DHIS2 data elements and validate them against the dhis2-data-elements schema the instance holds.
+description: |
+  Fetch DHIS2 data elements and check them against a schema the instance holds.
+
+  The schema is `dhis2-data-elements`.
 
 tags: [dhis2, validate, http]
 

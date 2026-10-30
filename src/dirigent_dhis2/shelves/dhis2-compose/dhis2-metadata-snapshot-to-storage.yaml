@@ -26,7 +26,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-metadata-snapshot-to-storage
 name: Snapshot a metadata collection to storage
-description: Read one metadata collection with a fields projection and write it to storage.
+description: |
+  Save a snapshot of one metadata collection to storage.
+
+  The read uses a `fields` projection, and `storage.write` keeps the result.
 
 tags: [dhis2, metadata, storage, starter]
 

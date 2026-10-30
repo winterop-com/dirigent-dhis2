@@ -26,7 +26,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-export-data-values
 name: Export one data value set
-description: Read one data set for one period at one organisation unit, inline.
+description: |
+  Read one data set for one period at one organisation unit.
+
+  The values come back inline, in the step's output.
 
 tags: [dhis2]
 
