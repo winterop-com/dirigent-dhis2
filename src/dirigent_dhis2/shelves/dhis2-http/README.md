@@ -59,8 +59,8 @@ the pipelines follow the demo as it moves.
 | --- | --- |
 | [dhis2-system-info.yaml](dhis2-system-info.yaml) | Authentication and a minimal API call. |
 | [dhis2-org-unit-levels.yaml](dhis2-org-unit-levels.yaml) | The configured hierarchy levels. |
-| [dhis2-org-units.yaml](dhis2-org-units.yaml) | A compact snapshot of every organisation unit, written to storage as a file. |
-| [dhis2-org-unit-detail.yaml](dhis2-org-unit-detail.yaml) | One parameterized organisation unit and its children. |
+| [dhis2-org-units.yaml](dhis2-org-units.yaml) | Save a snapshot of every DHIS2 organisation unit to storage. |
+| [dhis2-org-unit-detail.yaml](dhis2-org-unit-detail.yaml) | Read one organisation unit, its hierarchy path, and its immediate children. |
 | [dhis2-forward-org-units.yaml](dhis2-forward-org-units.yaml) | Select, reshape with `transform.jq`, and send an organisation-unit batch to the playground -- nothing on the allowlist. |
 | [dhis2-run-analytics.yaml](dhis2-run-analytics.yaml) | Start an analytics-table update and poll the asynchronous DHIS2 task with `http.ready` -- what the native `dhis2.analytics_run` does for you. |
 | [dhis2-sync-org-units.yaml](dhis2-sync-org-units.yaml) | An organisation-unit sync: count before fetching, bound the read, ask for fields, order by `path`. |

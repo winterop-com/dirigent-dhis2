@@ -85,7 +85,7 @@ the pack refuses them at the block preflight.
 
 | File | Code | The operation |
 | --- | --- | --- |
-| `dhis2-export-data-values.yaml` | `dhis2-export-data-values` | Export one data set, for one period, at one organisation unit. |
+| `dhis2-export-data-values.yaml` | `dhis2-export-data-values` | Read one data set for one period at one organisation unit. |
 | `dhis2-export-with-children.yaml` | `dhis2-export-with-children` | The same export widened to the org unit's descendants with `children`. |
 | `dhis2-import-dry-run.yaml` | `dhis2-import-dry-run` | Send a hand-written data value set with `dry_run` on and read the summary. |
 | `dhis2-import-create.yaml` | `dhis2-import-create` | `import_strategy: CREATE` -- fill the gaps, revise nothing. |
@@ -93,21 +93,21 @@ the pack refuses them at the block preflight.
 | `dhis2-import-create-and-update.yaml` | `dhis2-import-create-and-update` | `import_strategy: CREATE_AND_UPDATE` -- the file is the truth. |
 | `dhis2-import-delete.yaml` | `dhis2-import-delete` | `import_strategy: DELETE` -- remove the values a document names. |
 | `dhis2-import-partial.yaml` | `dhis2-import-partial` | `atomic_mode: NONE` -- take the good values, report the rest as conflicts. |
-| `dhis2-rehearse-import.yaml` | `dhis2-rehearse-import` | The round trip: export a month, then hand it straight back as a dry run. |
+| `dhis2-rehearse-import.yaml` | `dhis2-rehearse-import` | Export one month of a data set, then hand it straight back as a dry run. |
 
 ### Completeness
 
 | File | Code | The operation |
 | --- | --- | --- |
-| `dhis2-wait-for-complete.yaml` | `dhis2-wait-for-complete` | Hold the run until a data set is signed off for a period and org unit. |
+| `dhis2-wait-for-complete.yaml` | `dhis2-wait-for-complete` | Wait until a data set is marked complete for a period and org unit. |
 | `dhis2-complete-then-export.yaml` | `dhis2-complete-then-export` | The sign-off gate, with the export that reads the month behind it. |
 
 ### Analytics
 
 | File | Code | The operation |
 | --- | --- | --- |
-| `dhis2-analytics-query.yaml` | `dhis2-analytics-query` | One indicator over the last twelve months, as an aggregate query. |
-| `dhis2-analytics-data-elements.yaml` | `dhis2-analytics-data-elements` | Several data elements broken down by the districts under an org unit. |
+| `dhis2-analytics-query.yaml` | `dhis2-analytics-query` | Run an aggregate analytics query for one indicator over the last twelve months. |
+| `dhis2-analytics-data-elements.yaml` | `dhis2-analytics-data-elements` | Read two data elements broken down by the districts under one organisation unit. |
 | `dhis2-analytics-pivot.yaml` | `dhis2-analytics-pivot` | The pivot shape: `dimension` for the axes shown, `filter` for the axis pinned. |
 | `dhis2-analytics-event-query.yaml` | `dhis2-analytics-event-query` | `mode: event` -- a line list of events for one program. |
 | `dhis2-analytics-enrollment-query.yaml` | `dhis2-analytics-enrollment-query` | `mode: enrollment` -- one row per enrollment, its stages folded in. |
@@ -132,9 +132,9 @@ the pack refuses them at the block preflight.
 | --- | --- | --- |
 | `dhis2-metadata-data-elements.yaml` | `dhis2-metadata-data-elements` | The `dataElements` collection through the version-bound accessor. |
 | `dhis2-metadata-data-elements-filtered.yaml` | `dhis2-metadata-data-elements-filtered` | The same read narrowed by `filter` and projected by `fields`. |
-| `dhis2-metadata-org-units.yaml` | `dhis2-metadata-org-units` | The organisation units directly under one parent, with their paths. |
-| `dhis2-metadata-data-set.yaml` | `dhis2-metadata-data-set` | One data set's period type, data elements and disaggregations. |
-| `dhis2-metadata-paged.yaml` | `dhis2-metadata-paged` | One page of a collection, and the pager that says how many there are. |
+| `dhis2-metadata-org-units.yaml` | `dhis2-metadata-org-units` | Read the org units directly beneath one unit, with their hierarchy paths. |
+| `dhis2-metadata-data-set.yaml` | `dhis2-metadata-data-set` | Read one data set's period type, data elements, and their disaggregations. |
+| `dhis2-metadata-paged.yaml` | `dhis2-metadata-paged` | Read one page of organisation units and how many there are in total. |
 
 ## Composed with the engine's own blocks
 
@@ -174,8 +174,8 @@ no adapter, or a DHIS2 call this pack does not yet cover.
 | --- | --- | --- |
 | `dhis2-system-info.yaml` | `dhis2-system-info` | Authentication and a minimal API call. |
 | `dhis2-org-unit-levels.yaml` | `dhis2-org-unit-levels` | The configured hierarchy levels. |
-| `dhis2-org-units.yaml` | `dhis2-org-units` | A compact snapshot of every organisation unit, written to storage as a file. |
-| `dhis2-org-unit-detail.yaml` | `dhis2-org-unit-detail` | One parameterized organisation unit and its children. |
+| `dhis2-org-units.yaml` | `dhis2-org-units` | Save a snapshot of every DHIS2 organisation unit to storage. |
+| `dhis2-org-unit-detail.yaml` | `dhis2-org-unit-detail` | Read one organisation unit, its hierarchy path, and its immediate children. |
 | `dhis2-forward-org-units.yaml` | `dhis2-forward-org-units` | Select, reshape with `transform.jq`, and send an organisation-unit batch to the playground. |
 | `dhis2-run-analytics.yaml` | `dhis2-run-analytics` | Start an analytics-table update and poll the asynchronous task with `http.ready` -- what `dhis2.analytics_run` does for you. |
 | `dhis2-sync-org-units.yaml` | `dhis2-sync-org-units` | An organisation-unit sync: count before fetching, bound the read, ask for fields, order by `path`. |
