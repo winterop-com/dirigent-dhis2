@@ -55,6 +55,16 @@ METADATA_UNKNOWN_RESOURCE = DHIS2.define(
     "the instance's version knows no metadata resource named '{resource}'",
 )
 
+MESSAGE_NO_RECIPIENT = DHIS2.define(
+    "message.no_recipient",
+    "a message needs at least one recipient in users, user_groups or org_units",
+)
+
+MESSAGE_NO_CONVERSATION = DHIS2.define(
+    "message.no_conversation",
+    "{where} took the message but answered without the conversation it created",
+)
+
 
 # What a config refuses at validation. Pydantic owns the code a validator's refusal reaches
 # the wire under, so these are rendered into the ``ValueError`` it wraps.

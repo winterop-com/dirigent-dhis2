@@ -16,11 +16,13 @@ contributes. A document naming `transform.jq` is correct and simply belongs here
 The pack's tests still hold the `dhis2.*` half of each document below to the same catalog.
 
 Each carries the connection it uses, so it runs standalone against the public play demo.
-Nothing here writes to it. The four tagged `starter` are the ones `dg pipeline new` copies
-into a project, with `dhis2-demo` named under `requires.connections` rather than carried.
+Nothing here writes to it, except `dhis2-alert-on-threshold.yaml` when it is given a threshold.
+The four tagged `starter` are the ones `dg pipeline new` copies into a project, with
+`dhis2-demo` named under `requires.connections` rather than carried.
 
 | File | What it composes |
 | --- | --- |
+| [dhis2-alert-on-threshold.yaml](dhis2-alert-on-threshold.yaml) | An analytics query read by `transform.jq` into at most one alert, and a `dhis2.message` fanned out over it, so a user group is messaged only when a district falls below the threshold. |
 | [dhis2-export-validated.yaml](dhis2-export-validated.yaml) | An export gated on `validate.schema`, against the shape the instance holds -- ids and periods held to the pack's own `dhis2-uid` and `dhis2-period` formats. |
 | [dhis2-export-reshaped.yaml](dhis2-export-reshaped.yaml) | An export reshaped with `transform.jq`: the envelope's defaults pushed down, values made numeric, cells grouped per data element. |
 | [dhis2-export-per-org-unit.yaml](dhis2-export-per-org-unit.yaml) | One export per organisation unit with `for_each`, each its own run item, `items: continue` so one district's failure costs only that district; a second fanned `storage.write` adopts the export's grid and writes one file per district, and a manifest lists what landed. |

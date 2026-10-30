@@ -38,6 +38,7 @@ from dirigent_dhis2.imports import (
     Dhis2ImportConflict,
 )
 from dirigent_dhis2.messages import DHIS2
+from dirigent_dhis2.messaging import Dhis2MessageConfig, Dhis2MessageOperator, Dhis2MessageOutput
 from dirigent_dhis2.metadata import (
     Dhis2MetadataConfig,
     Dhis2MetadataOperator,
@@ -67,6 +68,7 @@ class Dhis2Plugin:
                 Dhis2AnalyticsQueryOperator(),
                 Dhis2DataValueSetExportOperator(),
                 Dhis2DataValueSetImportOperator(),
+                Dhis2MessageOperator(),
                 Dhis2MetadataOperator(),
                 Dhis2TrackerOperator(),
             ],
@@ -107,6 +109,9 @@ __all__ = [
     "Dhis2DataValueSetImportOperator",
     "Dhis2DataValueSetImportOutput",
     "Dhis2ImportConflict",
+    "Dhis2MessageConfig",
+    "Dhis2MessageOperator",
+    "Dhis2MessageOutput",
     "Dhis2MetadataConfig",
     "Dhis2MetadataOperator",
     "Dhis2MetadataOutput",

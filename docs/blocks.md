@@ -28,6 +28,7 @@ allowlisted.
 | [`dhis2.analytics_run`](#dhis2analytics_run) | operator | dhis2 | Run the DHIS2 analytics tables job. |
 | [`dhis2.data_value_set_export`](#dhis2data_value_set_export) | operator | dhis2 | Export a DHIS2 data value set. |
 | [`dhis2.data_value_set_import`](#dhis2data_value_set_import) | operator | dhis2 | Import a data value set into DHIS2. |
+| [`dhis2.message`](#dhis2message) | operator | dhis2 | Send a DHIS2 message to users, user groups or org units. |
 | [`dhis2.metadata`](#dhis2metadata) | operator | dhis2 | Read a DHIS2 metadata resource. |
 | [`dhis2.tracker`](#dhis2tracker) | operator | dhis2 | Read DHIS2 tracker objects. |
 | [`dhis2.data_set_complete`](#dhis2data_set_complete) | sensor | dhis2 | Wait for a DHIS2 data set to be marked complete. |
@@ -194,6 +195,53 @@ A dry run sends the document without its `completeDate`, and says so in the log.
 
 Each conflict is an object of two strings, `object` and `value`, in the instance's own words.
 
+### `dhis2.message`
+
+Send a DHIS2 message to users, user groups or org units.
+
+Not idempotent.
+
+Starts one message conversation through `POST /api/messageConversations`, the same inbox the
+DHIS2 web apps read. DHIS2 also sends it as email to every recipient with an email address
+where the instance has SMTP configured; whether the email went out is the instance's to know,
+and nothing in the answer says.
+
+A user group reaches its members and an organisation unit the users assigned to it, so one
+message can reach many more people than it names. The output counts what was named, not who
+the instance expanded it to.
+
+At least one recipient is required, in any of the three lists. A step naming none is refused
+at apply with `dhis2.message.no_recipient`, and so is a run whose references resolve to none.
+Every recipient is a DHIS2 uid. A 400 or a 409 from the instance -- such as a send whose
+recipients name no one it knows -- is `rejected`.
+
+DHIS2 answers a send with the new conversation's uid on the `Location` header only, so the
+block reads the conversation back to report it. A send the instance took without saying
+where is `rejected`, never retried, because a retry would send the message twice.
+
+If DHIS2 accepts the message but the fetch-back fails, a retry can send it twice, because
+dhis2w's `messaging.send` posts and then reads back.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `subject` | `string` | yes |  | The subject line, up to 255 characters. |
+| `text` | `string` | yes |  | The body of the message, which may be long and may be built from references. |
+| `users` | `string[]` |  |  | The uids of the users the message goes to. |
+| `user_groups` | `string[]` |  |  | The uids of the user groups whose members the message goes to. |
+| `org_units` | `string[]` |  |  | The uids of the organisation units whose assigned users the message goes to. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `conversation_id` | `string` | yes |  | The uid of the message conversation the instance created. |
+| `user_count` | `integer` | yes |  | How many users the message named. |
+| `user_group_count` | `integer` | yes |  | How many user groups the message named. |
+| `org_unit_count` | `integer` | yes |  | How many organisation units the message named. |
+
 ### `dhis2.metadata`
 
 Read a DHIS2 metadata resource.
@@ -328,6 +376,8 @@ last three are what the connection kind refuses at validation.
 | `dhis2.import.values_ignored` | `{ignored} values ignored` |
 | `dhis2.connection.unreachable` | `the instance did not answer: {detail}` |
 | `dhis2.metadata.unknown_resource` | `the instance's version knows no metadata resource named '{resource}'` |
+| `dhis2.message.no_recipient` | `a message needs at least one recipient in users, user_groups or org_units` |
+| `dhis2.message.no_conversation` | `{where} took the message but answered without the conversation it created` |
 | `dhis2.analytics_query.no_program` | `a {mode} analytics query needs a program to read under` |
 | `dhis2.connection.both_credentials` | `a dhis2 connection takes an api_token or basic credentials, not both` |
 | `dhis2.connection.no_credential` | `a dhis2 connection needs an api_token or basic credentials` |

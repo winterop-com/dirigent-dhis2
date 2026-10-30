@@ -12,6 +12,7 @@ is ``type``'s to refuse. The predicates themselves stay strict, so ``is_uid(123)
 """
 
 import re
+from typing import Final
 
 from dhis2w_client import UID_RE
 
@@ -19,6 +20,9 @@ from dirigent_plugin import FormatCheck
 
 #: DHIS2's 11-character UID: a letter, then ten alphanumerics, as dhis2w-client spells it.
 _UID = UID_RE
+
+#: The same UID pattern as a string, for a config field to hold its values to.
+UID_PATTERN: Final = _UID.pattern
 
 #: DHIS2 ISO period strings, common types only: yearly YYYY, monthly YYYYMM, daily YYYYMMDD,
 #: quarterly YYYYQn, and weekly YYYYWn with the week zero-padded or not, the way DHIS2 itself

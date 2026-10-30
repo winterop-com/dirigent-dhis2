@@ -1,0 +1,111 @@
+# Tell a user group when an indicator falls below a threshold.
+#
+# A document has no conditionals, so "only when" is said with a list: transform.jq reads the
+# analytics grid and answers with one alert when any district is under the threshold and with
+# none when every district clears it. The message step fans out over that list, and an empty
+# list skips the step -- the run still succeeds, it just had nothing to say.
+#
+# The alert is one message naming every district below the line, worst first, rather than one
+# message per district: a group of officers reads one conversation, not thirteen.
+#
+# dhis2.message starts a conversation in the DHIS2 inbox of every member of the group, and
+# the instance also sends it as email where it has SMTP configured. A user group, a user or an
+# organisation unit are all recipients; the block refuses a step that names none of them.
+#
+# As written it sends nothing: the default threshold is 0, no district is below it, and the
+# run ends succeeded with the message step skipped. Give it a threshold to see an alert sent.
+# -p threshold=70 finds two districts under 70% ANC 1 coverage for 2025, and THAT RUN MESSAGES
+# THE DEMO GROUP "Bo District M&E officers" ON THE PUBLIC PLAY SERVER -- three demo users,
+# and a real write to a shared instance.
+#
+#   dg run --local examples/dhis2-compose/dhis2-alert-on-threshold.yaml
+#   dg run --local examples/dhis2-compose/dhis2-alert-on-threshold.yaml -p threshold=70
+#
+# TO MAKE IT YOURS: point the connection at your instance, name your indicator and your
+# group, and put the document on a schedule that runs after the analytics tables are rebuilt,
+# so the alert reads this period's numbers rather than last night's.
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-alert-on-threshold
+name: Alert a user group below a threshold
+description: Query an indicator by district and message a user group when any district falls below a threshold.
+
+tags: [dhis2, analytics, messaging]
+
+requires:
+  blocks:
+    - dhis2.analytics_query
+    - dhis2.message
+    - transform.jq
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "2025"
+      description: The ISO period the indicator is read for.
+    threshold:
+      type: number
+      default: 0
+      description: The coverage, in percent, a district has to reach to stay out of the alert. 0 sends nothing.
+    user_group:
+      type: string
+      pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: ZoHNWQajIoe
+      description: The uid of the user group the alert goes to. Bo District M&E officers by default.
+
+connections:
+  dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
+    kind: dhis2
+    config:
+      base_url: https://play.dhis2.org/2.43
+      basic_username: admin
+      basic_password: district
+
+steps:
+  coverage:
+    block: dhis2.analytics_query
+    config:
+      connection: dhis2-demo
+      mode: aggregate
+      dimension:
+        # ANC 1 Coverage, one row for each district under Sierra Leone.
+        - dx:Uvn6LCg7dVU
+        - ou:ImspTQPwCqd;LEVEL-2
+      filter: "pe:${params.period}"
+      output_id_scheme: NAME
+
+  breaches:
+    block: transform.jq
+    depends_on: [coverage]
+    config:
+      input:
+        rows: ${steps.coverage.output.body.rows}
+        period: ${params.period}
+        threshold: ${params.threshold}
+      # Each row is [indicator, district, value]. The answer is a list of at most one alert.
+      program: |
+        .period as $period
+        | .threshold as $below
+        | [.rows[] | {district: .[1], coverage: (.[2] | tonumber)} | select(.coverage < $below)]
+        | sort_by(.coverage)
+        | {alerts: (if length == 0 then [] else [{
+            subject: "ANC 1 coverage below \($below)% for \($period)",
+            text: ((["These districts are below the \($below)% target for \($period):", ""]
+                    + map("- \(.district): \(.coverage)%")) | join("\n"))
+          }] end)}
+
+  alert:
+    block: dhis2.message
+    depends_on: [breaches]
+    # One item when a district is below the line, none when every district clears it.
+    for_each: ${steps.breaches.output.value.alerts}
+    config:
+      connection: dhis2-demo
+      subject: ${item.subject}
+      text: ${item.text}
+      user_groups: ["${params.user_group}"]

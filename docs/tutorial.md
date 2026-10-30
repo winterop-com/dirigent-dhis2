@@ -100,6 +100,8 @@ uv run dg blocks list
 │ dhis2.data_value_set_export │ operator │ dhis2   │ Export a DHIS2 data value set.    │
 │ dhis2.data_value_set_import │ operator │ dhis2   │ Import a data value set into      │
 │                             │          │         │ DHIS2.                            │
+│ dhis2.message               │ operator │ dhis2   │ Send a DHIS2 message to users,    │
+│                             │          │         │ user groups or org units.         │
 │ dhis2.metadata              │ operator │ dhis2   │ Read a DHIS2 metadata resource.   │
 │ dhis2.tracker               │ operator │ dhis2   │ Read DHIS2 tracker objects.       │
 └─────────────────────────────┴──────────┴─────────┴───────────────────────────────────┘
@@ -107,13 +109,13 @@ storage schemes: -   connection kinds: dhis2, docker, email, git, http, kafka, r
 slack, sql, webhook
 ```
 
-Seven blocks in the `dhis2` group, and `dhis2` among the connection kinds. The same catalog is
+Eight blocks in the `dhis2` group, and `dhis2` among the connection kinds. The same catalog is
 the Blocks screen in the UI, where each block says how many of the pack's example documents use
 it:
 
 ![The Blocks screen filtered to dhis2: seven blocks, six operators and one sensor, each with a link to the examples that use it.](images/tutorial/blocks.png)
 
-*The seven blocks the pack contributes, as the instance's own catalog reports them.*
+*The eight blocks the pack contributes, as the instance's own catalog reports them.*
 
 ## 2. The connection
 
