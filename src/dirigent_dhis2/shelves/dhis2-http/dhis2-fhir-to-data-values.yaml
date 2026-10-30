@@ -80,6 +80,8 @@ requires:
 
 connections:
   dhis2-target:
+    name: Target DHIS2
+    description: Where FHIR observations land as data values. It points at the playground, which answers what it is sent, so the example runs without a DHIS2.
     kind: http
     config:
       # Stands in for the DHIS2 being imported into. The public demo is for reading, so this

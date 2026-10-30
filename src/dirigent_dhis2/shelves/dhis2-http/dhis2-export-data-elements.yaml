@@ -81,6 +81,8 @@ requires:
 
 connections:
   dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
     kind: http
     config:
       base_url: https://play.dhis2.org/2.43
@@ -89,6 +91,8 @@ connections:
       basic_password: district
       timeout: 120s
   staging:
+    name: Staging DHIS2
+    description: The instance the data elements are exported from. It points at the playground, which answers what it is sent, so the example runs without a DHIS2.
     kind: http
     config:
       # The playground, standing in for the instance being imported INTO. Point this at your

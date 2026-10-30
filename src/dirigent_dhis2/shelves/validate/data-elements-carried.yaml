@@ -24,6 +24,8 @@ requires:
 
 connections:
   dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
     kind: http
     config:
       base_url: https://play.dhis2.org/2.42
@@ -34,6 +36,8 @@ connections:
 
 schemas:
   dhis2-data-elements:
+    title: DHIS2 data elements
+    description: "The shape a GET /api/dataElements.json?fields=id,name,valueType,domainType returns: items whose valueType and domainType are drawn from the DHIS2 enumerations, caught here before a downstream step reads a value that moved."
     type: object
     required: [dataElements]
     properties:

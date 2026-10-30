@@ -24,6 +24,8 @@ requires:
 
 connections:
   dhis2-production:
+    name: Production DHIS2
+    description: The instance whose analytics the example reads. It points at the public demo, so the example runs as written.
     kind: dhis2
     config:
       base_url: https://play.dhis2.org/2.43
