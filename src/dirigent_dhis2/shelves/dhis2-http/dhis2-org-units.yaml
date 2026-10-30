@@ -14,7 +14,7 @@
 format: dirigent/v1
 kind: pipeline
 code: dhis2-org-units
-name: Org unit sync
+name: Org unit snapshot
 description: |
   Save a snapshot of every DHIS2 organisation unit to storage.
 

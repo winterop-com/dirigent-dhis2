@@ -11,9 +11,9 @@
 # exists, and on a request that asks for it, how many rows there are in total.
 #
 # Reading every page is a different pipeline rather than a different config. Two shapes work:
-# fan a step out over a list of page numbers, since for_each is expanded when the run is
-# created and a page count known in advance can be a param; or, better for a feed that keeps
-# growing, drop paging as the way through the collection and use updated_after to read only
+# fan a step out over a list of page numbers, which for_each reads from a param when the page
+# count is known in advance and from a first read's output when it is not; or, better for a feed
+# that keeps growing, drop paging as the way through the collection and use updated_after to read only
 # what changed since the last run, which is bounded by the change rather than by the size of
 # the program.
 #

@@ -10,7 +10,7 @@
 # dhis2.data_set_complete sensor reads that flag and goes on waiting rather than treating
 # the leftover record as a completion.
 #
-# The second is DELETE /api/completeDataSetRegistrations with ds, pe and ou as query
+# The second is DELETE /api/completeDataSetRegistrations with ds, pe, ou and cc as query
 # parameters, which removes the registration outright. It leaves the cleanest state and the
 # least history: afterwards nothing distinguishes a window that was reopened from one nobody
 # ever signed off.
@@ -117,8 +117,9 @@ steps:
             attributeOptionCombo: HllvX50cXC0
             completed: false
 
-  # The record removed. No body: the registration is addressed entirely by the query, the
-  # same three parameters the read above uses.
+  # The record removed. No body: the registration is addressed entirely by the query. The
+  # read above spells the same three as dataSet, period and orgUnit; DELETE shortens them to ds,
+  # pe and ou, and adds the attribute option combo as cc.
   erase:
     block: http.request
     depends_on: [withdraw]
