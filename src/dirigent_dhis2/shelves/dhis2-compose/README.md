@@ -16,9 +16,9 @@ contributes. A document naming `transform.jq` is correct and simply belongs here
 The pack's tests still hold the `dhis2.*` half of each document below to the same catalog.
 
 Each carries the connection it uses, so it runs standalone against the public play demo.
-Only `dhis2-alert-on-threshold.yaml` writes to it: it sends a DHIS2 message to a demo user
-group, and `-p threshold=0` runs it through without sending anything. The four tagged
-`starter` are the ones `dg pipeline new` copies into a project, with `dhis2-demo` named under `requires.connections` rather than carried.
+Nothing here writes to it, except `dhis2-alert-on-threshold.yaml` when it is given a threshold.
+The four tagged `starter` are the ones `dg pipeline new` copies into a project, with
+`dhis2-demo` named under `requires.connections` rather than carried.
 
 | File | What it composes |
 | --- | --- |

@@ -61,9 +61,9 @@ transitions and block output as the run goes.
 
 Two things to know before a run comes back empty. The demo shifts its data era from release to
 release, and every document that reads data takes the period as a parameter for that reason: an
-empty answer is usually a period outside the era rather than a wrong read. And only one of these
-examples writes to the demo: `dhis2-alert-on-threshold` sends a DHIS2 message to a demo user
-group, and says so at its top. Every import is a `dry_run`, and every write in the `dhis2-http`
+empty answer is usually a period outside the era rather than a wrong read. And nothing in these
+examples writes to the demo -- every import is a `dry_run`, `dhis2-alert-on-threshold` sends a
+message only when it is given a threshold, and every write in the `dhis2-http`
 shelf is posted at the [playground](https://winterop-com.github.io/dirigent/playground/), the
 request-and-response service every dirigent instance serves itself under `/api/v1/playground`.
 
@@ -148,7 +148,7 @@ instances is four.
 
 | File | Code | What it composes |
 | --- | --- | --- |
-| `dhis2-alert-on-threshold.yaml` | `dhis2-alert-on-threshold` | An analytics query read by `transform.jq` into at most one alert, and a `dhis2.message` fanned out over it, so a user group is messaged only when a district falls below the threshold. This one sends a message on the demo. |
+| `dhis2-alert-on-threshold.yaml` | `dhis2-alert-on-threshold` | An analytics query read by `transform.jq` into at most one alert, and a `dhis2.message` fanned out over it, so a user group is messaged only when a district falls below the threshold. It sends nothing until it is given a threshold. |
 | `dhis2-export-validated.yaml` | `dhis2-export-validated` | An export gated on `validate.schema`, ids and periods held to `dhis2-uid` and `dhis2-period`. |
 | `dhis2-export-reshaped.yaml` | `dhis2-export-reshaped` | An export reshaped with `transform.jq`: the envelope's defaults pushed down, values made numeric, cells grouped per data element. |
 | `dhis2-export-per-org-unit.yaml` | `dhis2-export-per-org-unit` | One export per organisation unit with `for_each`, `items: continue` so one district's failure costs only that district; a second fanned `storage.write` writes one file per district, and a manifest lists what landed. |

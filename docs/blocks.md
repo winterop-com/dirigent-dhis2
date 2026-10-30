@@ -219,6 +219,9 @@ DHIS2 answers a send with the new conversation's uid on the `Location` header on
 block reads the conversation back to report it. A send the instance took without saying
 where is `rejected`, never retried, because a retry would send the message twice.
 
+If DHIS2 accepts the message but the fetch-back fails, a retry can send it twice, because
+dhis2w's `messaging.send` posts and then reads back.
+
 **Config**
 
 | Field | Type | Required | Default | Description |

@@ -12,13 +12,14 @@
 # the instance also sends it as email where it has SMTP configured. A user group, a user or an
 # organisation unit are all recipients; the block refuses a step that names none of them.
 #
-# THIS ONE WRITES TO THE DEMO. With the defaults it finds two districts under 70% ANC 1
-# coverage for 2025 and messages the three demo users in "Bo District M&E officers". Run it
-# with -p threshold=0 to see the whole flow end with the message step skipped and nothing
-# sent.
+# As written it sends nothing: the default threshold is 0, no district is below it, and the
+# run ends succeeded with the message step skipped. Give it a threshold to see an alert sent.
+# -p threshold=70 finds two districts under 70% ANC 1 coverage for 2025, and THAT RUN MESSAGES
+# THE DEMO GROUP "Bo District M&E officers" ON THE PUBLIC PLAY SERVER -- three demo users,
+# and a real write to a shared instance.
 #
-#   dg run --local examples/dhis2-compose/dhis2-alert-on-threshold.yaml -p threshold=0
 #   dg run --local examples/dhis2-compose/dhis2-alert-on-threshold.yaml
+#   dg run --local examples/dhis2-compose/dhis2-alert-on-threshold.yaml -p threshold=70
 #
 # TO MAKE IT YOURS: point the connection at your instance, name your indicator and your
 # group, and put the document on a schedule that runs after the analytics tables are rebuilt,
@@ -47,8 +48,8 @@ params:
       description: The ISO period the indicator is read for.
     threshold:
       type: number
-      default: 70
-      description: The coverage, in percent, a district has to reach to stay out of the alert.
+      default: 0
+      description: The coverage, in percent, a district has to reach to stay out of the alert. 0 sends nothing.
     user_group:
       type: string
       pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
