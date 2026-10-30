@@ -2,7 +2,7 @@
 
 **The DHIS2 adapter pack for dirigent.**
 
-The pack contributes one connection kind, three JSON Schema formats, and seven blocks that speak
+The pack contributes one connection kind, three JSON Schema formats, and eight blocks that speak
 DHIS2's asynchronous jobs, import summaries, completeness registrations, metadata, tracker and
 analytics reads as first-class steps. A pipeline that names `dhis2.data_value_set_export` says
 what it wants of the instance; it does not assemble the call out of raw HTTP, parse the import
@@ -21,7 +21,7 @@ gate and one rehearsed write against the public play demo, end to end.
   built from it.
 - Three [formats](formats.md), `dhis2-uid`, `dhis2-period` and `dhis2-code`, that a schema
   asserts against by writing `format:`.
-- Seven [blocks](blocks.md): six operators and one sensor, all in the `dhis2` group.
+- Eight [blocks](blocks.md): seven operators and one sensor, all in the `dhis2` group.
 - One [example](examples.md) document per operation, across five shelves.
 
 ## Install

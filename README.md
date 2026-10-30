@@ -22,6 +22,7 @@ steps, rather than composing them out of raw HTTP:
 | `dhis2.analytics_query` | operator | Runs one analytics query, aggregate or event/enrollment, and hands the grid on. |
 | `dhis2.data_value_set_export` | operator | Reads a data value set for a data set, period and org unit, and hands the document on. |
 | `dhis2.data_value_set_import` | operator | Imports a data value set, parsing the import summary and its conflicts. |
+| `dhis2.message` | operator | Sends a DHIS2 message to users, user groups or org units, which the instance also emails where SMTP is configured. |
 | `dhis2.metadata` | operator | Reads one metadata collection through the version-bound generic accessor. |
 | `dhis2.tracker` | operator | Reads a page of tracked entities, enrollments or events from `/api/tracker`. |
 | `dhis2.data_set_complete` | sensor | Holds a run until a data set is marked complete for the period. |
