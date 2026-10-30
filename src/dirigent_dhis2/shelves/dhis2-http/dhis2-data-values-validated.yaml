@@ -16,7 +16,11 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-data-values-validated
 name: Data values, id- and period-checked
-description: Fetch a DHIS2 data value set and validate its ids and periods against the pack's formats.
+description: |
+  Fetch a data value set and check its ids and periods against DHIS2's formats.
+
+  The carried schema holds them to `dhis2-uid` and `dhis2-period`, the formats this pack
+  contributes.
 
 tags: [dhis2, http, validate]
 

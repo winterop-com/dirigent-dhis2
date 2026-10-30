@@ -37,7 +37,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-import-from-storage
 name: Move a data value set through storage
-description: Export a data value set, write it to storage, read it back, and import it as a dry run.
+description: |
+  Export data values, save them to a file, read it back, and rehearse the import.
+
+  The export is written to storage and read back, and the import is a dry run.
 
 tags: [dhis2, storage, starter]
 

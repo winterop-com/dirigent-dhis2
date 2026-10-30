@@ -32,7 +32,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-import-partial
 name: Import what is valid, report what is not
-description: Take every acceptable data value and report the refused ones as conflicts.
+description: |
+  Take every acceptable data value and report the refused ones as conflicts.
+
+  As written it is a dry run, so nothing is written.
 
 tags: [dhis2]
 

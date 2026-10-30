@@ -19,7 +19,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-import-create-and-update
 name: Import with the CREATE_AND_UPDATE strategy
-description: Load a data value set so every cell holds the value the document gives it.
+description: |
+  Load a data value set so every cell holds the value the document gives it.
+
+  As written it is a dry run, so nothing is written.
 
 tags: [dhis2]
 

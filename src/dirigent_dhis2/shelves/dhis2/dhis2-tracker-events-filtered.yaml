@@ -27,7 +27,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-tracker-events-filtered
 name: Filter tracker events
-description: Read completed events changed since a date, narrowed by a captured data element value.
+description: |
+  Read completed events changed since a date that match a captured value.
+
+  The value is a data element filter, here an infant weight above 2500 grams.
 
 tags: [dhis2, tracker]
 

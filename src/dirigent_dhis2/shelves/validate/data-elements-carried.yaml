@@ -13,7 +13,10 @@ format: dirigent/v1
 kind: pipeline
 code: data-elements-carried
 name: Data elements, checked against a carried schema
-description: Fetch DHIS2 data elements with a fields projection, and validate their types against a carried schema.
+description: |
+  Fetch DHIS2 data elements and check their types against a schema.
+
+  The read uses a `fields` projection, and the schema is carried in the document.
 
 tags: [dhis2, validate, http]
 

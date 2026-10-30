@@ -29,7 +29,7 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-rebuild-then-query
 name: Rebuild, then read
-description: Rebuild the analytics tables and read an indicator out of them once the job is done.
+description: Rebuild the analytics tables, then read an indicator once the job is done.
 
 tags: [dhis2, analytics, starter]
 

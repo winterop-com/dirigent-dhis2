@@ -22,7 +22,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-import-create
 name: Import with the CREATE strategy
-description: Import data values that are missing and leave every value already recorded alone.
+description: |
+  Import data values that are missing and leave recorded values alone.
+
+  As written it is a dry run, so nothing is written.
 
 tags: [dhis2]
 

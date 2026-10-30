@@ -13,7 +13,10 @@ format: dirigent/v1
 kind: pipeline
 code: system-info-shape
 name: System info, shape-checked
-description: Read DHIS2 system information and validate the version and server date are present and typed.
+description: |
+  Read DHIS2 system information and check its version and server date.
+
+  The `dhis2-system-info` schema the instance holds requires both to be present and typed.
 
 tags: [dhis2, validate, http]
 

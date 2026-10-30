@@ -13,7 +13,11 @@ format: dirigent/v1
 kind: pipeline
 code: org-units-shape
 name: Org units, shape-checked
-description: Fetch DHIS2 organisation units with a fields projection, and validate the response shape.
+description: |
+  Fetch DHIS2 organisation units and check the shape of the response.
+
+  The read uses a `fields` projection, and the `dhis2-org-units` schema the instance holds checks
+  the answer.
 
 tags: [dhis2, validate, http]
 

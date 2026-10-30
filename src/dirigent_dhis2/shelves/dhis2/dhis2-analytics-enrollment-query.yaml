@@ -21,7 +21,7 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-analytics-enrollment-query
 name: An enrollment analytics line list
-description: Read a page of enrollments for one program from the enrollment analytics endpoint.
+description: Read a page of enrollments for one program from enrollment analytics.
 
 tags: [dhis2, analytics]
 

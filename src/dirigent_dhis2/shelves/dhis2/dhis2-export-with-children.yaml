@@ -22,7 +22,7 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-export-with-children
 name: Export a data value set with descendants
-description: Read one data set for one period at an organisation unit and everything below it.
+description: Read one data set for one period at an org unit and everything below it.
 
 tags: [dhis2]
 

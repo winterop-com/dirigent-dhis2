@@ -41,7 +41,11 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-mark-data-set-complete
 name: Mark a data set complete
-description: Read a data set's completion registration, then build the POST that signs the period off.
+description: |
+  Read a data set's sign-off, then send the request that signs the period off.
+
+  The sign-off is a completion registration. The POST goes to the playground, so nothing on the
+  demo changes.
 
 tags: [dhis2, http]
 

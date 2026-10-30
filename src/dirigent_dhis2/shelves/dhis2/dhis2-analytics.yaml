@@ -12,7 +12,7 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-analytics
 name: DHIS2 analytics pull
-description: Wait for a data-set window to close, run analytics, then export the tables.
+description: Wait for a data set sign-off, rebuild analytics, then export the data values.
 
 tags: [dhis2]
 

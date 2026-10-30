@@ -15,7 +15,11 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-org-units
 name: Org unit sync
-description: Fetch a compact, alphabetically ordered snapshot of every DHIS2 organisation unit.
+description: |
+  Save a snapshot of every DHIS2 organisation unit to storage.
+
+  The snapshot is compact and alphabetically ordered, and `storage.write` puts it in the run's
+  scratch space.
 
 tags: [dhis2, http, storage]
 

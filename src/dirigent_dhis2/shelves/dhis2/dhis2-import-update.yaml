@@ -17,7 +17,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-import-update
 name: Import with the UPDATE strategy
-description: Revise data values already recorded, refusing to create any that are missing.
+description: |
+  Revise data values already recorded, refusing to create any that are missing.
+
+  As written it is a dry run, so nothing is written.
 
 tags: [dhis2]
 

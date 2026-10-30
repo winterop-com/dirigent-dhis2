@@ -31,7 +31,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-events-by-stage
 name: Events of one program stage
-description: Read a page of events for a single program stage inside an occurrence date window.
+description: |
+  Read a page of events for one program stage between two dates.
+
+  The dates bound when the event occurred.
 
 tags: [dhis2, http, tracker]
 

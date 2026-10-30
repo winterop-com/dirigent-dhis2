@@ -26,7 +26,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-tracker-entities
 name: Read tracked entities
-description: Read the tracked entities enrolled in one program across an organisation unit subtree.
+description: |
+  Read the tracked entities enrolled in one program under an org unit.
+
+  The read covers the organisation unit's whole subtree.
 
 tags: [dhis2, tracker]
 

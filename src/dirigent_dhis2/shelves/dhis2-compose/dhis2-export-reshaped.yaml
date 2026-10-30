@@ -32,7 +32,10 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-export-reshaped
 name: Export, then reshape
-description: Export a data value set and reshape it into per-data-element totals with jq.
+description: |
+  Export a data value set and total it per data element.
+
+  A jq program does the reshaping.
 
 tags: [dhis2, transform, starter]
 
