@@ -9,7 +9,8 @@
 #       Off the form, never off the response: the response names the form, and the form is
 #       what carries the DHIS2 identifier. A response cannot be trusted to name a data set.
 #   the period extension                    ->  period
-#       An ISO period string, "202607", which is DHIS2's own vocabulary and not a date range.
+#       Its `iso` slice, an ISO period string such as "202607", which is DHIS2's own vocabulary
+#       and not a date range.
 #   the Location the response is about      ->  orgUnit
 #       FHIR points at Location/<uid>; DHIS2 wants the bare uid.
 #   one answered item                       ->  one data value
@@ -22,8 +23,8 @@
 #       between the two has told DHIS2 the form is done when it is not.
 #
 # The response below is inline so this document runs with nothing set up. In a real forwarder
-# it arrives on a webhook -- webhook-trigger.yaml is that half -- or is read from a spool
-# directory a FHIR facade writes into.
+# it arrives on an endpoint source -- fhir-subscription-to-dhis2.yaml in dirigent-integration is
+# that half -- or is read from a spool directory a FHIR facade writes into.
 #
 # Note what the translation does NOT do: it does not invent values for unanswered items. An
 # absent answer and a zero are different facts, and a form that skipped a question must not
@@ -109,7 +110,6 @@ steps:
     block: transform.jq
     config:
       input:
-        period: "${params.period}"
         response:
           resourceType: QuestionnaireResponse
           id: TuL8IOPzpHh-example-2
@@ -121,6 +121,12 @@ steps:
           extension:
             - url: "http://example.org/fhir/StructureDefinition/d2-form-type"
               valueCode: aggregate
+            - url: "http://example.org/fhir/StructureDefinition/d2-period"
+              extension:
+                - url: iso
+                  valueString: "${params.period}"
+                - url: type
+                  valueCode: Monthly
             - url: "http://example.org/fhir/StructureDefinition/d2-attribute-option-combo"
               valueCoding:
                 code: BqblOcSwGey
@@ -147,7 +153,7 @@ steps:
             - linkId: s1MDHOT6ENz
               text: Yellow fever doses given
       program: |
-        {period: .period, response: .response}
+        {response: .response}
 
   # The translation. One program, because the mapping needs to see the whole response at once
   # -- the data values come from the items, and the envelope around them comes from the
@@ -158,8 +164,9 @@ steps:
     config:
       input: "${steps.receive_capture.output.value}"
       program: |
-        .period as $period
-        | .response as $r
+        .response as $r
+        | ($r.extension[] | select(.url | endswith("/d2-period")).extension[]
+           | select(.url == "iso").valueString) as $period
         # Items nest, so the leaves are found by recursion rather than by one level of
         # indexing. An item with no answer is not a leaf that answered: it is skipped here,
         # which is what keeps an unanswered question out of the import entirely.

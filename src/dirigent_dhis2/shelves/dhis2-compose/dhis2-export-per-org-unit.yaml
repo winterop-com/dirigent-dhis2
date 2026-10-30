@@ -5,12 +5,10 @@
 # not. for_each is what splits it into thirteen, each with its own attempt, its own retry
 # budget and its own place in the run.
 #
-# The list is expanded when the run is created, which is why it reads params rather than
-# another step's output: the run's item grid has to exist from the moment the run is visible,
-# and that is what makes an item's progress something a person can watch. Fanning out over
-# something only a previous step knows -- the org units a metadata read returned -- is a
-# different shape: the reading pipeline triggers the fanning-out one, or the list is passed
-# in as a param.
+# The list reads params, so it is expanded when the run is created: the run's item grid exists
+# from the moment the run is visible, and an item's progress is something a person can watch
+# from the start. A for_each may also read a previous step's output -- the org units a metadata
+# read returned -- and then the grid is written once that step has settled.
 #
 # items: continue is the policy that makes the fan-out worth having. Under the default,
 # fail_fast, one district refusing fails the whole step. Under continue the failure is

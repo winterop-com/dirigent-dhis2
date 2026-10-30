@@ -6,8 +6,8 @@
 # The values can all be present with no registration, and a registration can exist over an
 # empty month; the two are independent by design.
 #
-# Reading a registration is GET /api/completeDataSetRegistrations with ds, pe and ou as query
-# parameters, and that read is what the native sensor does. Making one is a POST to the same
+# Reading a registration is GET /api/completeDataSetRegistrations with dataSet, period and orgUnit
+# as query parameters, and that read is what the native sensor does. Making one is a POST to the same
 # resource with a completeDataSetRegistrations array in the body, each entry naming the data
 # set, period, organisation unit and attribute option combo, plus completed: true.
 #

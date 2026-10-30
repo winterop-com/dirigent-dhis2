@@ -31,7 +31,7 @@ connections:
     description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
     kind: http
     config:
-      base_url: https://play.dhis2.org/2.42
+      base_url: https://play.dhis2.org/2.43
       follow_redirects_with_auth: true
       basic_username: admin
       basic_password: district
