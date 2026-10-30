@@ -50,6 +50,16 @@ or add it to a project:
 uv add dirigent-dhis2
 ```
 
+or beside a tool-installed `dg`, or once without installing anything:
+
+```bash
+uv tool install dirigent-cli --with dirigent-dhis2
+uvx --from dirigent-cli --with dirigent-dhis2 dg dev
+```
+
+The command is in `dirigent-cli`, so `uvx` always takes `--from dirigent-cli`. The pack pins its
+dirigent packages at its own version, so a pinned install names the same release for both.
+
 ## Develop
 
 ```bash
