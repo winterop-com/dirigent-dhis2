@@ -205,3 +205,94 @@ async def test_a_refusal_with_no_object_names_the_value_by_its_position(ctx: Fak
         await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
     assert "value #1: Value #1 value `not-a-number` is no valid INTEGER" in refused.value.message
     assert ": :" not in refused.value.message
+
+
+#: Answers that are not an import summary, whatever status they arrive with.
+NOT_A_SUMMARY = [
+    pytest.param({"status": "OK", "response": {"foo": "bar"}}, id="arbitrary-response"),
+    pytest.param(
+        {
+            "status": "OK",
+            "response": {
+                "responseType": "JobConfigurationWebMessageResponse",
+                "id": "abc",
+                "jobType": "DATAVALUE_IMPORT",
+            },
+        },
+        id="job-envelope",
+    ),
+    pytest.param({"status": "OK", "response": {"imported": "many"}}, id="counts-that-are-not-numbers"),
+]
+
+
+@pytest.mark.parametrize("body", NOT_A_SUMMARY)
+async def test_a_200_whose_response_is_not_a_summary_is_not_a_success(
+    ctx: FakeContext, dhis2: Dhis2Server, body: dict[str, object]
+) -> None:
+    dhis2.post(IMPORT).answers(json(200, body))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
+    assert refused.value.code == "dhis2.import.no_summary"
+    assert refused.value.error_class is ErrorClass.REJECTED
+
+
+async def test_a_409_whose_response_is_not_a_summary_is_an_ordinary_refusal(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    dhis2.post(IMPORT).answers(json(409, {"httpStatusCode": 409, "message": "conflict", "response": {"foo": "bar"}}))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
+    assert refused.value.code == "dhis2.answered"
+    assert refused.value.error_class is ErrorClass.REJECTED
+
+
+@pytest.mark.parametrize("word", ["error", "FAILED", "success", "OK", "COMPLETED"])
+async def test_a_summary_with_any_other_status_word_is_not_a_success(
+    ctx: FakeContext, dhis2: Dhis2Server, word: str
+) -> None:
+    dhis2.post(IMPORT).answers(json(200, summary(word, ignored=1)))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
+    assert refused.value.code == "dhis2.import.unknown_status"
+    assert refused.value.error_class is ErrorClass.REJECTED
+    assert word in refused.value.message
+
+
+async def test_a_summary_with_no_status_beside_an_ok_envelope_is_not_a_success(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    body = summary("SUCCESS", imported=1)
+    del body["response"]["status"]
+    dhis2.post(IMPORT).answers(json(200, body))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
+    assert refused.value.code == "dhis2.import.unknown_status"
+
+
+async def test_an_error_envelope_outranks_the_summary_inside_it(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.post(IMPORT).answers(json(200, {**summary("SUCCESS", imported=1), "status": "ERROR"}))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx)
+    assert refused.value.code == "dhis2.import.refused"
+    assert refused.value.error_class is ErrorClass.REJECTED
+
+
+#: The shapes of a real summary, each of which still stands.
+REAL_SUMMARIES = [
+    pytest.param(summary("SUCCESS", imported=1), id="typed"),
+    pytest.param(
+        {"status": "OK", "response": {"status": "SUCCESS", "importCount": {"imported": 1}}}, id="nested-counts"
+    ),
+    pytest.param({"status": "OK", "response": {"status": "SUCCESS", "imported": 1, "ignored": 0}}, id="inline-counts"),
+    pytest.param({"status": "WARNING", "response": {"status": "WARNING", "imported": 1}}, id="warning-envelope"),
+]
+
+
+@pytest.mark.parametrize("body", REAL_SUMMARIES)
+async def test_a_real_summary_still_stands(ctx: FakeContext, dhis2: Dhis2Server, body: dict[str, object]) -> None:
+    dhis2.post(IMPORT).answers(json(200, body))
+    output = await call_block(
+        Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx
+    )
+    assert output.model_dump()["imported"] == 1
+    assert output.model_dump()["status"] in {"SUCCESS", "WARNING"}

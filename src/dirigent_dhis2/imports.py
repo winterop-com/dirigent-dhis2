@@ -1,7 +1,7 @@
 """``dhis2.data_value_set_import``: write data values into the instance, reading its summary honestly."""
 
 import json
-from typing import ClassVar, Literal
+from typing import ClassVar, Final, Literal
 
 from dhis2w_client import WebMessageResponse
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
@@ -16,6 +16,7 @@ from dirigent_dhis2.messages import (
     IMPORT_PARTIAL,
     IMPORT_REFUSED,
     IMPORT_TOOK_NOTHING,
+    IMPORT_UNKNOWN_STATUS,
     IMPORT_VALUES_IGNORED,
 )
 from dirigent_dhis2.web import Dhis2Operator, refuse
@@ -23,6 +24,12 @@ from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpe
 
 #: How many conflicts a refusal names before pointing at the rest.
 NAMED_CONFLICTS = 3
+
+#: The counts an import summary carries, under ``importCount`` or inline.
+COUNT_NAMES: Final = ("imported", "updated", "ignored", "deleted")
+
+#: The summary statuses an import stands on; every other word fails the step.
+STANDING_STATUSES: Final = ("SUCCESS", "WARNING")
 
 #: What the import may do to values already there.
 ImportStrategy = Literal["CREATE", "UPDATE", "CREATE_AND_UPDATE", "DELETE"]
@@ -75,7 +82,7 @@ class Dhis2DataValueSetImportOutput(BlockModel):
     """What the import summary counted."""
 
     status: str
-    """The summary's own word: SUCCESS, WARNING, or ERROR."""
+    """The summary's own word: SUCCESS or WARNING."""
 
     imported: int
     """How many values were created."""
@@ -94,9 +101,11 @@ class Dhis2DataValueSetImportOutput(BlockModel):
 
 
 def _has_summary(envelope: WebMessageResponse) -> bool:
-    """Whether the envelope carries an import summary: a typed count or the summary's own type."""
+    """Whether the envelope carries an import summary: the summary's own type, or its counts."""
     summary = envelope.response or {}
-    return summary.get("responseType") == "ImportSummary" or envelope.import_count() is not None
+    if summary.get("responseType") == "ImportSummary" or isinstance(summary.get("importCount"), dict):
+        return True
+    return any(isinstance(summary.get(name), int) for name in COUNT_NAMES)
 
 
 def _summary_in(error: Dhis2ApiError) -> WebMessageResponse | None:
@@ -115,20 +124,23 @@ def _summary_in(error: Dhis2ApiError) -> WebMessageResponse | None:
     return envelope
 
 
+def _outer_status(envelope: WebMessageResponse) -> str:
+    """Read the envelope's own status."""
+    outer = envelope.status
+    return str(getattr(outer, "value", outer) or "")
+
+
 def _status(envelope: WebMessageResponse) -> str:
     """Read the summary's status, falling back to the envelope's own when the summary has none."""
     inner = (envelope.response or {}).get("status")
-    if inner:
-        return str(inner)
-    outer = envelope.status
-    return str(getattr(outer, "value", outer) or "")
+    return str(inner) if inner else _outer_status(envelope)
 
 
 def _counts(envelope: WebMessageResponse) -> dict[str, int]:
     """Read the summary's counts off the typed envelope, defaulting what a version left out."""
     counted = envelope.import_count()
     read: dict[str, int] = {}
-    for name in ("imported", "updated", "ignored", "deleted"):
+    for name in COUNT_NAMES:
         value = getattr(counted, name, None) if counted is not None else None
         read[name] = value if isinstance(value, int) else 0
     return read
@@ -223,9 +235,16 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
         counts = _counts(envelope)
         conflicts = _conflicts(envelope)
         ctx.log.info("import summary", status=status, **counts, conflict_count=len(conflicts))
-        if status == "ERROR":
+        if "ERROR" in (status, _outer_status(envelope)):
             raise BlockFailure(
                 IMPORT_REFUSED, error_class=ErrorClass.REJECTED, detail=_detail(conflicts, counts), **counts
+            )
+        if status not in STANDING_STATUSES:
+            raise BlockFailure(
+                IMPORT_UNKNOWN_STATUS,
+                error_class=ErrorClass.REJECTED,
+                where=f"POST {DATA_VALUE_SETS_PATH}",
+                status=status,
             )
         if status == "WARNING" and counts["ignored"] > 0 and config.atomic_mode == "ALL":
             # DHIS2 commits the good values beside the conflicts under atomicMode=ALL on every
