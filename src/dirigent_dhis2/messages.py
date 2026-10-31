@@ -85,3 +85,8 @@ NO_BASIC_PASSWORD = DHIS2.define(
     "connection.no_basic_password",
     "basic credentials need a basic_password beside the basic_username",
 )
+
+BAD_API_TOKEN = DHIS2.define(
+    "connection.bad_api_token",
+    "an api_token must be visible ASCII with no whitespace, or it cannot be sent as a header value",
+)

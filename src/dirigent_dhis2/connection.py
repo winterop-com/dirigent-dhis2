@@ -1,14 +1,16 @@
 """The ``dhis2`` connection kind: one DHIS2 instance, its credential, and the client that talks to it."""
 
+import re
 from datetime import timedelta
-from typing import ClassVar
+from typing import ClassVar, Final
 
 from dhis2w_client import Dhis2Client, Profile, build_auth_provider
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
-from pydantic import BaseModel, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
 from dirigent_common import BlockModel, Duration, HealthReport
 from dirigent_dhis2.messages import (
+    BAD_API_TOKEN,
     BOTH_CREDENTIALS,
     CONNECTION_UNREACHABLE,
     NO_BASIC_PASSWORD,
@@ -17,9 +19,14 @@ from dirigent_dhis2.messages import (
 from dirigent_dhis2.web import describe
 from dirigent_plugin import ConnectionKind, StepContext
 
+#: What an API token may hold: visible ASCII, the only text a header value carries unchanged.
+API_TOKEN: Final = re.compile(r"[\x21-\x7e]+")
+
 
 class Dhis2ConnectionConfig(BlockModel):
     """Everything needed to talk to one DHIS2 instance, credentials included."""
+
+    model_config = ConfigDict(hide_input_in_errors=True)
 
     base_url: str = Field(min_length=1)
     """The instance root every request path is resolved against, version pin included.
@@ -29,7 +36,7 @@ class Dhis2ConnectionConfig(BlockModel):
     """
 
     api_token: SecretStr | None = None
-    """A personal access token, sent as ``Authorization: ApiToken``."""
+    """A personal access token, sent as ``Authorization: ApiToken``: visible ASCII with no whitespace."""
 
     basic_username: str | None = None
     """The user half of HTTP basic authentication."""
@@ -45,6 +52,14 @@ class Dhis2ConnectionConfig(BlockModel):
 
     timeout: Duration = Field(default=timedelta(seconds=30), gt=timedelta(0))
     """The timeout applied to every request through this connection."""
+
+    @field_validator("api_token")
+    @classmethod
+    def _token_fits_a_header(cls, token: SecretStr | None) -> SecretStr | None:
+        """Reject a token that cannot be sent as a header value, without saying what it held."""
+        if token is not None and API_TOKEN.fullmatch(token.get_secret_value()) is None:
+            raise ValueError(BAD_API_TOKEN.render())
+        return token
 
     @model_validator(mode="after")
     def _require_one_credential(self) -> "Dhis2ConnectionConfig":

@@ -10,7 +10,7 @@ never from a step.
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `base_url` | `string` | yes |  | The instance root every request path is resolved against, version pin included. |
-| `api_token` | `string (password) or null` |  | `null` | A personal access token, sent as `Authorization: ApiToken`. |
+| `api_token` | `string (password) or null` |  | `null` | A personal access token, sent as `Authorization: ApiToken`: visible ASCII with no whitespace. |
 | `basic_username` | `string or null` |  | `null` | The user half of HTTP basic authentication. |
 | `basic_password` | `string (password) or null` |  | `null` | The secret half of HTTP basic authentication. |
 | `verify_tls` | `boolean` |  | `true` | Whether certificates are verified; turning this off is a per-connection decision. |
@@ -33,7 +33,13 @@ refuses anything else:
 - neither is refused,
 - a `basic_username` without a `basic_password` is refused.
 
-A refusal happens when the connection is created or updated, not when a step first runs.
+An `api_token` holding anything but visible ASCII, such as the trailing newline a pasted or
+file-read token brings with it, is refused too, because it cannot be sent as a header value. The
+refusal does not repeat the value. A basic password is base64-encoded on the way to the header and
+takes any text.
+
+A refusal happens when the connection is created or updated, not when a step first runs. A row
+stored before a rule existed fails when it is next read: its check is unhealthy and its steps fail.
 
 ## A `base_url` that redirects
 
