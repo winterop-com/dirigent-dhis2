@@ -43,7 +43,8 @@ Idempotent.
 
 Runs one query and hands the grid on: `aggregate` reads `/api/analytics`, and `event` or
 `enrollment` reads `/api/analytics/{events,enrollments}/query` under one program, which is why
-those two modes require a `program`.
+those two modes require a `program`. A `program` that is not a DHIS2 uid fails the step before any
+request is sent, so a value from a run param or a source's input stays inside the query path.
 
 **Config**
 
@@ -76,7 +77,9 @@ Not idempotent. Polls every 1m unless the step says otherwise.
 Asks the instance first whether an analytics job is already running, and follows that one
 instead of submitting a second when it is; `join_running: false` always submits, and so does a
 user the instance refuses the job listing. Otherwise it submits the job to
-`/api/resourceTables/analytics`. Either way it then follows the task's notification feed: each
+`/api/resourceTables/analytics`. A job type or task id in the answer that is not one plain path
+segment fails the step with `dhis2.analytics.no_task_reference`, before the task is polled. Either
+way it then follows the task's notification feed: each
 probe streams the messages new since its cursor into the run's log, and the feed's own
 completion is what ends the step. A task that has written nothing fifteen minutes after
 submission is taken to be gone, because DHIS2 answers a task it never had exactly the way it

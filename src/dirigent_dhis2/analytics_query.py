@@ -5,10 +5,11 @@ from typing import Any, ClassVar, Final, Literal
 
 from dhis2w_client import AnalyticsAccessor
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
-from pydantic import BaseModel, JsonValue, model_validator
+from pydantic import BaseModel, Field, JsonValue, model_validator
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
+from dirigent_dhis2.formats import UID_PATTERN
 from dirigent_dhis2.messages import NO_PROGRAM
 from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
 from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, StepContext
@@ -38,7 +39,7 @@ class Dhis2AnalyticsQueryConfig(BlockModel):
     string such as ``ou:ImspTQPwCqd``, or a list such as ``[ou:ImspTQPwCqd, pe:2026Q1]`` that
     is sent as one ``filter=`` each."""
 
-    program: str | None = None
+    program: str | None = Field(default=None, pattern=UID_PATTERN)
     """The uid of the program an ``event`` or ``enrollment`` query reads; unused for aggregate."""
 
     start_date: str | None = None

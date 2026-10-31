@@ -34,6 +34,7 @@ params:
   properties:
     program:
       type: string
+      format: dhis2-uid
       default: IpHINAT79UW
       description: The uid of the program whose enrollments are read.
     org_unit:

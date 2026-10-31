@@ -322,3 +322,37 @@ async def test_fetch_refuses_a_feed_without_a_terminal_row(ctx: FakeContext, dhi
     assert refused.value.error_class is ErrorClass.TRANSIENT
     assert refused.value.code == "dhis2.analytics.no_result"
     assert "no result to collect" in refused.value.message
+
+
+#: A job type or task uid an answer could carry that would move the task poll off its path.
+HOSTILE_SEGMENTS = ["../../../me#", "../users", "x?y=1", "%2e%2e", "tk 1", "tk1\n", ""]
+
+
+@pytest.mark.parametrize("task_uid", HOSTILE_SEGMENTS)
+async def test_a_submission_answering_a_task_uid_that_is_no_path_segment_is_refused(
+    ctx: FakeContext, dhis2: Dhis2Server, task_uid: str
+) -> None:
+    dhis2.post(SUBMIT).answers(json(200, submitted(task_uid=task_uid, endpoint="/api/system/tasks/x/y")))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION, "join_running": False}, ctx)
+    assert refused.value.code == "dhis2.analytics.no_task_reference"
+    assert refused.value.error_class is ErrorClass.REJECTED
+
+
+@pytest.mark.parametrize("job_type", HOSTILE_SEGMENTS)
+async def test_a_submission_answering_a_job_type_that_is_no_path_segment_is_refused(
+    ctx: FakeContext, dhis2: Dhis2Server, job_type: str
+) -> None:
+    dhis2.post(SUBMIT).answers(json(200, submitted(job_type=job_type, endpoint="/api/system/tasks/x/y")))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION, "join_running": False}, ctx)
+    assert refused.value.code == "dhis2.analytics.no_task_reference"
+
+
+async def test_a_running_job_whose_id_is_no_path_segment_is_not_joined(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    running(dhis2, "../../../me#")
+    submit = dhis2.post(SUBMIT).answers(json(200, submitted()))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
+    assert refused.value.code == "dhis2.analytics.no_task_reference"
+    assert submit.requests == []

@@ -40,6 +40,7 @@ params:
   properties:
     program:
       type: string
+      format: dhis2-uid
       default: IpHINAT79UW
       description: The uid of the program the line list is drawn from. Child Programme by default.
     org_unit:

@@ -1,6 +1,7 @@
 """``dhis2.analytics_run``: run the analytics tables job, submitted once and then probed."""
 
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, ClassVar, Final
 
@@ -50,6 +51,9 @@ JOB_CONFIGURATIONS_PATH: Final = "/api/jobConfigurations"
 #: by membership. A table rebuild's story is a few hundred rows at most, so the handle stays
 #: small; it is not trimmed.
 CURSOR = "cursor"
+
+#: A job type or task uid as it may sit in the task poll's path: one segment, nothing to escape.
+TASK_SEGMENT: Final = re.compile(r"[A-Za-z0-9_-]+")
 
 #: How many notification messages the output keeps, from the end of the task's story.
 MESSAGE_TAIL = 10
@@ -127,6 +131,11 @@ def _identity(entry: Any) -> str:
     return str(getattr(entry, "uid", None) or getattr(entry, "id", None) or (time.isoformat() if time else ""))
 
 
+def _followable(job_type: str, task_uid: str) -> bool:
+    """Whether both halves of a task reference the instance answered can name one poll path."""
+    return all(TASK_SEGMENT.fullmatch(part) for part in (job_type, task_uid))
+
+
 def _silent_for(ctx: StepContext) -> timedelta:
     """How long this attempt has been waiting on the task, measured from its first start."""
     started = ctx.started_at if ctx.started_at.tzinfo is not None else ctx.started_at.replace(tzinfo=UTC)
@@ -169,6 +178,8 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
             if config.join_running:
                 running = await _running_job(client, ctx)
                 if running is not None:
+                    if not _followable(ANALYTICS_JOB_TYPE, running):
+                        raise BlockFailure(ANALYTICS_NO_TASK_REFERENCE, error_class=ErrorClass.REJECTED)
                     notifier = f"/api/system/tasks/{ANALYTICS_JOB_TYPE}/{running}"
                     ctx.log.info("analytics job already running, following it", notifier=notifier)
                     return RemoteHandle(
@@ -192,6 +203,8 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
         if task_ref is None or endpoint is None:
             raise BlockFailure(ANALYTICS_NO_TASK_REFERENCE, error_class=ErrorClass.REJECTED)
         job_type, task_uid = task_ref
+        if not _followable(job_type, task_uid):
+            raise BlockFailure(ANALYTICS_NO_TASK_REFERENCE, error_class=ErrorClass.REJECTED)
         ctx.log.info("analytics job submitted", notifier=endpoint)
         return RemoteHandle(block_id=self.spec.id, ref=task_uid, meta={NOTIFIER: endpoint, JOB_TYPE: job_type})
 

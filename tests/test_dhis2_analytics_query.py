@@ -152,3 +152,53 @@ async def test_an_event_query_that_reached_the_block_without_a_program_is_refuse
     assert refused.value.error_class is ErrorClass.REJECTED
     assert refused.value.code == "dhis2.analytics_query.no_program"
     assert refused.value.params["mode"] == "event"
+
+
+#: What a value below the document's author can put in ``program``, each of which moved the GET.
+HOSTILE_PROGRAMS = [
+    "../../../users#",
+    "../../../../../other-app/secret",
+    "%2e%2e/me",
+    "..%2fme",
+    "x?y=1",
+    "IpHINAT79UW\n",
+    "IpHINAT79U/",
+    "/IpHINAT79UW",
+    "IpHINAT79UW#",
+    "IpHINAT79UWX",
+    "",
+]
+
+
+@pytest.mark.parametrize("program", HOSTILE_PROGRAMS)
+@pytest.mark.parametrize("mode", ["event", "enrollment"])
+async def test_a_program_that_is_not_a_uid_sends_no_request(
+    ctx: FakeContext, dhis2: Dhis2Server, mode: str, program: str
+) -> None:
+    """Whatever the value says, it is refused before the connection is opened."""
+    with pytest.raises(ValidationError):
+        await call_block(
+            Dhis2AnalyticsQueryOperator(), {"connection": CONNECTION, "mode": mode, "program": program}, ctx
+        )
+    assert [route.requests for route in dhis2.routes.values() if route.requests] == []
+
+
+async def test_a_program_cannot_move_the_read_off_the_analytics_endpoint(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    """The value that climbed to ``/api/users`` under the connection's credential reaches no route."""
+    users = dhis2.get(f"{BASE_URL}/api/users").answers(json(200, {"users": [{"id": "secret"}]}))
+    with pytest.raises(ValidationError):
+        await call_block(
+            Dhis2AnalyticsQueryOperator(),
+            {"connection": CONNECTION, "mode": "event", "program": "../../../users#"},
+            ctx,
+        )
+    assert users.requests == []
+
+
+@pytest.mark.parametrize(("url", "query"), MODES)
+async def test_a_program_uid_is_still_read(
+    ctx: FakeContext, dhis2: Dhis2Server, url: str, query: dict[str, JsonValue]
+) -> None:
+    route = dhis2.get(url).answers(json(200, GRID))
+    await call_block(Dhis2AnalyticsQueryOperator(), {"connection": CONNECTION, **query}, ctx)
+    assert route.last.url.path == httpx2.URL(url).path
