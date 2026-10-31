@@ -50,6 +50,12 @@ IMPORT_VALUES_IGNORED = DHIS2.define("import.values_ignored", "{ignored} values 
 
 CONNECTION_UNREACHABLE = DHIS2.define("connection.unreachable", "the instance did not answer: {detail}")
 
+REDIRECT_REFUSED = DHIS2.define(
+    "connection.redirect_refused",
+    "base_url on {configured} redirects to {target}, which is neither that host, a subdomain of it, nor under "
+    "dhis2.org beside it, so the credential was not sent; set base_url to the target if it is yours",
+)
+
 METADATA_UNKNOWN_RESOURCE = DHIS2.define(
     "metadata.unknown_resource",
     "the instance's version knows no metadata resource named '{resource}'",

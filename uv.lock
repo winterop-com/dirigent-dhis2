@@ -315,6 +315,7 @@ dependencies = [
     { name = "dhis2w-client" },
     { name = "dirigent-common" },
     { name = "dirigent-plugin" },
+    { name = "httpx2" },
 ]
 
 [package.dev-dependencies]
@@ -339,6 +340,7 @@ requires-dist = [
     { name = "dhis2w-client", specifier = ">=1.33.1,<2" },
     { name = "dirigent-common", specifier = "==0.27.1" },
     { name = "dirigent-plugin", specifier = "==0.27.1" },
+    { name = "httpx2", specifier = ">=2.12.0" },
 ]
 
 [package.metadata.requires-dev]
