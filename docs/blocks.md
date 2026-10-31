@@ -163,9 +163,12 @@ output (a set held in storage comes in through `storage.read`), and reads the im
 verdict too, not a transport failure. A summary whose status is `ERROR` fails the step with the
 first conflicts named, and so does a `WARNING` with ignored values under `atomic_mode: ALL`.
 DHIS2 does not honour `ALL` as the rollback it describes: on every supported major the good
-values are committed beside the conflicts, so that failure names how many values landed. A 200
-without an import summary in it fails the step too, since nothing then says the import took.
-Every one of these failures is `rejected`, so the same document is not retried against the same
+values are committed beside the conflicts, so that failure names how many values landed. An
+envelope whose own status is `ERROR` fails the same way, whatever its summary says. A 200 without
+an import summary in it fails the step too, since nothing then says the import took, and so does a
+summary whose status is any word but `SUCCESS` or `WARNING`. A summary is a `response` with
+`responseType: ImportSummary`, an `importCount` object, or the counts inline. A 409 with none of
+those is an ordinary refusal, `dhis2.answered`. Every one of these failures is `rejected`, so the same document is not retried against the same
 instance.
 
 Each conflict carries the instance's `object` and `value`, its `error_code`, and the `indexes`
@@ -189,7 +192,7 @@ A dry run sends the document without its `completeDate`, and says so in the log.
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `status` | `string` | yes |  | The summary's own word: SUCCESS, WARNING, or ERROR. |
+| `status` | `string` | yes |  | The summary's own word: SUCCESS or WARNING. |
 | `imported` | `integer` | yes |  | How many values were created. |
 | `updated` | `integer` | yes |  | How many values were revised. |
 | `ignored` | `integer` | yes |  | How many values the instance did not take. |
@@ -372,6 +375,7 @@ last four are what the connection kind refuses at validation.
 | `dhis2.analytics.task_disappeared` | `task {task} disappeared before its result could be collected` |
 | `dhis2.analytics.no_result` | `task {task} has no result to collect: the instance holds no terminal notification for it` |
 | `dhis2.import.no_summary` | `{where} answered without an import summary, so nothing says the import took` |
+| `dhis2.import.unknown_status` | `{where} answered a summary whose status is '{status}', so nothing says the import took` |
 | `dhis2.import.refused` | `the import was refused: {detail}` |
 | `dhis2.import.took_nothing` | `the import took nothing: {detail}` |
 | `dhis2.import.partial` | `the import took {taken} values and refused {ignored} despite atomic_mode ALL: {detail}` |

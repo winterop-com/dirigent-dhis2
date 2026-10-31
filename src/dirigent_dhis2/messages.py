@@ -32,6 +32,11 @@ IMPORT_NO_SUMMARY = DHIS2.define(
     "{where} answered without an import summary, so nothing says the import took",
 )
 
+IMPORT_UNKNOWN_STATUS = DHIS2.define(
+    "import.unknown_status",
+    "{where} answered a summary whose status is '{status}', so nothing says the import took",
+)
+
 IMPORT_REFUSED = DHIS2.define("import.refused", "the import was refused: {detail}")
 
 IMPORT_TOOK_NOTHING = DHIS2.define("import.took_nothing", "the import took nothing: {detail}")
