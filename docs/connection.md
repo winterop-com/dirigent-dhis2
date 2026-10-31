@@ -44,9 +44,26 @@ stored before a rule existed fails when it is next read: its check is unhealthy 
 ## A `base_url` that redirects
 
 A client follows `base_url`'s redirects once, without the credential, and talks to where they
-land when the target keeps the scheme, sits on the same registrable domain and answers like
-DHIS2. Anything else keeps `base_url` itself, so an open redirect or a sign-in page never
-receives the credential.
+land when all of these hold:
+
+- the target keeps the scheme,
+- the target's host is `base_url`'s host, a subdomain of it, or under `dhis2.org` beside it,
+- the target answers an anonymous `/api/system/info` like DHIS2: JSON with a `version` or
+  `contextPath`, or DHIS2's own error envelope.
+
+Any other target never receives the credential: an open redirect or a sign-in page does not, and
+neither does a host that only shares its last labels with `base_url`. `dhis2.health.co.uk` and
+`attacker.co.uk` end alike and have different registrants, and so do two names under a shared
+platform domain such as `azurewebsites.net` or `github.io`. The connection stays on `base_url`, or
+its check and steps fail with `dhis2.connection.redirect_refused`, naming the target.
+
+Two sibling hosts under one domain of your own are not told apart from those, so
+`dhis2.example.org` redirecting to `hmis.example.org` is not followed either. Set `base_url` to the
+target.
+
+The answer to `/api/system/info` is something any host can send, so that test tells DHIS2 from a
+sign-in page and says nothing about who holds the target. The rule on the host is what keeps the
+credential in place.
 
 `https://play.dhis2.org/2.43` and `https://play.dhis2.org/2.42` are aliases for the newest play
 demo of each major, and resolve this way: a connection naming one follows the demo as it moves.

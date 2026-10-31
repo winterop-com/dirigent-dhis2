@@ -378,6 +378,7 @@ last four are what the connection kind refuses at validation.
 | `dhis2.import.conflicts_and_more` | `{named} (and {more} more)` |
 | `dhis2.import.values_ignored` | `{ignored} values ignored` |
 | `dhis2.connection.unreachable` | `the instance did not answer: {detail}` |
+| `dhis2.connection.redirect_refused` | `base_url on {configured} redirects to {target}, which is neither that host, a subdomain of it, nor under dhis2.org beside it, so the credential was not sent; set base_url to the target if it is yours` |
 | `dhis2.metadata.unknown_resource` | `the instance's version knows no metadata resource named '{resource}'` |
 | `dhis2.message.no_recipient` | `a message needs at least one recipient in users, user_groups or org_units` |
 | `dhis2.message.no_conversation` | `{where} took the message but answered without the conversation it created` |

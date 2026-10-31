@@ -1,9 +1,11 @@
 """The ``dhis2`` connection kind: one DHIS2 instance, its credential, and the client that talks to it."""
 
 import re
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import ClassVar, Final
 
+import httpx2
 from dhis2w_client import Dhis2Client, Profile, build_auth_provider
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
@@ -15,9 +17,13 @@ from dirigent_dhis2.messages import (
     CONNECTION_UNREACHABLE,
     NO_BASIC_PASSWORD,
     NO_CREDENTIAL,
+    REDIRECT_REFUSED,
 )
 from dirigent_dhis2.web import describe
-from dirigent_plugin import ConnectionKind, StepContext
+from dirigent_plugin import BlockFailure, ConnectionKind, ErrorClass, StepContext
+
+#: The domains ``base_url``'s redirect may move within, between any two hosts under them.
+ADOPTABLE_DOMAINS: Final = ("dhis2.org",)
 
 #: What an API token may hold: visible ASCII, the only text a header value carries unchanged.
 API_TOKEN: Final = re.compile(r"[\x21-\x7e]+")
@@ -32,7 +38,8 @@ class Dhis2ConnectionConfig(BlockModel):
     """The instance root every request path is resolved against, version pin included.
 
     A root that redirects is followed once, without the credential, and the target is used
-    when it keeps the scheme, shares the registrable domain and answers like DHIS2.
+    when it keeps the scheme, answers like DHIS2, and is this host, a subdomain of it, or
+    under ``dhis2.org`` beside it.
     """
 
     api_token: SecretStr | None = None
@@ -81,11 +88,38 @@ def _profile(config: Dhis2ConnectionConfig) -> Profile:
     return Profile(base_url=config.base_url, auth="basic", username=config.basic_username, password=password)
 
 
+def answers_for(configured: str, host: str) -> bool:
+    """Whether a credentialed request may go to ``host`` for a ``base_url`` on ``configured``.
+
+    That is the same host, a subdomain of it, or both under a domain in ``ADOPTABLE_DOMAINS``.
+    Sharing their last labels does not qualify two hosts, as ``dhis2.health.co.uk`` and
+    ``attacker.co.uk`` do.
+    """
+    configured, host = configured.rstrip("."), host.rstrip(".")
+    if host == configured or host.endswith(f".{configured}"):
+        return True
+    return any(configured.endswith(f".{domain}") and host.endswith(f".{domain}") for domain in ADOPTABLE_DOMAINS)
+
+
+def stays_on_the_instance(config: Dhis2ConnectionConfig) -> Callable[[httpx2.Request], Awaitable[None]]:
+    """Build the request hook that refuses a credentialed request ``answers_for`` does not allow."""
+    configured = httpx2.URL(config.base_url).host
+
+    async def refuse_another_host(request: httpx2.Request) -> None:
+        if not answers_for(configured, request.url.host):
+            raise BlockFailure(
+                REDIRECT_REFUSED, error_class=ErrorClass.REJECTED, configured=configured, target=request.url.host
+            )
+
+    return refuse_another_host
+
+
 def build_client(config: Dhis2ConnectionConfig) -> Dhis2Client:
     """Build a dhis2w-client bound to the connection's URL, credential, TLS setting, and timeout.
 
     The client is returned unconnected: entering it as an async context manager opens the pool
-    and detects the instance's version from ``/api/system/info`` the dhis2w way.
+    and detects the instance's version from ``/api/system/info`` the dhis2w way. Its pool sends
+    the credential only where ``answers_for`` allows, unless ``follow_redirects_with_auth`` is on.
     """
     return Dhis2Client(
         config.base_url,
@@ -93,6 +127,7 @@ def build_client(config: Dhis2ConnectionConfig) -> Dhis2Client:
         timeout=config.timeout.total_seconds(),
         verify=config.verify_tls,
         follow_redirects_with_auth=config.follow_redirects_with_auth,
+        event_hooks=None if config.follow_redirects_with_auth else {"request": [stays_on_the_instance(config)]},
     )
 
 
