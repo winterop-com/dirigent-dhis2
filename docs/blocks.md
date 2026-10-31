@@ -362,7 +362,7 @@ A refusal's message is the instance's own words when it gave any: a DHIS2 web me
 A refusal is catalogued: it carries a stable dotted code beside the sentence it renders, so a
 stream of run records is selected by code however the English is later reworded --
 `jq 'select(.error_code == "dhis2.import.refused")'`. The code is API and the text is not. The
-last three are what the connection kind refuses at validation.
+last four are what the connection kind refuses at validation.
 
 | Code | Text |
 | --- | --- |
@@ -385,3 +385,4 @@ last three are what the connection kind refuses at validation.
 | `dhis2.connection.both_credentials` | `a dhis2 connection takes an api_token or basic credentials, not both` |
 | `dhis2.connection.no_credential` | `a dhis2 connection needs an api_token or basic credentials` |
 | `dhis2.connection.no_basic_password` | `basic credentials need a basic_password beside the basic_username` |
+| `dhis2.connection.bad_api_token` | `an api_token must be visible ASCII with no whitespace, or it cannot be sent as a header value` |

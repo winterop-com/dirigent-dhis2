@@ -1,5 +1,6 @@
 """Tests for the dhis2 connection kind and the clients built from it."""
 
+import asyncio
 import base64
 from datetime import timedelta
 from typing import Any
@@ -10,7 +11,7 @@ from pydantic import BaseModel, SecretStr, ValidationError
 
 from dhis2server import serve
 from dirigent_dhis2.connection import Dhis2ConnectionConfig, Dhis2ConnectionKind, build_client, settings_of
-from dirigent_dhis2.messages import CONNECTION_UNREACHABLE
+from dirigent_dhis2.messages import BAD_API_TOKEN, CONNECTION_UNREACHABLE
 
 
 async def _authorization_sent(monkeypatch: pytest.MonkeyPatch, config: Dhis2ConnectionConfig) -> str:
@@ -145,3 +146,85 @@ async def test_an_unsupported_instance_version_reports_unhealthy(monkeypatch: py
     assert report.healthy is False
     assert (report.detail or "").startswith(CONNECTION_UNREACHABLE.render(detail="").rstrip())
     assert "2.40.0" in (report.detail or "")
+
+
+#: A dummy token, and what a paste or a file can do to it. None of them can be a header value whole.
+TOKEN = "DUMMYTOKEN4567"
+UNSENDABLE_TOKENS = [
+    pytest.param(f"{TOKEN}\n", id="trailing-newline"),
+    pytest.param(f"{TOKEN}\r\n", id="trailing-crlf"),
+    pytest.param(f"{TOKEN} ", id="trailing-blank"),
+    pytest.param(f"{TOKEN}\t", id="trailing-tab"),
+    pytest.param(f" {TOKEN}", id="leading-blank"),
+    pytest.param(f"{TOKEN[:4]}\n{TOKEN[4:]}", id="inner-newline"),
+    pytest.param(f"{TOKEN[:4]} {TOKEN[4:]}", id="inner-blank"),
+    pytest.param(f"{TOKEN}\u00e9", id="non-ascii"),
+    pytest.param("", id="empty"),
+]
+
+
+@pytest.mark.parametrize("token", UNSENDABLE_TOKENS)
+def test_a_token_that_cannot_be_a_header_value_is_refused_without_repeating_it(token: str) -> None:
+    with pytest.raises(ValidationError) as refused:
+        Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr(token))
+    assert BAD_API_TOKEN.render() in str(refused.value)
+    assert TOKEN[:4] not in str(refused.value)
+    assert refused.value.errors(include_input=False)[0]["loc"] == ("api_token",)
+
+
+@pytest.mark.parametrize("token", UNSENDABLE_TOKENS)
+def test_a_plain_string_token_is_held_to_the_same_rule(token: str) -> None:
+    with pytest.raises(ValidationError) as refused:
+        Dhis2ConnectionConfig.model_validate({"base_url": "http://x", "api_token": token})
+    assert TOKEN[:4] not in str(refused.value)
+
+
+@pytest.mark.parametrize("token", ["d2pat_abc", "d2p_A1b2C3-d4.e5~f6+g7/h8=", "t"])
+def test_a_token_of_visible_ascii_is_kept(token: str) -> None:
+    config = Dhis2ConnectionConfig(base_url="http://x", api_token=SecretStr(token))
+    assert config.api_token is not None
+    assert config.api_token.get_secret_value() == token
+
+
+def test_a_basic_password_may_hold_what_a_token_may_not() -> None:
+    """It reaches the header base64-encoded, so any text survives the trip."""
+    config = Dhis2ConnectionConfig(base_url="http://x", basic_username="u", basic_password=SecretStr(f"{TOKEN}\n"))
+    assert config.basic_password is not None
+
+
+def test_no_refusal_of_the_config_repeats_what_it_was_given() -> None:
+    """A key the model does not know, or the wrong type for a known one, would otherwise be echoed."""
+    for given in ({"api_token": {"value": TOKEN}}, {"api_token": "t", "token": TOKEN}):
+        with pytest.raises(ValidationError) as refused:
+            Dhis2ConnectionConfig.model_validate({"base_url": "http://x", **given})
+        assert TOKEN not in str(refused.value)
+
+
+async def _answer_like_dhis2(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    """Answer one loopback request the way a DHIS2 instance answers its version probe."""
+    await reader.readuntil(b"\r\n\r\n")
+    body = b'{"version":"2.42.0"}'
+    writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n")
+    writer.write(b"Content-Length: %d\r\n\r\n%s" % (len(body), body))
+    await writer.drain()
+    writer.close()
+
+
+@pytest.mark.parametrize("token", [f"{TOKEN}\n", f"{TOKEN}\r\n", f"{TOKEN} "], ids=["newline", "crlf", "blank"])
+async def test_a_stored_token_that_cannot_be_a_header_value_stays_out_of_the_check(token: str) -> None:
+    """A row read under another model reaches the check, over a real socket, and never the report."""
+
+    class Row(BaseModel):
+        base_url: str
+        api_token: SecretStr
+
+    server = await asyncio.start_server(_answer_like_dhis2, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    try:
+        report = await Dhis2ConnectionKind().check(Row(base_url=f"http://127.0.0.1:{port}", api_token=SecretStr(token)))
+    finally:
+        server.close()
+        await server.wait_closed()
+    assert report.healthy is False
+    assert TOKEN not in (report.detail or "")
+    assert BAD_API_TOKEN.render() in (report.detail or "")
