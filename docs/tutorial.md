@@ -48,7 +48,7 @@ uv sync
 ```
 
 ```text
-2026-09-26T10:41:26.026+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.19.0 packs=["dirigent-dhis2"]
+2026-09-26T10:41:26.026+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.29.0 packs=["dirigent-dhis2"]
 ```
 
 It creates the state directory, migrates the schema, creates the first admin, and mints that
@@ -131,15 +131,15 @@ uv run dg connection create dhis2 play \
 ```
 
 ```text
-2026-09-26T10:43:05.925+02:00 [info    ] created                        [connection.created] code=play connection_kind=dhis2 name="DHIS2 play demo" config={"base_url":"https://play.dhis2.org/2.43","api_token":null,"basic_username":"admin","verify_tls":true,"follow_redirects_with_auth":false,"timeout":"30s","basic_password":"***"}
+2026-09-26T10:43:05.925+02:00 [info    ] created                        [connection.created] code=play connection_kind=dhis2 name="DHIS2 play demo" config={"base_url":"https://play.dhis2.org/2.43","api_token":null,"basic_username":"admin","verify_tls":true,"follow_redirects_with_auth":false,"timeout":"30s","request_deadline":"10m","max_response":"64mb","basic_password":"***"}
 ```
 
 The password is already withheld in the record the command answers with, and in every read
 after it.
 
-Name the versioned host, not `https://play.dhis2.org/demo`. That alias redirects across hosts,
-and a client that follows it drops the credential when the origin changes; resolve it once with
-`curl -sSI https://play.dhis2.org/demo` and name what it resolves to.
+`https://play.dhis2.org/2.43` is an alias: it redirects to the newest 2.43 demo, and the
+connection follows it there with the credential because the target is under `dhis2.org`.
+[A `base_url` that redirects](connection.md#a-base_url-that-redirects) has the rule.
 
 Now check it:
 

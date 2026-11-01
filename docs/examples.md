@@ -36,13 +36,13 @@ dg run --local examples/dhis2/dhis2-export-data-values.yaml
 ```
 
 `--connections FILE` replaces a carried connection by code, so a document points at your own
-DHIS2 without being edited. The connections these carry name the public play demo, resolved to
-a versioned host; when DHIS2 moves the stable demo, resolve the alias again and update
-`base_url`.
+DHIS2 without being edited. The connections these carry that read DHIS2 name the public play demo
+by its `https://play.dhis2.org/2.43` alias, which follows the demo as it moves; the rest name the
+playground.
 
 A server refuses to store a document that carries a connection, so what an instance applies is
 a copy that names one instead. `dg pipeline new` makes that copy from a [starter](#starters):
-the text verbatim, the `connections:` block gone and its code -- `dhis2-demo` in every document
+the text verbatim, the `connections:` block gone and its code -- `dhis2-demo` in every starter
 here -- named under `requires.connections`. Create a [`dhis2` connection](connection.md) under
 that code, or rename it in the copy:
 
@@ -245,7 +245,7 @@ comments that say what each hop is for. They are not a shelf of their own -- eac
 the documents it belongs beside, tagged `starter`. The menu is
 `dg examples list --plugin dhis2 --starter`.
 
-Each carries the `dhis2-demo` connection like every other document here, so it runs as it
+Each carries the `dhis2-demo` connection, so it runs as it
 stands with `dg run --local`, and a copy is what names that connection instead:
 
 ```bash
