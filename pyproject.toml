@@ -81,7 +81,7 @@ mypy_path = ["tests"]
 
 # Playwright is layered in when the docs PDF is printed, never installed with the project.
 [[tool.mypy.overrides]]
-module = ["playwright.*"]
+module = ["playwright.*", "dirigent_client.*"]
 ignore_missing_imports = true
 
 [tool.pyright]
