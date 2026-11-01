@@ -199,7 +199,7 @@ A dry run sends the document without its `completeDate`, and says so in the log.
 | `deleted` | `integer` | yes |  | How many values were removed. |
 | `conflicts` | `object[]` | yes |  | Every value the instance refused, empty when the import was clean. |
 
-Each conflict is an object of two strings, `object` and `value`, in the instance's own words.
+Each conflict is an object of `object` and `value` in the instance's own words, its `error_code`, and the `indexes` of the refused values.
 
 ### `dhis2.message`
 
@@ -235,9 +235,9 @@ dhis2w's `messaging.send` posts and then reads back.
 | `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
 | `subject` | `string` | yes |  | The subject line, up to 255 characters. |
 | `text` | `string` | yes |  | The body of the message, which may be long and may be built from references. |
-| `users` | `string[]` |  |  | The uids of the users the message goes to. |
-| `user_groups` | `string[]` |  |  | The uids of the user groups whose members the message goes to. |
-| `org_units` | `string[]` |  |  | The uids of the organisation units whose assigned users the message goes to. |
+| `users` | `string[]` |  | `[]` | The uids of the users the message goes to. |
+| `user_groups` | `string[]` |  | `[]` | The uids of the user groups whose members the message goes to. |
+| `org_units` | `string[]` |  | `[]` | The uids of the organisation units whose assigned users the message goes to. |
 
 **Output**
 
