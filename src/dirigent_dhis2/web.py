@@ -12,7 +12,7 @@ second pack has duplicated it.
 
 from dataclasses import dataclass
 
-from dhis2w_client.errors import AuthenticationError, Dhis2ApiError, UnsupportedVersionError
+from dhis2w_client.errors import AuthenticationError, Dhis2ApiError, ResponseTooLargeError, UnsupportedVersionError
 from pydantic import BaseModel
 
 from dirigent_dhis2.messages import ANSWERED
@@ -56,14 +56,14 @@ def classify(error: Exception) -> ErrorClass:
     """Classify a failure raised through dhis2w-client, so the engine knows whether to retry.
 
     An instance whose version the client does not speak is a configuration problem and is
-    never retried.
+    never retried, and neither is an answer past the connection's ``max_response``.
     """
     match error:
         case BlockFailure():
             return error.error_class
         case Dhis2ApiError():
             return status_class(error.status_code)
-        case AuthenticationError() | UnsupportedVersionError():
+        case AuthenticationError() | UnsupportedVersionError() | ResponseTooLargeError():
             return ErrorClass.REJECTED
         case _:
             return classify_default(error)

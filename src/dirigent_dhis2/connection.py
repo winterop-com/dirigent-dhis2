@@ -10,7 +10,7 @@ from dhis2w_client import Dhis2Client, Profile, build_auth_provider
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
-from dirigent_common import BlockModel, Duration, HealthReport
+from dirigent_common import BlockModel, Duration, HealthReport, Size
 from dirigent_dhis2.messages import (
     BAD_API_TOKEN,
     BOTH_CREDENTIALS,
@@ -58,7 +58,13 @@ class Dhis2ConnectionConfig(BlockModel):
     """Whether the URL ``base_url`` redirects to is used whatever its host or scheme, credential and all."""
 
     timeout: Duration = Field(default=timedelta(seconds=30), gt=timedelta(0))
-    """The timeout applied to every request through this connection."""
+    """The timeout applied to each read of every request through this connection."""
+
+    request_deadline: Duration = Field(default=timedelta(minutes=10), gt=timedelta(0))
+    """The longest one request through this connection may take, start to last byte."""
+
+    max_response: Size = Field(default=64 * 1024 * 1024, ge=1)
+    """The most one response through this connection may decode to; a larger one is refused."""
 
     @field_validator("api_token")
     @classmethod
@@ -115,7 +121,7 @@ def stays_on_the_instance(config: Dhis2ConnectionConfig) -> Callable[[httpx2.Req
 
 
 def build_client(config: Dhis2ConnectionConfig) -> Dhis2Client:
-    """Build a dhis2w-client bound to the connection's URL, credential, TLS setting, and timeout.
+    """Build a dhis2w-client bound to the connection's URL, credential, TLS setting, and limits.
 
     The client is returned unconnected: entering it as an async context manager opens the pool
     and detects the instance's version from ``/api/system/info`` the dhis2w way. Its pool sends
@@ -128,6 +134,8 @@ def build_client(config: Dhis2ConnectionConfig) -> Dhis2Client:
         verify=config.verify_tls,
         follow_redirects_with_auth=config.follow_redirects_with_auth,
         event_hooks=None if config.follow_redirects_with_auth else {"request": [stays_on_the_instance(config)]},
+        max_response_bytes=config.max_response,
+        deadline=config.request_deadline.total_seconds(),
     )
 
 
