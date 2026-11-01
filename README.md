@@ -85,6 +85,13 @@ uv run --with playwright playwright install chromium
 uv run --with playwright python scripts/docs_pdf.py
 ```
 
+The tutorial's Blocks and Examples pictures are taken from a throwaway `dg dev` with the pack
+installed, which needs no DHIS2:
+
+```bash
+uv run --with dirigent-cli --with playwright python scripts/docs_shots.py
+```
+
 `tests/` exercises every block against a mocked DHIS2 instance, and `tests/test_examples.py`
 validates the example documents against the pack's own catalog. Every document runs standalone,
 carrying the connection it uses.

@@ -113,7 +113,7 @@ Eight blocks in the `dhis2` group, and `dhis2` among the connection kinds. The s
 the Blocks screen in the UI, where each block says how many of the pack's example documents use
 it:
 
-![The Blocks screen filtered to dhis2: seven blocks, six operators and one sensor, each with a link to the examples that use it.](images/tutorial/blocks.png)
+![The Blocks screen filtered to dhis2: eight blocks, seven operators and one sensor, each with how many of the examples use it.](images/tutorial/blocks.png)
 
 *The eight blocks the pack contributes, as the instance's own catalog reports them.*
 
@@ -853,12 +853,12 @@ and all -- rewriting three lines: the `code:`, the dropped `starter` tag, and th
 `connections:` block, which goes so that the instance will store the document, its code
 `dhis2-demo` named under `requires.connections` instead. Your connection here is coded `play`,
 so either create a second one coded `dhis2-demo` or change that one line in the copy. The
-Examples screen is the same catalogue, and it says per document what this instance is still
-missing:
+Examples screen is the same catalogue, where a starter is called a template, and it says per
+document what this instance is still missing:
 
-![The Examples screen filtered to the pack's starters: seven documents, each with its tags, what it requires, and the note that it carries its connections.](images/tutorial/examples-starters.png)
+![The Examples screen filtered to the pack's templates: seven documents, each with its tags, what it requires, and the note that it carries its connections.](images/tutorial/examples-starters.png)
 
-*The starter set, each row saying it carries its connections and a copy names them. Only the
+*The template set, each row saying it carries its connections and a copy names them. Only the
 schema gate is short of anything here: this instance holds the tutorial's schema, not the one
 that document names.*
 
