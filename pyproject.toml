@@ -11,7 +11,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "dhis2w-client>=1.33.1,<2",
+    "dhis2w-client>=1.38.1,<2",
     "dirigent-common==0.28.0",
     "dirigent-plugin==0.28.0",
     "httpx2>=2.12.0",

@@ -15,14 +15,32 @@ never from a step.
 | `basic_password` | `string (password) or null` |  | `null` | The secret half of HTTP basic authentication. |
 | `verify_tls` | `boolean` |  | `true` | Whether certificates are verified; turning this off is a per-connection decision. |
 | `follow_redirects_with_auth` | `boolean` |  | `false` | Whether the URL `base_url` redirects to is used whatever its host or scheme, credential and all. |
-| `timeout` | `string (humane-duration)` |  | `"30s"` | The timeout applied to every request through this connection. |
+| `timeout` | `string (humane-duration)` |  | `"30s"` | The timeout applied to each read of every request through this connection. |
+| `request_deadline` | `string (humane-duration)` |  | `"10m"` | The longest one request through this connection may take, start to last byte. |
+| `max_response` | `string (size) or integer` |  | `"64MB"` | The most one response through this connection may decode to; a larger one is refused. |
 
 `api_token` and `basic_password` are the secret fields: they are encrypted at rest with the
 instance key and redacted in every read, so `dg connection show` and the API answer with the
 field present and its value withheld.
 
-`timeout` is a duration, written the way a document writes one -- `30s`, `2m` -- and it must be
-greater than zero.
+`timeout` and `request_deadline` are durations, written the way a document writes one -- `30s`,
+`2m` -- and each must be greater than zero. `max_response` is a size, written `64MB` or `512KB`.
+
+## What one answer may cost
+
+The connection holds an instance to two limits, on every request a block makes and on the version
+probe that opens its client.
+
+- `max_response` is counted as a body decodes, so a small compressed answer stops at the limit
+  rather than expanding in the worker's memory. Past it the check is unhealthy and the step fails as
+  `rejected`, naming the request. Raise it if a real read needs more, or narrow the read with `fields`.
+- `request_deadline` covers one request start to last byte. `timeout` limits each read instead, so an
+  instance sending a byte at a time never reaches it. Past the deadline the check is unhealthy and the
+  step fails as `transient`, so a retry follows the step's own policy. A `request_deadline` shorter
+  than `timeout` is the one that fires, so raise both for a long synchronous import.
+
+The probe that follows `base_url`'s redirects reads no response body at all, and the anonymous
+`/api/system/info` read that tests a redirect target parses at most 1 MiB.
 
 ## One credential, not two
 
