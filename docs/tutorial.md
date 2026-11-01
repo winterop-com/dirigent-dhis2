@@ -155,7 +155,7 @@ That one line is four facts: the URL resolves, TLS is as configured, the credent
 accepted, and the instance's version is **2.43.2** -- its own word for itself, read from
 `/api/system/info` rather than guessed from an `/api/N` path.
 
-![The Connections screen with one row: DHIS2 play demo, kind dhis2, code play, healthy, checked six minutes ago.](images/tutorial/connections.png)
+![The Connections screen with one row: DHIS2 play demo, kind dhis2, code play, healthy, checked just now.](images/tutorial/connections.png)
 
 *The connection on the Connections screen: the mark its kind wears, its health, and when it was last checked. The password is nowhere on it.*
 
@@ -306,7 +306,7 @@ uv run dg runs show 01a0ac92-38dc-737a-8ab2-ffa099350a63 --json \
 Two facilities, each with the four fields `fields=` asked for. The same run is on the Runs
 screen of the UI, and choosing a step opens what it produced:
 
-![A run in the UI: one step, read, succeeded in 985 milliseconds, its output showing the two organisation units.](images/tutorial/run-first.png)
+![A run in the UI: one step, read, succeeded, its output showing the two organisation units.](images/tutorial/run-first.png)
 
 *The run's only step, and the answer it stored, on the Runs screen.*
 
@@ -665,9 +665,9 @@ uv run dg runs show 01a0ac94-7b90-731d-b6b4-cb36ae764cf5 --json \
 }
 ```
 
-![The run in the UI with the rehearse step selected, its output showing the import summary.](images/tutorial/run-import-summary.png)
+![The run in the UI with the rehearse step selected, its output showing the import summary of a dry run: two values the import would update, none written.](images/tutorial/run-import-summary.png)
 
-*The same summary on the Runs screen, under the step that produced it.*
+*The same summary on the Runs screen, under the step that produced it. It is a rehearsal: `dry_run` is on, so the demo holds nothing it did not hold before.*
 
 The pipeline is three steps now, and the builder draws what the document said:
 
@@ -805,7 +805,7 @@ writing on a DHIS2 step at all -- and why it costs nothing on the step that was 
 An instance on your machine with a `dhis2` connection to a real DHIS2, a schema it holds, a
 pipeline in five versions, and the runs behind them:
 
-![The dirigent dashboard: five runs in the last 24 hours, four succeeded and one failed, the worker and the play connection both healthy.](images/tutorial/dashboard.png)
+![The dirigent dashboard: the one failed run at the top, with the step it stopped at and why, then the day's runs, and the worker and the play connection both healthy.](images/tutorial/dashboard.png)
 
 *The instance after this page: the runs, the failure that is still worth looking at, and a healthy connection.*
 

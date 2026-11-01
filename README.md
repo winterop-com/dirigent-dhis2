@@ -85,11 +85,12 @@ uv run --with playwright playwright install chromium
 uv run --with playwright python scripts/docs_pdf.py
 ```
 
-The tutorial's Blocks and Examples pictures are taken from a throwaway `dg dev` with the pack
-installed, which needs no DHIS2:
+The tutorial's pictures are taken from a throwaway `dg dev` with the pack installed. `catalog`
+is the Blocks and Examples screens and needs no DHIS2; `walk` runs the tutorial's own documents
+against the public play demo, reads and dry runs only. Both when neither is named:
 
 ```bash
-uv run --with dirigent-cli --with playwright python scripts/docs_shots.py
+uv run --with dirigent-cli --with playwright python scripts/docs_shots.py [catalog|walk]
 ```
 
 `tests/` exercises every block against a mocked DHIS2 instance, and `tests/test_examples.py`
