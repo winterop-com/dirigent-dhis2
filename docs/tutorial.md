@@ -48,7 +48,7 @@ uv sync
 ```
 
 ```text
-2026-09-26T10:41:26.026+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.29.0 packs=["dirigent-dhis2"]
+2026-09-26T10:41:26.026+02:00 [info    ] initialised                    [instance.initialised] directory=/home/you/dhis2-tutorial state=.dirigent/state schema=0001_baseline admin=admin template=local version=0.30.0 packs=["dirigent-dhis2"]
 ```
 
 It creates the state directory, migrates the schema, creates the first admin, and mints that
