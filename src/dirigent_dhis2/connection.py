@@ -1,5 +1,6 @@
 """The ``dhis2`` connection kind: one DHIS2 instance, its credential, and the client that talks to it."""
 
+import base64
 import re
 from collections.abc import Awaitable, Callable
 from datetime import timedelta
@@ -10,7 +11,7 @@ from dhis2w_client import Dhis2Client, Profile, build_auth_provider
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
-from dirigent_common import BlockModel, Duration, HealthReport, Size
+from dirigent_common import BlockModel, Duration, HealthReport, Size, scrub, spellings
 from dirigent_dhis2.messages import (
     BAD_API_TOKEN,
     BOTH_CREDENTIALS,
@@ -19,7 +20,7 @@ from dirigent_dhis2.messages import (
     NO_CREDENTIAL,
     REDIRECT_REFUSED,
 )
-from dirigent_dhis2.web import describe
+from dirigent_dhis2.web import SENT_CREDENTIAL, describe
 from dirigent_plugin import BlockFailure, ConnectionKind, ErrorClass, StepContext
 
 #: The domains ``base_url``'s redirect may move within, between any two hosts under them.
@@ -94,6 +95,22 @@ def _profile(config: Dhis2ConnectionConfig) -> Profile:
     return Profile(base_url=config.base_url, auth="basic", username=config.basic_username, password=password)
 
 
+def credential_spellings(config: Dhis2ConnectionConfig) -> frozenset[str]:
+    """Every spelling of the credential the connection sends that an instance or a proxy may quote back.
+
+    That is the ``Authorization`` value, the credential after its scheme, and a basic pair as
+    the user and password it encodes.
+    """
+    if config.api_token is not None:
+        token = config.api_token.get_secret_value()
+        written = {f"ApiToken {token}", token}
+    else:
+        pair = f"{config.basic_username}:{config.basic_password.get_secret_value() if config.basic_password else ''}"
+        encoded = base64.b64encode(pair.encode()).decode()
+        written = {f"Basic {encoded}", encoded, pair}
+    return frozenset(spelled for one in written for spelled in spellings(one))
+
+
 def answers_for(configured: str, host: str) -> bool:
     """Whether a credentialed request may go to ``host`` for a ``base_url`` on ``configured``.
 
@@ -140,8 +157,13 @@ def build_client(config: Dhis2ConnectionConfig) -> Dhis2Client:
 
 
 def client_for(ctx: StepContext, ref: str) -> Dhis2Client:
-    """Build the dhis2w-client one block call uses, from the named connection's own config."""
-    return build_client(ctx.connection(ref, Dhis2ConnectionConfig))
+    """Build the dhis2w-client one block call uses, from the named connection's own config.
+
+    What the instance says through it is described without the credential it sends.
+    """
+    config = ctx.connection(ref, Dhis2ConnectionConfig)
+    SENT_CREDENTIAL.set(credential_spellings(config))
+    return build_client(config)
 
 
 def settings_of(config: BaseModel) -> Dhis2ConnectionConfig:
@@ -172,11 +194,16 @@ class Dhis2ConnectionKind(ConnectionKind):
         Connecting reads ``/api/system/info`` with the credential attached, so a healthy report
         means the credential is good and the version is the instance's own word for itself.
         """
+        secrets: frozenset[str] = frozenset()
         try:
-            async with build_client(settings_of(config)) as client:
+            settings = settings_of(config)
+            secrets = credential_spellings(settings)
+            SENT_CREDENTIAL.set(secrets)
+            async with build_client(settings) as client:
                 version = client.raw_version
         except Exception as error:  # noqa: BLE001 - a health check reports its verdict, it never raises
-            return HealthReport(healthy=False, detail=CONNECTION_UNREACHABLE.render(detail=_reason(error)))
+            detail = scrub(_reason(error), secrets)
+            return HealthReport(healthy=False, detail=CONNECTION_UNREACHABLE.render(detail=detail))
         return HealthReport(healthy=True, version=version or None)
 
 

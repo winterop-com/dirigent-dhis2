@@ -10,11 +10,14 @@ not depend on that package, and the roadmap lifts a helper into ``common`` only 
 second pack has duplicated it.
 """
 
+from contextvars import ContextVar
 from dataclasses import dataclass
+from typing import Final
 
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError, ResponseTooLargeError, UnsupportedVersionError
 from pydantic import BaseModel
 
+from dirigent_common import scrub
 from dirigent_dhis2.messages import ANSWERED
 from dirigent_plugin import BlockFailure, ErrorClass, Operator, Sensor, classify_default
 
@@ -32,18 +35,22 @@ def status_class(status: int) -> ErrorClass:
     return ErrorClass.UNKNOWN
 
 
+#: Every spelling of the credential the current step's client sends, which no description repeats.
+SENT_CREDENTIAL: Final[ContextVar[frozenset[str]]] = ContextVar("sent_credential", default=frozenset())
+
+
 def describe(error: Dhis2ApiError | AuthenticationError) -> str:
-    """Say what the instance said, in its own words when it gave any.
+    """Say what the instance said, in its own words when it gave any, without the credential it was sent.
 
     A DHIS2 refusal usually carries a web message whose ``message`` is the actual reason;
     the reason phrase is what is left when the body is not one.
     """
     if isinstance(error, AuthenticationError):
-        return str(error)
-    envelope = error.web_message
-    if envelope is not None and envelope.message:
-        return envelope.message
-    return error.message
+        said = str(error)
+    else:
+        envelope = error.web_message
+        said = envelope.message if envelope is not None and envelope.message else error.message
+    return scrub(said, SENT_CREDENTIAL.get())
 
 
 def refuse(error: Dhis2ApiError | AuthenticationError, where: str) -> BlockFailure:
