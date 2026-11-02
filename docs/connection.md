@@ -59,6 +59,11 @@ takes any text.
 A refusal happens when the connection is created or updated, not when a step first runs. A row
 stored before a rule existed fails when it is next read: its check is unhealthy and its steps fail.
 
+An instance or a proxy that quotes the `Authorization` header it was sent never puts the
+credential in a health check's detail or a step's failure: the header value, the credential
+after its scheme, and a basic pair as the user and password it encodes are each replaced by
+`***`.
+
 ## A `base_url` that redirects
 
 A client follows `base_url`'s redirects once, without the credential, and talks to where they
