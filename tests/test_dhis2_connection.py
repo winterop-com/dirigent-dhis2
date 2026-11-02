@@ -228,3 +228,19 @@ async def test_a_stored_token_that_cannot_be_a_header_value_stays_out_of_the_che
     assert report.healthy is False
     assert TOKEN not in (report.detail or "")
     assert BAD_API_TOKEN.render() in (report.detail or "")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://admin:DUMMYSECRET@dhis2.test",
+        "https://DUMMYSECRET@dhis2.test",
+        "https://dhis2.test/?api_token=DUMMYSECRET",
+        "https://dhis2.test/#DUMMYSECRET",
+    ],
+)
+def test_a_base_url_holding_more_than_where_is_refused_without_repeating_it(url: str) -> None:
+    with pytest.raises(ValidationError) as refused:
+        Dhis2ConnectionConfig(base_url=url, api_token=SecretStr("d2pat_dummy"))
+    assert "base_url says where the instance is" in str(refused.value)
+    assert "DUMMYSECRET" not in str(refused.value)

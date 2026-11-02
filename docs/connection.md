@@ -39,6 +39,9 @@ probe that opens its client.
   step fails as `transient`, so a retry follows the step's own policy. A `request_deadline` shorter
   than `timeout` is the one that fires, so raise both for a long synchronous import.
 
+`base_url` says where the instance is and nothing else: a user, a password, a query or a fragment
+in it is refused when the connection is created or updated, and the refusal does not repeat it.
+
 The probe that follows `base_url`'s redirects reads no response body at all, and the anonymous
 `/api/system/info` read that tests a redirect target parses at most 1 MiB.
 

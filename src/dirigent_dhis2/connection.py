@@ -5,6 +5,7 @@ import re
 from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import ClassVar, Final
+from urllib.parse import urlsplit
 
 import httpx2
 from dhis2w_client import Dhis2Client, Profile, build_auth_provider
@@ -14,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, m
 from dirigent_common import BlockModel, Duration, HealthReport, Size, scrub, spellings
 from dirigent_dhis2.messages import (
     BAD_API_TOKEN,
+    BASE_URL_HOLDS_MORE,
     BOTH_CREDENTIALS,
     CONNECTION_UNREACHABLE,
     NO_BASIC_PASSWORD,
@@ -66,6 +68,15 @@ class Dhis2ConnectionConfig(BlockModel):
 
     max_response: Size = Field(default=64 * 1024 * 1024, ge=1)
     """The most one response through this connection may decode to; a larger one is refused."""
+
+    @field_validator("base_url")
+    @classmethod
+    def _base_url_holds_only_where(cls, url: str) -> str:
+        """Refuse a user, a password, a query or a fragment, none of which a root needs."""
+        split = urlsplit(url)
+        if "@" in split.netloc or split.query or split.fragment:
+            raise ValueError(BASE_URL_HOLDS_MORE.render())
+        return url
 
     @field_validator("api_token")
     @classmethod
