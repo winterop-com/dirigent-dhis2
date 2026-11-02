@@ -97,6 +97,12 @@ NO_BASIC_PASSWORD = DHIS2.define(
     "basic credentials need a basic_password beside the basic_username",
 )
 
+BASE_URL_HOLDS_MORE = DHIS2.define(
+    "connection.base_url_holds_more",
+    "base_url says where the instance is and nothing else: a user, a password, a query or a fragment in it is refused, "
+    "because it is stored as written; a credential goes in api_token or basic_password",
+)
+
 BAD_API_TOKEN = DHIS2.define(
     "connection.bad_api_token",
     "an api_token must be visible ASCII with no whitespace, or it cannot be sent as a header value",
