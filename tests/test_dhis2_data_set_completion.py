@@ -22,7 +22,8 @@ async def test_a_window_is_marked_complete(ctx: FakeContext, dhis2: Dhis2Server)
     route = dhis2.post(REGISTRATIONS).answers(json(200, summary("SUCCESS", imported=1)))
     output = await call_block(Dhis2DataSetCompletionOperator(), step(), ctx)
     assert isinstance(output, Dhis2DataSetCompletionOutput)
-    assert (output.status, output.completed, output.dry_run, output.imported) == ("SUCCESS", True, False, 1)
+    assert (output.status, output.completed, output.dry_run, output.sent) == ("SUCCESS", True, False, 1)
+    assert output.counts.model_dump() == {"imported": 1, "updated": 0, "ignored": 0, "deleted": 0}
     request = route.last
     assert request.url.params["dryRun"] == "false"
     assert jsonlib.loads(request.content) == {
@@ -40,7 +41,7 @@ async def test_a_window_is_reopened_as_a_dry_run(ctx: FakeContext, dhis2: Dhis2S
         ctx,
     )
     assert isinstance(output, Dhis2DataSetCompletionOutput)
-    assert (output.completed, output.dry_run, output.updated) == (False, True, 1)
+    assert (output.completed, output.dry_run, output.counts.updated) == (False, True, 1)
     request = route.last
     assert request.url.params["dryRun"] == "true"
     [entry] = jsonlib.loads(request.content)["completeDataSetRegistrations"]

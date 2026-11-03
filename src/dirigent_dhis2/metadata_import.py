@@ -7,15 +7,17 @@ from pydantic import BaseModel, JsonValue
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
+from dirigent_dhis2.imports import Dhis2ImportCounts
 from dirigent_dhis2.messages import METADATA_IMPORT_NO_REPORT, METADATA_IMPORT_NOT_A_BUNDLE, METADATA_IMPORT_REFUSED
 from dirigent_dhis2.reports import (
     as_list,
     as_object,
     body_of,
     document_kind,
+    import_counts,
     named_first,
+    sent,
     short_class,
-    stats_of,
     text,
 )
 from dirigent_dhis2.web import Dhis2Operator, refuse
@@ -81,25 +83,6 @@ class Dhis2MetadataImportConfig(BlockModel):
     output carries the errors."""
 
 
-class Dhis2MetadataStats(BlockModel):
-    """What the report counted, for the whole bundle or one class of object."""
-
-    created: int
-    """How many objects were created."""
-
-    updated: int
-    """How many objects were updated."""
-
-    deleted: int
-    """How many objects were deleted."""
-
-    ignored: int
-    """How many objects the instance did not take."""
-
-    total: int
-    """How many objects the instance considered."""
-
-
 class Dhis2MetadataObject(BlockModel):
     """One object the report names."""
 
@@ -113,8 +96,8 @@ class Dhis2MetadataObject(BlockModel):
     """Where the object sits in its collection in the bundle that was sent, counted from zero."""
 
 
-class Dhis2MetadataError(BlockModel):
-    """One refusal the report names."""
+class Dhis2MetadataConflict(BlockModel):
+    """One object the report refused, in the instance's own words."""
 
     object_class: str
     """The DHIS2 class of the refused object, such as DataElement."""
@@ -128,7 +111,7 @@ class Dhis2MetadataError(BlockModel):
     error_code: str | None = None
     """The instance's code for the refusal, such as E4000."""
 
-    message: str
+    value: str
     """Why, in the instance's own words."""
 
     property: str | None = None
@@ -144,17 +127,20 @@ class Dhis2MetadataImportOutput(BlockModel):
     dry_run: bool
     """Whether this was a validation only, with nothing written."""
 
-    stats: Dhis2MetadataStats
-    """The counts for the whole bundle."""
+    sent: int
+    """How many objects the bundle held, across its collections."""
 
-    by_class: dict[str, Dhis2MetadataStats]
-    """The counts for each class of object in the bundle, keyed by class, such as DataElement."""
+    counts: Dhis2ImportCounts
+    """What happened to the objects: imported (DHIS2's created), updated, ignored and deleted."""
+
+    by_class: dict[str, Dhis2ImportCounts]
+    """The same counts for each class of object in the bundle, keyed by class, such as DataElement."""
 
     objects: list[Dhis2MetadataObject]
     """Every object the report names, with its uid."""
 
-    errors: list[Dhis2MetadataError]
-    """Every refusal the report names, empty when the import was clean."""
+    conflicts: list[Dhis2MetadataConflict]
+    """Every object the report refused, empty when the import was clean."""
 
 
 def _report(body: dict[str, Any]) -> dict[str, Any] | None:
@@ -193,9 +179,9 @@ def _objects(report: dict[str, Any]) -> list[Dhis2MetadataObject]:
     return found
 
 
-def _errors(report: dict[str, Any]) -> list[Dhis2MetadataError]:
+def _errors(report: dict[str, Any]) -> list[Dhis2MetadataConflict]:
     """Every error report the per-class reports carry, with the object each is about."""
-    found: list[Dhis2MetadataError] = []
+    found: list[Dhis2MetadataConflict] = []
     for type_report in _type_reports(report):
         for entry in map(as_object, as_list(type_report.get("objectReports"))):
             if entry is None:
@@ -205,28 +191,28 @@ def _errors(report: dict[str, Any]) -> list[Dhis2MetadataError]:
                 if error is None:
                     continue
                 found.append(
-                    Dhis2MetadataError(
+                    Dhis2MetadataConflict(
                         object_class=short_class(error.get("mainKlass") or entry.get("klass")),
                         uid=text(entry.get("uid")) or text(error.get("mainId")),
                         index=index if isinstance(index, int) else None,
                         error_code=text(error.get("errorCode")),
-                        message=text(error.get("message")) or "",
+                        value=text(error.get("message")) or "",
                         property=text(error.get("errorProperty")),
                     )
                 )
     return found
 
 
-def _by_class(report: dict[str, Any]) -> dict[str, Dhis2MetadataStats]:
+def _by_class(report: dict[str, Any]) -> dict[str, Dhis2ImportCounts]:
     """The counts each per-class report carries, keyed by the class's simple name."""
     return {
-        short_class(entry.get("klass")): Dhis2MetadataStats(**stats_of(as_object(entry.get("stats"))))
+        short_class(entry.get("klass")): import_counts(as_object(entry.get("stats")))
         for entry in _type_reports(report)
         if short_class(entry.get("klass"))
     }
 
 
-def _subject(error: Dhis2MetadataError) -> str:
+def _subject(error: Dhis2MetadataConflict) -> str:
     """Name a refused object: its class and uid, or its class and place in the bundle."""
     if error.uid:
         return f"{error.object_class} {error.uid}"
@@ -282,18 +268,27 @@ class Dhis2MetadataImportOperator(Dhis2Operator[Dhis2MetadataImportConfig, Dhis2
         if report is None:
             raise BlockFailure(METADATA_IMPORT_NO_REPORT, error_class=ErrorClass.REJECTED, where=where)
         status = _status(report, body)
-        stats = stats_of(as_object(report.get("stats")))
-        errors = _errors(report)
-        ctx.log.info("metadata import report", status=status, dry_run=config.dry_run, **stats, errors=len(errors))
+        counts = import_counts(as_object(report.get("stats")))
+        conflicts = _errors(report)
+        ctx.log.info(
+            "metadata import report",
+            status=status,
+            dry_run=config.dry_run,
+            **counts.model_dump(),
+            conflicts=len(conflicts),
+        )
         if status == "ERROR" and config.fail_on_error:
-            named = [f"{_subject(error)}: {error.message}" for error in errors]
+            named = [f"{_subject(conflict)}: {conflict.value}" for conflict in conflicts]
             detail = named_first(named) or str(body.get("message") or "the report named no object")
-            raise BlockFailure(METADATA_IMPORT_REFUSED, error_class=ErrorClass.REJECTED, detail=detail, **stats)
+            raise BlockFailure(
+                METADATA_IMPORT_REFUSED, error_class=ErrorClass.REJECTED, detail=detail, **counts.model_dump()
+            )
         return Dhis2MetadataImportOutput(
             status=status,
             dry_run=config.dry_run,
-            stats=Dhis2MetadataStats(**stats),
+            sent=sent(config.metadata),
+            counts=counts,
             by_class=_by_class(report),
             objects=_objects(report),
-            errors=errors,
+            conflicts=conflicts,
         )

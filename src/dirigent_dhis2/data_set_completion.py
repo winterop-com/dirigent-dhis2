@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.formats import UID_PATTERN
+from dirigent_dhis2.imports import COUNT_NAMES, Dhis2ImportConflict, Dhis2ImportCounts
 from dirigent_dhis2.messages import COMPLETION_REFUSED, IMPORT_NO_SUMMARY, IMPORT_VALUES_IGNORED
 from dirigent_dhis2.reports import as_list, as_object, body_of, count, import_summary, named_first, text
 from dirigent_dhis2.web import Dhis2Operator, refuse
@@ -51,22 +52,6 @@ class Dhis2DataSetCompletionConfig(BlockModel):
     """Whether the instance validates the registration without writing anything."""
 
 
-class Dhis2CompletionConflict(BlockModel):
-    """One refusal the summary names, in the instance's own words."""
-
-    object: str = ""
-    """What the instance named as refused."""
-
-    value: str = ""
-    """Why, in the instance's own words."""
-
-    error_code: str | None = None
-    """The instance's code for the refusal."""
-
-    indexes: list[int] = Field(default_factory=list[int])
-    """Where the refused registrations sit in the document that was sent, counted from zero."""
-
-
 class Dhis2DataSetCompletionOutput(BlockModel):
     """What the registration's import summary said."""
 
@@ -79,19 +64,13 @@ class Dhis2DataSetCompletionOutput(BlockModel):
     dry_run: bool
     """Whether this was a validation only, with nothing written."""
 
-    imported: int
-    """How many registrations were created."""
+    sent: int
+    """How many registrations were sent: one."""
 
-    updated: int
-    """How many registrations were revised."""
+    counts: Dhis2ImportCounts
+    """What happened to the registration: imported, updated, ignored or deleted."""
 
-    ignored: int
-    """How many registrations the instance did not take."""
-
-    deleted: int
-    """How many registrations were removed."""
-
-    conflicts: list[Dhis2CompletionConflict]
+    conflicts: list[Dhis2ImportConflict]
     """Every refusal the summary names, empty when the registration was taken."""
 
 
@@ -108,10 +87,10 @@ def registration(config: Dhis2DataSetCompletionConfig) -> dict[str, Any]:
     return {"completeDataSetRegistrations": [entry]}
 
 
-def _conflicts(summary: dict[str, Any]) -> list[Dhis2CompletionConflict]:
+def _conflicts(summary: dict[str, Any]) -> list[Dhis2ImportConflict]:
     """The summary's conflicts."""
     return [
-        Dhis2CompletionConflict(
+        Dhis2ImportConflict(
             object=text(conflict.get("object")) or "",
             value=text(conflict.get("value")) or "",
             error_code=text(conflict.get("errorCode")),
@@ -152,13 +131,20 @@ class Dhis2DataSetCompletionOperator(Dhis2Operator[Dhis2DataSetCompletionConfig,
             raise BlockFailure(IMPORT_NO_SUMMARY, error_class=ErrorClass.REJECTED, where=where)
         status = str(summary.get("status") or body.get("status") or "")
         counted = as_object(summary.get("importCount"))
-        counts = {name: count(counted, name) for name in ("imported", "updated", "ignored", "deleted")}
+        counts = Dhis2ImportCounts(**{name: count(counted, name) for name in COUNT_NAMES})
         conflicts = _conflicts(summary)
-        ctx.log.info("completion registration", status=status, completed=config.completed, **counts)
-        if status == "ERROR" or counts["ignored"]:
+        ctx.log.info("completion registration", status=status, completed=config.completed, **counts.model_dump())
+        if status == "ERROR" or counts.ignored:
             named = [f"{conflict.object or config.data_set}: {conflict.value}" for conflict in conflicts]
-            detail = named_first(named) or IMPORT_VALUES_IGNORED.render(ignored=counts["ignored"])
-            raise BlockFailure(COMPLETION_REFUSED, error_class=ErrorClass.REJECTED, detail=detail, **counts)
+            detail = named_first(named) or IMPORT_VALUES_IGNORED.render(ignored=counts.ignored)
+            raise BlockFailure(
+                COMPLETION_REFUSED, error_class=ErrorClass.REJECTED, detail=detail, **counts.model_dump()
+            )
         return Dhis2DataSetCompletionOutput(
-            status=status, completed=config.completed, dry_run=config.dry_run, conflicts=conflicts, **counts
+            status=status,
+            completed=config.completed,
+            dry_run=config.dry_run,
+            sent=1,
+            counts=counts,
+            conflicts=conflicts,
         )

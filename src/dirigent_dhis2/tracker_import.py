@@ -10,13 +10,23 @@ from pydantic import BaseModel, JsonValue
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
+from dirigent_dhis2.imports import Dhis2ImportCounts
 from dirigent_dhis2.messages import (
     TRACKER_IMPORT_NO_JOB,
     TRACKER_IMPORT_NO_REPORT,
     TRACKER_IMPORT_NOT_A_BUNDLE,
     TRACKER_IMPORT_REFUSED,
 )
-from dirigent_dhis2.reports import as_list, as_object, body_of, document_kind, named_first, stats_of, text
+from dirigent_dhis2.reports import (
+    as_list,
+    as_object,
+    body_of,
+    document_kind,
+    import_counts,
+    named_first,
+    sent,
+    text,
+)
 from dirigent_dhis2.web import Dhis2Operator, refuse
 from dirigent_plugin import (
     BlockFailure,
@@ -37,6 +47,9 @@ JOB_SEGMENT: Final = re.compile(r"[A-Za-z0-9_-]+")
 
 #: How long a job may stay silent from the attempt's start before it is taken to be lost.
 GONE_AFTER: Final = timedelta(minutes=15)
+
+#: The lists a tracker bundle holds its objects in.
+TRACKER_COLLECTIONS: Final = ("trackedEntities", "enrollments", "events", "relationships")
 
 #: What the import may do to objects already there.
 TrackerImportStrategy = Literal["CREATE_AND_UPDATE", "CREATE", "UPDATE", "DELETE"]
@@ -82,25 +95,6 @@ class Dhis2TrackerImportConfig(BlockModel):
     output carries the errors."""
 
 
-class Dhis2TrackerStats(BlockModel):
-    """What the report counted, for the whole bundle or one tracker type."""
-
-    created: int
-    """How many objects were created."""
-
-    updated: int
-    """How many objects were updated."""
-
-    deleted: int
-    """How many objects were deleted."""
-
-    ignored: int
-    """How many objects the instance did not take."""
-
-    total: int
-    """How many objects the instance considered."""
-
-
 class Dhis2TrackerObject(BlockModel):
     """One object the report names."""
 
@@ -114,8 +108,8 @@ class Dhis2TrackerObject(BlockModel):
     """Where the object sits in its list in the bundle that was sent, counted from zero."""
 
 
-class Dhis2TrackerReportEntry(BlockModel):
-    """One error or warning the validation report names."""
+class Dhis2TrackerConflict(BlockModel):
+    """One error or warning the validation report names, in the instance's own words."""
 
     tracker_type: str
     """What the object it is about is: TRACKED_ENTITY, ENROLLMENT, EVENT or RELATIONSHIP."""
@@ -126,7 +120,7 @@ class Dhis2TrackerReportEntry(BlockModel):
     error_code: str | None = None
     """The instance's code for it, such as E1000."""
 
-    message: str
+    value: str
     """What the instance said, in its own words."""
 
 
@@ -142,19 +136,22 @@ class Dhis2TrackerImportOutput(BlockModel):
     job_id: str | None = None
     """The id of the job the instance ran the import as, when it ran as one."""
 
-    stats: Dhis2TrackerStats
-    """The counts for the whole bundle."""
+    sent: int
+    """How many objects the bundle held, across its four lists."""
 
-    by_tracker_type: dict[str, Dhis2TrackerStats]
-    """The counts for each tracker type in the bundle, such as TRACKED_ENTITY or EVENT."""
+    counts: Dhis2ImportCounts
+    """What happened to the objects: imported (DHIS2's created), updated, ignored and deleted."""
+
+    by_tracker_type: dict[str, Dhis2ImportCounts]
+    """The same counts for each tracker type in the bundle, such as TRACKED_ENTITY or EVENT."""
 
     objects: list[Dhis2TrackerObject]
     """Every object the report names, with its uid."""
 
-    errors: list[Dhis2TrackerReportEntry]
+    conflicts: list[Dhis2TrackerConflict]
     """Every error the validation report names, empty when the import was clean."""
 
-    warnings: list[Dhis2TrackerReportEntry]
+    warnings: list[Dhis2TrackerConflict]
     """Every warning the validation report names."""
 
 
@@ -177,15 +174,15 @@ def _report(body: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
-def _entries(report: dict[str, Any], key: str) -> list[Dhis2TrackerReportEntry]:
+def _entries(report: dict[str, Any], key: str) -> list[Dhis2TrackerConflict]:
     """The validation report's errors or warnings."""
     validation = as_object(report.get("validationReport")) or {}
     return [
-        Dhis2TrackerReportEntry(
+        Dhis2TrackerConflict(
             tracker_type=str(entry.get("trackerType") or ""),
             uid=text(entry.get("uid")),
             error_code=text(entry.get("errorCode")),
-            message=text(entry.get("message")) or "",
+            value=text(entry.get("message")) or "",
         )
         for entry in map(as_object, as_list(validation.get(key)))
         if entry is not None
@@ -225,24 +222,28 @@ def _settle(
     if report is None:
         raise BlockFailure(TRACKER_IMPORT_NO_REPORT, error_class=ErrorClass.REJECTED, where=where)
     status = str(report.get("status") or "")
-    stats = stats_of(as_object(report.get("stats")))
-    errors = _entries(report, "errorReports")
-    ctx.log.info("tracker import report", status=status, dry_run=config.dry_run, **stats, errors=len(errors))
+    counts = import_counts(as_object(report.get("stats")))
+    conflicts = _entries(report, "errorReports")
+    ctx.log.info(
+        "tracker import report", status=status, dry_run=config.dry_run, **counts.model_dump(), conflicts=len(conflicts)
+    )
     if status == "ERROR" and config.fail_on_error:
-        named = [f"{error.tracker_type} {error.uid or '?'}: {error.message}" for error in errors]
+        named = [f"{conflict.tracker_type} {conflict.uid or '?'}: {conflict.value}" for conflict in conflicts]
         detail = named_first(named) or str(report.get("message") or "the report named no object")
-        raise BlockFailure(TRACKER_IMPORT_REFUSED, error_class=ErrorClass.REJECTED, detail=detail, **stats)
+        raise BlockFailure(
+            TRACKER_IMPORT_REFUSED, error_class=ErrorClass.REJECTED, detail=detail, **counts.model_dump()
+        )
     return Dhis2TrackerImportOutput(
         status=status,
         dry_run=config.dry_run,
         job_id=job_id,
-        stats=Dhis2TrackerStats(**stats),
+        sent=sent(as_object(config.tracker) or {}, TRACKER_COLLECTIONS),
+        counts=counts,
         by_tracker_type={
-            name: Dhis2TrackerStats(**stats_of(as_object(entry.get("stats"))))
-            for name, entry in _type_reports(report).items()
+            name: import_counts(as_object(entry.get("stats"))) for name, entry in _type_reports(report).items()
         },
         objects=_objects(report),
-        errors=errors,
+        conflicts=conflicts,
         warnings=_entries(report, "warningReports"),
     )
 

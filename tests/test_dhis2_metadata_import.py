@@ -48,10 +48,11 @@ async def test_one_data_element_is_created_and_its_uid_reported(ctx: FakeContext
     assert isinstance(output, Dhis2MetadataImportOutput)
     assert output.status == "OK"
     assert output.dry_run is False
-    assert output.stats.created == 1
-    assert output.by_class["DataElement"].created == 1
+    assert output.sent == 1
+    assert output.counts.model_dump() == {"imported": 1, "updated": 0, "ignored": 0, "deleted": 0}
+    assert output.by_class["DataElement"].imported == 1
     assert [(item.object_class, item.uid, item.index) for item in output.objects] == [("DataElement", "deNew000001", 0)]
-    assert output.errors == []
+    assert output.conflicts == []
     request = route.last
     assert jsonlib.loads(request.content) == BUNDLE
     assert dict(request.url.params) == {
@@ -127,8 +128,8 @@ async def test_fail_on_error_off_reports_the_errors_as_output(ctx: FakeContext, 
     )
     assert isinstance(output, Dhis2MetadataImportOutput)
     assert output.status == "ERROR"
-    assert output.stats.ignored == 1
-    [error] = output.errors
+    assert output.counts.ignored == 1
+    [error] = output.conflicts
     assert (error.object_class, error.index, error.error_code, error.property) == (
         "DataElement",
         0,
@@ -142,7 +143,7 @@ async def test_a_report_at_the_top_of_the_answer_is_read_too(ctx: FakeContext, d
     dhis2.post(METADATA).answers(json(200, unwrapped))
     output = await call_block(Dhis2MetadataImportOperator(), {"connection": CONNECTION, "metadata": BUNDLE}, ctx)
     assert isinstance(output, Dhis2MetadataImportOutput)
-    assert output.stats.updated == 2
+    assert output.counts.updated == 2
 
 
 async def test_an_answer_without_a_report_fails_the_step(ctx: FakeContext, dhis2: Dhis2Server) -> None:

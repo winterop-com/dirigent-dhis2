@@ -11,13 +11,11 @@ from typing import Any, Final, cast
 from dhis2w_client.errors import Dhis2ApiError
 from pydantic import JsonValue
 
+from dirigent_dhis2.imports import Dhis2ImportCounts
 from dirigent_dhis2.messages import IMPORT_CONFLICTS_AND_MORE
 
 #: How many refused objects a failure names before counting the rest.
 NAMED_ERRORS: Final = 3
-
-#: The counts a write's report carries, under ``stats`` or ``importCount``.
-STAT_NAMES: Final = ("created", "updated", "deleted", "ignored", "total")
 
 
 def as_object(value: object) -> dict[str, Any] | None:
@@ -41,9 +39,19 @@ def count(stats: dict[str, Any] | None, name: str) -> int:
     return value if isinstance(value, int) else 0
 
 
-def stats_of(stats: dict[str, Any] | None) -> dict[str, int]:
-    """Read every count a report's stats carry."""
-    return {name: count(stats, name) for name in STAT_NAMES}
+def import_counts(stats: dict[str, Any] | None) -> Dhis2ImportCounts:
+    """Read a report's stats as the pack's import counts: what DHIS2 counts as created is imported."""
+    return Dhis2ImportCounts(
+        imported=count(stats, "created"),
+        updated=count(stats, "updated"),
+        ignored=count(stats, "ignored"),
+        deleted=count(stats, "deleted"),
+    )
+
+
+def sent(bundle: dict[str, Any], collections: tuple[str, ...] | None = None) -> int:
+    """How many objects a bundle holds: the items of each list in it, or of the named lists only."""
+    return sum(len(as_list(value)) for name, value in bundle.items() if collections is None or name in collections)
 
 
 def text(value: object) -> str | None:

@@ -150,8 +150,9 @@ async def test_the_finished_report_is_fetched_into_the_output(ctx: FakeContext, 
     assert isinstance(output, Dhis2TrackerImportOutput)
     assert output.status == "OK"
     assert output.job_id == JOB
-    assert output.stats.created == 1
-    assert output.by_tracker_type["EVENT"].created == 1
+    assert output.sent == 1
+    assert output.counts.imported == 1
+    assert output.by_tracker_type["EVENT"].imported == 1
     assert [(item.tracker_type, item.uid) for item in output.objects] == [("EVENT", "evNew000001")]
     assert route.last.url.params["reportMode"] == "FULL"
 
@@ -184,7 +185,7 @@ async def test_a_synchronous_import_reads_the_report_it_answers_with(ctx: FakeCo
     )
     assert isinstance(output, Dhis2TrackerImportOutput)
     assert output.job_id is None
-    assert output.stats.created == 1
+    assert output.counts.imported == 1
     assert route.last.url.params["async"] == "false"
 
 
@@ -206,7 +207,7 @@ async def test_fail_on_error_off_reports_the_errors(ctx: FakeContext, dhis2: Dhi
     )
     assert isinstance(output, Dhis2TrackerImportOutput)
     assert output.status == "ERROR"
-    assert [(error.error_code, error.uid) for error in output.errors] == [("E1029", "evBad000001")]
+    assert [(error.error_code, error.uid) for error in output.conflicts] == [("E1029", "evBad000001")]
 
 
 async def test_a_job_answer_without_an_id_fails_the_step(ctx: FakeContext, dhis2: Dhis2Server) -> None:
