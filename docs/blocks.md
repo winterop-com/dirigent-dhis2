@@ -188,10 +188,8 @@ the refused registrations.
 | `status` | `string` | yes |  | The summary's own word: SUCCESS or WARNING. |
 | `completed` | `boolean` | yes |  | Whether the window was marked complete, or reopened. |
 | `dry_run` | `boolean` | yes |  | Whether this was a validation only, with nothing written. |
-| `imported` | `integer` | yes |  | How many registrations were created. |
-| `updated` | `integer` | yes |  | How many registrations were revised. |
-| `ignored` | `integer` | yes |  | How many registrations the instance did not take. |
-| `deleted` | `integer` | yes |  | How many registrations were removed. |
+| `sent` | `integer` | yes |  | How many registrations were sent: one. |
+| `counts` | `object` | yes |  | What happened to the registration: imported, updated, ignored or deleted. |
 | `conflicts` | `object[]` | yes |  | Every refusal the summary names, empty when the registration was taken. |
 
 ### `dhis2.data_value`
@@ -514,14 +512,14 @@ for in full, so `objects` names every object with its uid, including one the ins
 
 The report is read whether it came on 200 or on 409. A report whose status is `ERROR` fails the
 step with `dhis2.metadata_import.refused`, naming the first refused objects, unless
-`fail_on_error` is off, when the step succeeds and `errors` carries them. A bundle that is not an
+`fail_on_error` is off, when the step succeeds and `conflicts` carries them. A bundle that is not an
 object is refused with `dhis2.metadata_import.not_a_bundle` before anything is sent, and an answer
 with no report in it fails with `dhis2.metadata_import.no_report`. Every one of these is
 `rejected`.
 
-Each entry of `by_class` and `stats` counts `created`, `updated`, `deleted`, `ignored` and `total`.
-Each object names its `object_class`, `uid` and `index`; each error adds the instance's
-`error_code`, `message` and the `property` it is about.
+`counts` and each entry of `by_class` are the pack's import counts, with DHIS2's `created`
+answered as `imported`. Each object names its `object_class`, `uid` and `index`; each conflict
+adds the instance's `error_code`, its words as `value`, and the `property` it is about.
 
 **Config**
 
@@ -543,10 +541,11 @@ Each object names its `object_class`, `uid` and `index`; each error adds the ins
 | --- | --- | --- | --- | --- |
 | `status` | `string` | yes |  | The report's own word: OK, WARNING, or ERROR when `fail_on_error` is off. |
 | `dry_run` | `boolean` | yes |  | Whether this was a validation only, with nothing written. |
-| `stats` | `object` | yes |  | The counts for the whole bundle. |
-| `by_class` | `object of object` | yes |  | The counts for each class of object in the bundle, keyed by class, such as DataElement. |
+| `sent` | `integer` | yes |  | How many objects the bundle held, across its collections. |
+| `counts` | `object` | yes |  | What happened to the objects: imported (DHIS2's created), updated, ignored and deleted. |
+| `by_class` | `object of object` | yes |  | The same counts for each class of object in the bundle, keyed by class, such as DataElement. |
 | `objects` | `object[]` | yes |  | Every object the report names, with its uid. |
-| `errors` | `object[]` | yes |  | Every refusal the report names, empty when the import was clean. |
+| `conflicts` | `object[]` | yes |  | Every object the report refused, empty when the import was clean. |
 
 ### `dhis2.system_info`
 
@@ -660,9 +659,10 @@ without a plain job id with `dhis2.tracker_import.no_job`, and an answer with no
 `dhis2.tracker_import.no_report`, which is `transient` when the finished job's report is not there
 yet and `rejected` otherwise.
 
-`by_tracker_type` is keyed by DHIS2's own names: `TRACKED_ENTITY`, `ENROLLMENT`, `EVENT` and
-`RELATIONSHIP`. Each object names its `tracker_type`, `uid` and `index`; each error and warning
-adds the instance's `error_code` and `message`.
+`counts` and each entry of `by_tracker_type` are the pack's import counts, with DHIS2's `created`
+answered as `imported`; `by_tracker_type` is keyed by DHIS2's own names: `TRACKED_ENTITY`,
+`ENROLLMENT`, `EVENT` and `RELATIONSHIP`. Each object names its `tracker_type`, `uid` and
+`index`; each conflict and warning adds the instance's `error_code` and its words as `value`.
 
 **Config**
 
@@ -683,10 +683,11 @@ adds the instance's `error_code` and `message`.
 | `status` | `string` | yes |  | The report's own word: OK, WARNING, or ERROR when `fail_on_error` is off. |
 | `dry_run` | `boolean` | yes |  | Whether this was a validation only, with nothing written. |
 | `job_id` | `string or null` |  | `null` | The id of the job the instance ran the import as, when it ran as one. |
-| `stats` | `object` | yes |  | The counts for the whole bundle. |
-| `by_tracker_type` | `object of object` | yes |  | The counts for each tracker type in the bundle, such as TRACKED_ENTITY or EVENT. |
+| `sent` | `integer` | yes |  | How many objects the bundle held, across its four lists. |
+| `counts` | `object` | yes |  | What happened to the objects: imported (DHIS2's created), updated, ignored and deleted. |
+| `by_tracker_type` | `object of object` | yes |  | The same counts for each tracker type in the bundle, such as TRACKED_ENTITY or EVENT. |
 | `objects` | `object[]` | yes |  | Every object the report names, with its uid. |
-| `errors` | `object[]` | yes |  | Every error the validation report names, empty when the import was clean. |
+| `conflicts` | `object[]` | yes |  | Every error the validation report names, empty when the import was clean. |
 | `warnings` | `object[]` | yes |  | Every warning the validation report names. |
 
 ## Sensors
