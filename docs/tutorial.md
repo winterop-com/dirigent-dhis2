@@ -121,7 +121,7 @@ Ten blocks in the `dhis2` group, and `dhis2` among the connection kinds. The sam
 the Blocks screen in the UI, where each block says how many of the pack's example documents use
 it:
 
-![The Blocks screen filtered to dhis2: eight blocks, seven operators and one sensor, each with how many of the examples use it.](images/tutorial/blocks.png)
+![The Blocks screen filtered to dhis2: ten blocks, nine operators and one sensor, each with how many of the examples use it.](images/tutorial/blocks.png)
 
 *The blocks the pack contributes, as the instance's own catalog reports them.*
 
