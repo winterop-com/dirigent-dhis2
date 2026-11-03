@@ -29,7 +29,9 @@ allowlisted.
 | [`dhis2.data_value_set_export`](#dhis2data_value_set_export) | operator | dhis2 | Export a DHIS2 data value set. |
 | [`dhis2.data_value_set_import`](#dhis2data_value_set_import) | operator | dhis2 | Import a data value set into DHIS2. |
 | [`dhis2.message`](#dhis2message) | operator | dhis2 | Send a DHIS2 message to users, user groups or org units. |
-| [`dhis2.metadata`](#dhis2metadata) | operator | dhis2 | Read a DHIS2 metadata resource. |
+| [`dhis2.metadata`](#dhis2metadata) | operator | dhis2 | Read one DHIS2 metadata collection, whole or one page of it. |
+| [`dhis2.metadata_export`](#dhis2metadata_export) | operator | dhis2 | Read several DHIS2 metadata collections, every row of each, in one request. |
+| [`dhis2.system_info`](#dhis2system_info) | operator | dhis2 | Read a DHIS2 instance's version, build, server clock and analytics state. |
 | [`dhis2.tracker`](#dhis2tracker) | operator | dhis2 | Read DHIS2 tracker objects. |
 | [`dhis2.data_set_complete`](#dhis2data_set_complete) | sensor | dhis2 | Wait for a DHIS2 data set to be marked complete. |
 
@@ -250,7 +252,7 @@ dhis2w's `messaging.send` posts and then reads back.
 
 ### `dhis2.metadata`
 
-Read a DHIS2 metadata resource.
+Read one DHIS2 metadata collection, whole or one page of it.
 
 Idempotent.
 
@@ -258,6 +260,10 @@ Reads one collection through the version-bound generic accessor, so `resource` i
 collection name as it appears in the API path and a name the instance's version does not
 publish is `rejected` rather than retried. `paging` is off by default: a metadata read wants
 the whole collection, not its first page.
+
+It is also how a collection is counted: `paging: true` and `page_size: 1` send one row, and the
+answer's `pager.total` is how many there are. Several collections read whole are one
+[`dhis2.metadata_export`](#dhis2metadata_export) step instead.
 
 **Config**
 
@@ -280,7 +286,80 @@ the whole collection, not its first page.
 | `duration_ms` | `integer` | yes |  | How long the read took. |
 
 The instance's own version and system information is not a metadata collection, so it is read
-with `http.request` rather than with this block.
+with [`dhis2.system_info`](#dhis2system_info) rather than with this block.
+
+### `dhis2.metadata_export`
+
+Read several DHIS2 metadata collections, every row of each, in one request.
+
+Idempotent.
+
+Reads every collection `resources` names in one `GET /api/metadata`, and answers with each under
+its own name in `collections` and its row count in `counts`. Each name is checked against the
+version-bound client first, so a name the instance's version does not publish is `rejected`
+before any export is sent. `fields`, `filter` and `order` are shared by every collection; a
+collection written as a mapping key may name its own, which replace the shared ones for it alone.
+Every term is sent scoped to its collection, as `<resource>:fields`, `<resource>:filter` and
+`<resource>:order`.
+
+`/api/metadata` has no pager: it answers with every row that matches. To count a collection,
+read it with [`dhis2.metadata`](#dhis2metadata), `paging: true` and `page_size: 1`, and take
+`pager.total`.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `resources` | `string[] or object` | yes |  | The DHIS2 collection names to read, as they appear in the API path: a list such as `[dataSets, programs]` that each take the shared terms, or a mapping from a name to its own `fields`, `filter` and `order`, where a term a collection leaves unset falls back to the shared one and `{}` takes them all. |
+| `fields` | `string or string[] or null` |  | `null` | The `fields=` selector every collection is read with unless it names its own: one string such as `id,name` or a list sent comma-joined; DHIS2's own `:owner` when unset. |
+| `filter` | `string or string[] or null` |  | `null` | The `filter=` expressions every collection is narrowed by unless it names its own: one string such as `name:like:ANC` or a list sent as one filter each and ANDed. |
+| `order` | `string or string[] or null` |  | `null` | The `order=` terms every collection is sorted by unless it names its own: one string such as `name:asc` or a list sent comma-joined. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `collections` | `object` | yes |  | Every collection asked for, keyed by its name, holding the rows the instance answered with; an empty list for a collection with no row that matched. |
+| `counts` | `object` | yes |  | How many rows each collection holds in `collections`, keyed by its name. |
+| `duration_ms` | `integer` | yes |  | How long the export took. |
+
+### `dhis2.system_info`
+
+Read a DHIS2 instance's version, build, server clock and analytics state.
+
+Idempotent.
+
+Reads `/api/system/info` through the connection, so a `base_url` that redirects is followed the
+way the connection allows it and no `follow_redirects_with_auth` is needed. The keys a report
+reads most are lifted into named fields; every other key, and a named one that did not hold a
+string, is carried as the instance wrote it under `other`.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `version` | `string or null` |  | `null` | The DHIS2 version, such as `2.42.1`. |
+| `revision` | `string or null` |  | `null` | The source revision the running build was made from. |
+| `build_time` | `string or null` |  | `null` | When the running build was made, as the instance writes it. |
+| `system_id` | `string or null` |  | `null` | The instance's own system identifier. |
+| `system_name` | `string or null` |  | `null` | The name the instance is configured with, its application title. |
+| `instance_base_url` | `string or null` |  | `null` | The base URL the instance believes it is served at. |
+| `server_date` | `string or null` |  | `null` | The instance's clock at the moment it answered. |
+| `server_time_zone_id` | `string or null` |  | `null` | The time zone the server runs in, such as `Etc/UTC`. |
+| `calendar` | `string or null` |  | `null` | The calendar the instance keeps its periods in, such as `iso8601` or `ethiopian`. |
+| `date_format` | `string or null` |  | `null` | The date format the instance shows dates in, such as `yyyy-mm-dd`. |
+| `last_analytics_table_success` | `string or null` |  | `null` | When the analytics tables were last generated successfully. |
+| `last_analytics_table_runtime` | `string or null` |  | `null` | How long that last successful analytics table generation took, as the instance words it. |
+| `interval_since_last_analytics_table_success` | `string or null` |  | `null` | How long ago that was, as the instance words it. |
+| `other` | `object` |  | `{}` | Every other key of the answer, as the instance wrote it: the database, the Java runtime, the memory and processor counts, and any of the named keys that did not hold a string. |
+| `duration_ms` | `integer` | yes |  | How long the read took. |
 
 ### `dhis2.tracker`
 

@@ -9,7 +9,7 @@ the block preflight.
 Each file here is one operation, small enough to read in a sitting and to lift into a real
 pipeline unchanged. Find yours by its file name: the exports, the imports and their
 strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker
-collections, and the metadata reads.
+collections, the metadata reads, and a system report.
 
 Two neighbours hold what this shelf deliberately does not. The generic-HTTP way of talking
 to DHIS2 -- what you reach for when no adapter is installed, or for a call the adapter does
@@ -87,6 +87,8 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | [dhis2-metadata-org-units.yaml](dhis2-metadata-org-units.yaml) | Read the org units directly beneath one unit, with their hierarchy paths. |
 | [dhis2-metadata-data-set.yaml](dhis2-metadata-data-set.yaml) | Read one data set's period type, data elements, and their disaggregations. |
 | [dhis2-metadata-paged.yaml](dhis2-metadata-paged.yaml) | Read one page of organisation units and how many there are in total. |
+| [dhis2-system-report.yaml](dhis2-system-report.yaml) | System info, a two-collection `dhis2.metadata_export` and an org unit count, rendered as the run's `report:`. |
 
-The instance's own version and system information is not a metadata collection, so it is read
-directly: [`../dhis2-http/dhis2-system-info.yaml`](../dhis2-http/dhis2-system-info.yaml).
+The instance's own version and system information is not a metadata collection: it is
+`dhis2.system_info`, which `dhis2-system-report.yaml` reads. The same read through the generic
+`http.request` is [`../dhis2-http/dhis2-system-info.yaml`](../dhis2-http/dhis2-system-info.yaml).

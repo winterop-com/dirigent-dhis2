@@ -1,0 +1,118 @@
+# Describe one DHIS2 instance in a report: what it runs, and what it holds.
+#
+# Three reads, each the cheapest for what it asks:
+#
+#   info      dhis2.system_info reads /api/system/info: the version, build, server clock and
+#             when the analytics tables last ran, lifted into named fields.
+#   holdings  dhis2.metadata_export reads several collections in one /api/metadata request,
+#             each under its own name. /api/metadata has no pager, so every row comes back --
+#             right for the data sets and programs listed in full, which are a few dozen.
+#   org_units dhis2.metadata with paging on and a page of one. The pager's total is the count,
+#             and one row is all that travels, which is how a collection of thousands is
+#             counted without reading it.
+#
+# The report: section renders the run's own page from those outputs when it settles, so
+# `dg runs report RUN_ID --markdown` is the system report.
+#
+#   dg run --local examples/dhis2/dhis2-system-report.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-system-report
+name: DHIS2 system report
+description: |
+  Report a DHIS2 instance's version, analytics state, and metadata holdings.
+
+  System info, a two-collection metadata export and an org unit count, rendered as the run's
+  report document.
+
+tags: [dhis2, metadata, report]
+
+requires:
+  blocks:
+    - dhis2.system_info
+    - dhis2.metadata_export
+    - dhis2.metadata
+
+connections:
+  dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
+    kind: dhis2
+    config:
+      base_url: https://play.dhis2.org/2.43
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  info:
+    block: dhis2.system_info
+    config:
+      connection: dhis2-demo
+
+  holdings:
+    block: dhis2.metadata_export
+    config:
+      connection: dhis2-demo
+      fields: id,name
+      order: name:asc
+      resources:
+        dataSets:
+          fields: id,name,periodType
+        programs: {}
+
+  org_units:
+    block: dhis2.metadata
+    config:
+      connection: dhis2-demo
+      resource: organisationUnits
+      fields: id
+      paging: true
+      page_size: 1
+
+report:
+  template: |
+    {% set info = step.info.output %}
+    {% set holdings = step.holdings.output %}
+    {% set org_units = step.org_units.output %}
+    # {{ info.system_name or "DHIS2" }}: {{ run.status }}
+
+    {% if info %}
+    - version: {{ info.version }} (revision {{ info.revision }}, built {{ info.build_time }})
+    - base url: {{ info.instance_base_url }}
+    - server time: {{ info.server_date }} {{ info.server_time_zone_id }}
+    - calendar: {{ info.calendar }}, dates as {{ info.date_format }}
+    - analytics tables: last built {{ info.last_analytics_table_success or "never" }},
+      {{ info.interval_since_last_analytics_table_success }} ago, in {{ info.last_analytics_table_runtime }}
+    {% else %}
+    The instance did not describe itself.
+    {% endif %}
+
+    ## Holdings
+
+    {% if org_units %}
+    {{ org_units.body.pager.total }} organisation units.
+    {% endif %}
+    {% if holdings %}
+
+    | collection | rows |
+    | --- | --- |
+    {% for name, count in holdings.counts.items() %}
+    | {{ name }} | {{ count }} |
+    {% endfor %}
+
+    ### Data sets
+
+    | data set | period type |
+    | --- | --- |
+    {% for one in holdings.collections.dataSets %}
+    | {{ one.name }} | {{ one.periodType }} |
+    {% endfor %}
+
+    ### Programs
+
+    {% for one in holdings.collections.programs %}
+    - {{ one.name }}
+    {% endfor %}
+    {% endif %}

@@ -6,7 +6,7 @@ on five shelves:
 
 | Shelf | What is on it |
 | --- | --- |
-| [`dhis2/`](#the-native-adapter) | The native adapter: exports and their import strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker collections, the metadata reads. |
+| [`dhis2/`](#the-native-adapter) | The native adapter: exports and their import strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker collections, the metadata reads, a system report. |
 | [`dhis2-compose/`](#composed-with-the-engines-own-blocks) | A `dhis2.*` block beside one of the engine's own: a schema gate, a jq reshape, a fan-out over org units, a write to storage and the read back. |
 | [`dhis2-http/`](#the-generic-http-way) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a completion registration, a stage-scoped event read. |
 | [`validate/`](#a-read-held-to-a-shape) | A metadata read held to a shape: a `fields=` projection gated on `validate.schema`, with the schema carried and named. |
@@ -135,6 +135,7 @@ the pack refuses them at the block preflight.
 | `dhis2-metadata-org-units.yaml` | `dhis2-metadata-org-units` | Read the org units directly beneath one unit, with their hierarchy paths. |
 | `dhis2-metadata-data-set.yaml` | `dhis2-metadata-data-set` | Read one data set's period type, data elements, and their disaggregations. |
 | `dhis2-metadata-paged.yaml` | `dhis2-metadata-paged` | Read one page of organisation units and how many there are in total. |
+| `dhis2-system-report.yaml` | `dhis2-system-report` | System info, a two-collection `dhis2.metadata_export` and an org unit count, rendered as the run's `report:`. |
 
 ## Composed with the engine's own blocks
 

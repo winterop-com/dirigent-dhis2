@@ -44,6 +44,17 @@ from dirigent_dhis2.metadata import (
     Dhis2MetadataOperator,
     Dhis2MetadataOutput,
 )
+from dirigent_dhis2.metadata_export import (
+    Dhis2MetadataExportConfig,
+    Dhis2MetadataExportOperator,
+    Dhis2MetadataExportOutput,
+    Dhis2MetadataSelection,
+)
+from dirigent_dhis2.system_info import (
+    Dhis2SystemInfoConfig,
+    Dhis2SystemInfoOperator,
+    Dhis2SystemInfoOutput,
+)
 from dirigent_dhis2.tracker import (
     Dhis2TrackerConfig,
     Dhis2TrackerOperator,
@@ -70,6 +81,8 @@ class Dhis2Plugin:
                 Dhis2DataValueSetImportOperator(),
                 Dhis2MessageOperator(),
                 Dhis2MetadataOperator(),
+                Dhis2MetadataExportOperator(),
+                Dhis2SystemInfoOperator(),
                 Dhis2TrackerOperator(),
             ],
             sensors=[Dhis2DataSetCompleteSensor()],
@@ -113,11 +126,18 @@ __all__ = [
     "Dhis2MessageOperator",
     "Dhis2MessageOutput",
     "Dhis2MetadataConfig",
+    "Dhis2MetadataExportConfig",
+    "Dhis2MetadataExportOperator",
+    "Dhis2MetadataExportOutput",
     "Dhis2MetadataOperator",
     "Dhis2MetadataOutput",
     "Dhis2Operator",
     "Dhis2Plugin",
+    "Dhis2MetadataSelection",
     "Dhis2Sensor",
+    "Dhis2SystemInfoConfig",
+    "Dhis2SystemInfoOperator",
+    "Dhis2SystemInfoOutput",
     "Dhis2TrackerConfig",
     "Dhis2TrackerOperator",
     "Dhis2TrackerOutput",

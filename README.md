@@ -23,7 +23,9 @@ steps, rather than composing them out of raw HTTP:
 | `dhis2.data_value_set_export` | operator | Reads a data value set for a data set, period and org unit, and hands the document on. |
 | `dhis2.data_value_set_import` | operator | Imports a data value set, parsing the import summary and its conflicts. |
 | `dhis2.message` | operator | Sends a DHIS2 message to users, user groups or org units, which the instance also emails where SMTP is configured. |
-| `dhis2.metadata` | operator | Reads one metadata collection through the version-bound generic accessor. |
+| `dhis2.metadata` | operator | Reads one metadata collection through the version-bound generic accessor, whole or one page; a page of one counts it. |
+| `dhis2.metadata_export` | operator | Reads several metadata collections in one `/api/metadata` request, every row of each, keyed by collection. |
+| `dhis2.system_info` | operator | Reads `/api/system/info`: version, build, server clock and analytics state as named fields. |
 | `dhis2.tracker` | operator | Reads a page of tracked entities, enrollments or events from `/api/tracker`. |
 | `dhis2.data_set_complete` | sensor | Holds a run until a data set is marked complete for the period. |
 
@@ -114,7 +116,7 @@ One file per operation, grouped by how it is built:
 
 | Shelf | What is in it |
 | --- | --- |
-| [`dhis2/`](src/dirigent_dhis2/shelves/dhis2) | The native adapter: exports and their import strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker collections, the metadata reads. |
+| [`dhis2/`](src/dirigent_dhis2/shelves/dhis2) | The native adapter: exports and their import strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker collections, the metadata reads, a system report. |
 | [`dhis2-compose/`](src/dirigent_dhis2/shelves/dhis2-compose) | A `dhis2.*` block beside one of the engine's own: a schema gate, a jq reshape, a fan-out over org units, a write to storage and the read back. |
 | [`dhis2-http/`](src/dirigent_dhis2/shelves/dhis2-http) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a completion registration, a stage-scoped event read. |
 | [`validate/`](src/dirigent_dhis2/shelves/validate) | A metadata read held to a shape: a `fields=` projection gated on `validate.schema`, with the schema carried and named. |
