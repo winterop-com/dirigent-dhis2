@@ -1,0 +1,72 @@
+# Export a month as CSV, then rehearse importing that file, read back from storage.
+#
+# The round trip of dhis2-rehearse-import.yaml in CSV: the export writes the set to storage
+# and answers its uri, and the import reads the file at data_values_uri rather than an inline
+# document, so a set too large to ride in a step's output still moves. format: csv on the
+# import sends it as application/csv, the way DHIS2 reads a CSV import.
+#
+# The import's id schemes say how the file names things. The export below writes data
+# elements by code, so the import is told data_element_id_scheme: CODE to read them that way;
+# org_unit_id_scheme and category_option_combo_id_scheme work the same, and id_scheme sets all
+# of them at once.
+#
+# dry_run keeps the demo untouched: the summary counts what a real import would do.
+#
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-rehearse-csv-import.yaml
+#   dg run examples/dhis2/dhis2-rehearse-csv-import.yaml -p period=202506
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-rehearse-csv-import
+name: Rehearse a CSV import
+description: |
+  Export one month as CSV, then rehearse importing the file as a dry run.
+
+  The import reads the export's file from storage, with data elements named by code.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+    - dhis2.data_value_set_import
+  connections:
+    - dhis2-play
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read and rehearse.
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2-play
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: DiszpKrYNg8
+      format: csv
+      data_element_id_scheme: CODE
+  rehearse:
+    block: dhis2.data_value_set_import
+    depends_on: [export]
+    config:
+      connection: dhis2-play
+      data_values_uri: ${steps.export.output.uri}
+      format: csv
+      data_element_id_scheme: CODE
+      # The demo's values are mostly already there; NONE reports what a real import would skip
+      # rather than failing the rehearsal on it.
+      atomic_mode: NONE
+      dry_run: true

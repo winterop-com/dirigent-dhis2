@@ -1,0 +1,56 @@
+# Run a stored SQL view by uid and read its rows.
+#
+# A SQL view is metadata: SQL someone allowed to write it stored on the instance, run by uid.
+# dhis2.sql_view runs one and never sends SQL of its own. A QUERY view fills its ${name}
+# placeholders from variables; a VIEW or MATERIALIZED_VIEW is narrowed with criteria on its
+# result's columns instead.
+#
+# The answer is rows keyed by column -- the grid DHIS2 sends, turned into objects -- with the
+# columns listed beside them. DHIS2 pages a view at 50 rows unless told not to, so the block
+# asks for every row; paging: true with page and page_size reads one page and answers a pager.
+#
+# "Data element by value type" is the demo's own QUERY view, one placeholder: valueType.
+#
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-sql-view.yaml
+#   dg run examples/dhis2/dhis2-sql-view.yaml -p value_type=NUMBER
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-sql-view
+name: Run a SQL view
+description: |
+  Run the demo's data-element-by-value-type SQL view and read every row.
+
+  The view's placeholder is filled from a variable, and each row comes back keyed by column.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.sql_view
+  connections:
+    - dhis2-play
+
+params:
+  type: object
+  properties:
+    value_type:
+      type: string
+      default: TEXT
+      description: The value type the view lists data elements of, such as TEXT or NUMBER.
+
+steps:
+  view:
+    block: dhis2.sql_view
+    config:
+      connection: dhis2-play
+      sql_view: qMYMT0iUGkG
+      variables:
+        valueType: "${params.value_type}"

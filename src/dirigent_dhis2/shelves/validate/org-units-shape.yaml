@@ -6,8 +6,15 @@
 # run fails HERE naming the path, not later where a reader reads a field that moved. requires
 # names the schema, so an instance without it refuses the document.
 #
-#   dg run --local --schema examples/schemas/dhis2-org-units.json \
-#     examples/validate/org-units-shape.yaml
+# The document carries no credential. It names the http connection dhis2-play-http, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create http dhis2-play-http --set base_url=https://play.dhis2.org/2.43 \
+#       --set follow_redirects_with_auth=true --set timeout=2m
+#
+#   dg schema create examples/schemas/dhis2-org-units.json
+#   dg run examples/validate/org-units-shape.yaml
 
 format: dirigent/v1
 kind: pipeline
@@ -27,24 +34,14 @@ requires:
     - validate.schema
   schemas:
     - dhis2-org-units
-
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: http
-    config:
-      base_url: https://play.dhis2.org/2.43
-      follow_redirects_with_auth: true
-      basic_username: admin
-      basic_password: district
-      timeout: 1m
+  connections:
+    - dhis2-play-http
 
 steps:
   fetch:
     block: http.request
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/organisationUnits.json
       method: GET
       query:

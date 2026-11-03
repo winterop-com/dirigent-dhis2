@@ -1,0 +1,58 @@
+# Wait on a DHIS2 background job someone else started, by its job type and id.
+#
+# DHIS2 runs its long work as jobs -- an asynchronous import, a scheduled sync, a data
+# integrity check -- and reports each one's progress through the same notification feed at
+# /api/system/tasks/{job type}/{id}. A submission answers both halves, as response.jobType and
+# response.id. dhis2.task_wait follows that feed without holding a worker and settles when the
+# job does: it succeeds on the job's completion, fails when the job ends in error, and gives up
+# on a job the instance does not know.
+#
+# This is the step to put behind an http.request that starts a job no block of this pack
+# starts, or in front of the work that must wait for one a schedule on the instance runs.
+#
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-task-wait.yaml -p job_type=DATAVALUE_IMPORT -p task_id=<id>
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-task-wait
+name: Wait on a DHIS2 job
+description: |
+  Follow one DHIS2 background job by its job type and id until it settles.
+
+  The job's messages stream into the run's log as it reports them.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.task_wait
+  connections:
+    - dhis2-play
+
+params:
+  type: object
+  required: [task_id]
+  properties:
+    job_type:
+      type: string
+      default: DATAVALUE_IMPORT
+      description: The job type the task is filed under, such as DATAVALUE_IMPORT or METADATA_IMPORT.
+    task_id:
+      type: string
+      description: The id the instance gave the job, response.id in its submission's answer.
+
+steps:
+  wait:
+    block: dhis2.task_wait
+    timeout: 1h
+    config:
+      connection: dhis2-play
+      job_type: "${params.job_type}"
+      task_id: "${params.task_id}"

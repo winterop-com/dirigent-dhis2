@@ -1,28 +1,43 @@
 """``dhis2.data_value_set_import``: write data values into the instance, reading its summary honestly."""
 
 import json
+import re
 from typing import ClassVar, Final, Literal
 
-from dhis2w_client import WebMessageResponse
+from dhis2w_client import Dhis2Client, WebMessageResponse
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
-from pydantic import BaseModel, Field, JsonValue
+from pydantic import BaseModel, Field, JsonValue, model_validator
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
-from dirigent_dhis2.export import DATA_VALUE_SETS_PATH
+from dirigent_dhis2.export import CONTENT_TYPES, ID_SCHEME_PATTERN, DataValueSetFormat
 from dirigent_dhis2.messages import (
     IMPORT_CONFLICTS_AND_MORE,
     IMPORT_NO_DATA_VALUES,
     IMPORT_NO_SUMMARY,
     IMPORT_NO_VALUES_TAKEN,
+    IMPORT_NOT_TEXT,
     IMPORT_PARTIAL,
     IMPORT_REFUSED,
     IMPORT_TOOK_NOTHING,
+    IMPORT_TWO_SOURCES,
     IMPORT_UNKNOWN_STATUS,
     IMPORT_VALUES_IGNORED,
 )
 from dirigent_dhis2.web import Dhis2Operator, refuse
 from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, RemoteHandle, StepContext
+
+#: Where data value sets are imported, in every form.
+DATA_VALUE_SETS_PATH: Final = "/api/dataValueSets"
+
+#: A ``completeDate`` attribute in an XML or ADX document, which a dry run leaves out.
+COMPLETE_DATE_ATTRIBUTE: Final = re.compile(r"""\s+completeDate\s*=\s*("[^"]*"|'[^']*')""")
+
+#: One value in an XML or ADX document.
+XML_VALUE: Final = re.compile(r"<(?:[A-Za-z_][\w.-]*:)?dataValue[\s/>]")
+
+#: The id scheme ADX is written in, which 2.43 and later no longer assume.
+ADX_ID_SCHEME: Final = "CODE"
 
 #: How many conflicts a refusal names before pointing at the rest.
 NAMED_CONFLICTS = 3
@@ -78,11 +93,34 @@ class Dhis2DataValueSetImportConfig(BlockModel):
     connection: ConnectionRef
     """The code of the dhis2 connection naming the instance."""
 
-    data_values: JsonValue
-    """The data value set document to send, an object with a ``dataValues`` list, written in the
-    step or referenced from one: an export's document is ``${steps.<step>.output.body}``, and a
-    set held in storage comes in through storage.read. A document with no ``dataValues`` list
-    fails the step before anything is sent."""
+    data_values: JsonValue = None
+    """The data value set to send, written in the step or referenced from one. For ``json`` an
+    object with a ``dataValues`` list: an export's document is ``${steps.<step>.output.body}``,
+    and a document with no ``dataValues`` list fails the step before anything is sent. For
+    ``csv``, ``xml`` and ``adx`` the document's text, such as an export's
+    ``${steps.<step>.output.text}`` when it was not truncated."""
+
+    data_values_uri: str | None = None
+    """A storage URI holding the document to send, read in place of ``data_values``: an export's
+    ``${steps.<step>.output.uri}``, or a file a ``storage.write`` left."""
+
+    format: DataValueSetFormat = "json"
+    """The form the document is written in: ``json``, ``csv``, ``xml`` or ``adx``. DHIS2 2.41
+    to 2.44 import all four."""
+
+    id_scheme: str | None = Field(default=None, pattern=ID_SCHEME_PATTERN)
+    """How every identifier in the document is written: ``UID``, ``CODE``, ``NAME``, ``ID`` or
+    ``ATTRIBUTE:<uid>``; UID when unset, except for ``adx``, which is sent as ``CODE`` unless
+    this says otherwise."""
+
+    data_element_id_scheme: str | None = Field(default=None, pattern=ID_SCHEME_PATTERN)
+    """How data elements are written, in place of ``id_scheme``."""
+
+    org_unit_id_scheme: str | None = Field(default=None, pattern=ID_SCHEME_PATTERN)
+    """How org units are written, in place of ``id_scheme``."""
+
+    category_option_combo_id_scheme: str | None = Field(default=None, pattern=ID_SCHEME_PATTERN)
+    """How category option combos are written, in place of ``id_scheme``."""
 
     dry_run: bool = False
     """Whether the instance validates the import without writing anything. A `completeDate`
@@ -100,6 +138,13 @@ class Dhis2DataValueSetImportConfig(BlockModel):
     require_values: bool = False
     """Whether the step fails when the instance took no value at all: none imported, updated or
     deleted. Off, an empty ``dataValues`` list is sent and answers zero counts."""
+
+    @model_validator(mode="after")
+    def _one_source(self) -> "Dhis2DataValueSetImportConfig":
+        """Refuse a document named twice, inline and by URI."""
+        if self.data_values_uri is not None and self.data_values is not None:
+            raise ValueError(IMPORT_TWO_SOURCES.render())
+        return self
 
 
 class Dhis2DataValueSetImportOutput(BlockModel):
@@ -237,12 +282,95 @@ def _rehearsal(document: JsonValue, ctx: StepContext) -> JsonValue:
     return {key: value for key, value in document.items() if key != "completeDate"}
 
 
+def _text_values(document: str, form: str) -> int:
+    """Count the values a CSV, XML or ADX document holds: its rows past the header, or its value elements."""
+    if form == "csv":
+        rows = [line for line in document.splitlines() if line.strip()]
+        return max(len(rows) - 1, 0)
+    return len(XML_VALUE.findall(document))
+
+
+def _text_rehearsal(document: str, ctx: StepContext) -> str:
+    """The XML or ADX a dry run sends: the same text, without a ``completeDate`` attribute."""
+    rehearsed, left_out = COMPLETE_DATE_ATTRIBUTE.subn("", document)
+    if left_out:
+        ctx.log.warning(
+            "completeDate left out of the dry run: DHIS2 2.41 and 2.42 register completeness under dryRun",
+            left_out=left_out,
+        )
+    return rehearsed
+
+
+async def _source(config: Dhis2DataValueSetImportConfig, ctx: StepContext) -> JsonValue:
+    """The document the import sends: inline, or read whole from storage and parsed when it is JSON."""
+    if config.data_values_uri is None:
+        return config.data_values
+    held = bytearray()
+    async for chunk in ctx.storage.open_read(config.data_values_uri):
+        held.extend(chunk)
+    text = bytes(held).decode("utf-8")
+    if config.format != "json":
+        return text
+    try:
+        parsed: JsonValue = json.loads(text)
+    except ValueError:
+        return text
+    return parsed
+
+
+def _payload(document: JsonValue, config: Dhis2DataValueSetImportConfig, ctx: StepContext) -> tuple[bytes, int]:
+    """The bytes the import sends and how many values they hold, refusing a document of the wrong kind."""
+    if config.format == "json":
+        sent = _values_in(document)
+        sent_document = _rehearsal(document, ctx) if config.dry_run else document
+        return json.dumps(sent_document).encode(), sent
+    if not isinstance(document, str):
+        found = "an object" if isinstance(document, dict) else "a list" if isinstance(document, list) else "not text"
+        raise BlockFailure(IMPORT_NOT_TEXT, error_class=ErrorClass.REJECTED, format=config.format, found=found)
+    if config.dry_run and config.format != "csv":
+        document = _text_rehearsal(document, ctx)
+    return document.encode(), _text_values(document, config.format)
+
+
+def import_params(config: Dhis2DataValueSetImportConfig) -> dict[str, str]:
+    """The query an import sends: the strategy, the atomic mode, the dry run and the id schemes."""
+    params: dict[str, str] = {"importStrategy": config.import_strategy, "atomicMode": config.atomic_mode}
+    if config.dry_run:
+        params["dryRun"] = "true"
+    id_scheme = config.id_scheme or (ADX_ID_SCHEME if config.format == "adx" else None)
+    for name, scheme in (
+        ("idScheme", id_scheme),
+        ("dataElementIdScheme", config.data_element_id_scheme),
+        ("orgUnitIdScheme", config.org_unit_id_scheme),
+        ("categoryOptionComboIdScheme", config.category_option_combo_id_scheme),
+    ):
+        if scheme is not None:
+            params[name] = scheme
+    return params
+
+
+async def _send(client: Dhis2Client, payload: bytes, config: Dhis2DataValueSetImportConfig) -> WebMessageResponse:
+    """Post the document in its own media type and read the envelope DHIS2 answers with.
+
+    The client's data value stream takes no ``categoryOptionComboIdScheme``, so the request is
+    made through the client's own dispatch, which still applies its auth, pool and limits.
+    """
+    response = await client._request(  # pyright: ignore[reportPrivateUsage]
+        "POST",
+        DATA_VALUE_SETS_PATH,
+        params=import_params(config),
+        content=payload,
+        extra_headers={"Content-Type": CONTENT_TYPES[config.format], "Accept": "application/json"},
+    )
+    return WebMessageResponse.model_validate(response.json() if response.content.strip() else {})
+
+
 class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfig, Dhis2DataValueSetImportOutput]):
     """Sends one data value set and fails the step when the instance did not take it."""
 
     spec = OperatorSpec(
         id="dhis2.data_value_set_import",
-        summary="Import a data value set into DHIS2.",
+        summary="Import a data value set into DHIS2, as JSON, CSV, XML or ADX.",
     )
     config_model: ClassVar[type[BaseModel]] = Dhis2DataValueSetImportConfig
     output_model: ClassVar[type[BaseModel]] = Dhis2DataValueSetImportOutput
@@ -251,19 +379,12 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
         self, config: Dhis2DataValueSetImportConfig, ctx: StepContext
     ) -> Dhis2DataValueSetImportOutput | RemoteHandle:
         """Send the document and turn the summary into an output, or into a classified refusal."""
-        sent = _values_in(config.data_values)
+        payload, sent = _payload(await _source(config, ctx), config, ctx)
         if not sent:
             ctx.log.warning("the document holds no data values, so the import has none to take")
-        document = _rehearsal(config.data_values, ctx) if config.dry_run else config.data_values
-        payload = json.dumps(document).encode()
         async with client_for(ctx, config.connection) as client:
             try:
-                envelope = await client.data_values.stream(
-                    payload,
-                    import_strategy=config.import_strategy,
-                    atomic_mode=config.atomic_mode,
-                    dry_run=config.dry_run,
-                )
+                envelope = await _send(client, payload, config)
             except Dhis2ApiError as error:
                 refused = _summary_in(error)
                 if refused is None:

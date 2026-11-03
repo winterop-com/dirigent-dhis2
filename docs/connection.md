@@ -100,12 +100,16 @@ credential there; set it only on a `base_url` whose redirect you trust.
 ## Creating one
 
 ```bash
-dg connection create dhis2 play \
+dg connection create dhis2 dhis2-play \
   --name "DHIS2 play demo" \
   --set base_url=https://play.dhis2.org/2.43 \
-  --set basic_username=admin \
-  --set basic_password=district
+  --set timeout=2m
 ```
+
+At a terminal it asks how to sign in, `api_token` or `basic`, then for the fields of the form
+chosen, the secret without echoing it; the play demo takes the login it publishes on its own
+sign-in page. Outside a terminal the credential is given as flags, and a command with none is
+refused naming both forms. `dhis2-play` is the code every document on the pack's shelves names.
 
 With a personal access token instead:
 

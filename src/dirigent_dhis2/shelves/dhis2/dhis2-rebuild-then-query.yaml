@@ -17,13 +17,19 @@
 # because the demo is shared and the query below only needs the aggregate tables. A rebuild
 # whose scope does not cover what the query reads is a rebuild that changes nothing.
 #
-#   dg run --local examples/dhis2/dhis2-rebuild-then-query.yaml
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
 #
-# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
-# requires.connections rather than carrying it, so create a `dhis2` connection under that code
-# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
-# rename it in the copy. Then put the indicator and org unit you report on in the query, and
-# add a schedule so the report is current every morning.
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-rebuild-then-query.yaml
+#
+# TO MAKE IT YOURS: create a `dhis2` connection for your own instance -- `dg connection create
+# dhis2 my-dhis2 --set base_url=https://dhis2.example.org` -- and name it in a copy in place of
+# `dhis2-play`. Then put the indicator and org unit you report on in the query, and add a
+# schedule so the report is current every morning.
 
 format: dirigent/v1
 kind: pipeline
@@ -39,6 +45,8 @@ requires:
   blocks:
     - dhis2.analytics_run
     - dhis2.analytics_query
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -48,17 +56,6 @@ params:
       default: THIS_YEAR
       description: The period the indicator is read for, once the tables are current.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
-
 steps:
   rebuild:
     block: dhis2.analytics_run
@@ -67,7 +64,7 @@ steps:
       max_attempts: 2
       backoff: 5m
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       last_years: 1
       skip_events: true
       skip_enrollment: true
@@ -78,7 +75,7 @@ steps:
     # The edge is the point: the query runs after the job has finished, not after it started.
     depends_on: [rebuild]
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       mode: aggregate
       dimension:
         - dx:Uvn6LCg7dVU

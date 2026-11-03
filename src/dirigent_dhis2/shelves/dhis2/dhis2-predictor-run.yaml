@@ -1,0 +1,66 @@
+# Run the predictors in each named predictor group over a quarter.
+#
+# A predictor computes a value from other data -- a moving average, a target, a sum across
+# data elements -- and writes it as an ordinary data value. dhis2.predictor_run runs one
+# predictor, one predictor group, or every predictor on the instance, and answers how many
+# values the run predicted.
+#
+# DHIS2 has no dry run for predictors: a run writes. So the groups are a parameter, empty by
+# default, and the step fans out over them: as written it runs nothing, and the demo is left
+# as it is. Name a group of your own instance's to make it run.
+#
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-predictor-run.yaml
+#   dg run examples/dhis2/dhis2-predictor-run.yaml -p 'predictor_groups=["HhJSbVrbDgW"]'
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-predictor-run
+name: Run predictor groups
+description: |
+  Run the predictors of each named predictor group over a quarter.
+
+  Predictors write the values they predict, so as written no group is named and nothing runs.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.predictor_run
+  connections:
+    - dhis2-play
+
+params:
+  type: object
+  properties:
+    predictor_groups:
+      type: array
+      items:
+        type: string
+        pattern: "^[A-Za-z][A-Za-z0-9]{10}$"
+      default: []
+      description: The uids of the predictor groups to run. None by default, so nothing is written.
+    start_date:
+      type: string
+      default: "2026-01-01"
+      description: The ISO date the range starts on.
+    end_date:
+      type: string
+      default: "2026-03-31"
+      description: The ISO date the range ends on.
+
+steps:
+  predict:
+    block: dhis2.predictor_run
+    for_each: ${params.predictor_groups}
+    config:
+      connection: dhis2-play
+      predictor_group: ${item}
+      start_date: "${params.start_date}"
+      end_date: "${params.end_date}"

@@ -1,0 +1,48 @@
+# Rebuild the resource tables on their own, following the job to its end.
+#
+# The resource tables are DHIS2's flattened copies of metadata -- the org unit hierarchy, the
+# category structure, the groupings -- that analytics, many SQL views and the data entry
+# screens read. After a metadata change they are what has to catch up. dhis2.resource_tables_run
+# submits POST /api/resourceTables and follows the RESOURCE_TABLE job's notifications without
+# holding a worker; dhis2-analytics-resource-tables.yaml reaches the same tables through the
+# analytics job with every data table skipped.
+#
+# A job already running is followed rather than submitted twice. The output carries the task
+# id, when the instance said it was done, and the tail of its messages; the whole story
+# streams into the run's log while it happens.
+#
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-resource-tables.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-resource-tables
+name: Rebuild the resource tables alone
+description: |
+  Rebuild the resource tables as their own job and follow it to the end.
+
+  Nothing in the analytics tables is touched.
+
+tags: [dhis2, analytics]
+
+# The demo is shared and this is server-side work: one at a time.
+concurrency: skip
+
+requires:
+  blocks:
+    - dhis2.resource_tables_run
+  connections:
+    - dhis2-play
+
+steps:
+  rebuild:
+    block: dhis2.resource_tables_run
+    timeout: 30m
+    config:
+      connection: dhis2-play

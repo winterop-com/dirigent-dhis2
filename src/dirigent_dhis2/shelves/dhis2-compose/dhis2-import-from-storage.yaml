@@ -24,14 +24,20 @@
 # is the whole edit, which is the argument for naming a connection rather than writing a URL
 # into a step.
 #
-#   dg run --local examples/dhis2-compose/dhis2-import-from-storage.yaml
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
 #
-# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
-# requires.connections rather than carrying it, so create a `dhis2` connection under that code
-# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
-# rename it in the copy. Then point the import at a second connection so the two ends are
-# different instances, and choose a durable target for the save if the file should outlive the
-# run's scratch space.
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2-compose/dhis2-import-from-storage.yaml
+#
+# TO MAKE IT YOURS: create a `dhis2` connection for your own instance -- `dg connection create
+# dhis2 my-dhis2 --set base_url=https://dhis2.example.org` -- and name it in a copy in place of
+# `dhis2-play`. Then point the import at a second connection so the two ends are different
+# instances, and choose a durable target for the save if the file should outlive the run's
+# scratch space.
 
 format: dirigent/v1
 kind: pipeline
@@ -50,6 +56,8 @@ requires:
     - dhis2.data_value_set_import
     - storage.write
     - storage.read
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -59,22 +67,11 @@ params:
       default: "202507"
       description: The ISO period to move.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 120s
-
 steps:
   export:
     block: dhis2.data_value_set_export
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       data_set: BfMAe6Itzgt
       period: "${params.period}"
       org_unit: DiszpKrYNg8
@@ -99,7 +96,7 @@ steps:
     block: dhis2.data_value_set_import
     depends_on: [reload]
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       data_values: ${steps.reload.output.value}
       import_strategy: CREATE_AND_UPDATE
       # The demo is shared, and this document sends it its own data back. Point the import

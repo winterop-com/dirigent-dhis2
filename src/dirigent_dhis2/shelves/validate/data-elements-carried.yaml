@@ -7,7 +7,11 @@
 # its own with no schema to hand it. The paired data-elements-named.yaml runs the very same
 # check against a schema the instance holds: only the schema's location differs.
 #
-#   dg run --local examples/validate/data-elements-carried.yaml
+# The document carries no credential. It carries a schema, which a server refuses, so it
+# runs locally, handed the connection it names, dhis2-play-http, from a connections file you
+# keep outside the document, with the demo's published login in it:
+#
+#   dg run --local examples/validate/data-elements-carried.yaml --connections connections.yaml
 
 format: dirigent/v1
 kind: pipeline
@@ -24,18 +28,8 @@ requires:
   blocks:
     - http.request
     - validate.schema
-
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: http
-    config:
-      base_url: https://play.dhis2.org/2.43
-      follow_redirects_with_auth: true
-      basic_username: admin
-      basic_password: district
-      timeout: 1m
+  connections:
+    - dhis2-play-http
 
 schemas:
   dhis2-data-elements:
@@ -64,7 +58,7 @@ steps:
   fetch:
     block: http.request
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/dataElements.json
       method: GET
       query:

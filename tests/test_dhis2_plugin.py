@@ -13,6 +13,7 @@ DHIS2_BLOCKS = [
     "dhis2.analytics_run",
     "dhis2.data_set_complete",
     "dhis2.data_set_completion",
+    "dhis2.data_store",
     "dhis2.data_value",
     "dhis2.data_value_set_export",
     "dhis2.data_value_set_import",
@@ -20,9 +21,14 @@ DHIS2_BLOCKS = [
     "dhis2.metadata",
     "dhis2.metadata_export",
     "dhis2.metadata_import",
+    "dhis2.predictor_run",
+    "dhis2.resource_tables_run",
+    "dhis2.sql_view",
     "dhis2.system_info",
+    "dhis2.task_wait",
     "dhis2.tracker",
     "dhis2.tracker_import",
+    "dhis2.validation_run",
 ]
 
 

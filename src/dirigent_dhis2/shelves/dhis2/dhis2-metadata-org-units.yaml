@@ -20,8 +20,15 @@
 # whole collection rather than the first page of it. dhis2-metadata-paged.yaml is the read
 # that wants a page.
 #
-#   dg run --local examples/dhis2/dhis2-metadata-org-units.yaml
-#   dg run --local examples/dhis2/dhis2-metadata-org-units.yaml -p parent=ImspTQPwCqd
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-metadata-org-units.yaml
+#   dg run examples/dhis2/dhis2-metadata-org-units.yaml -p parent=ImspTQPwCqd
 
 format: dirigent/v1
 kind: pipeline
@@ -34,6 +41,8 @@ tags: [dhis2, metadata]
 requires:
   blocks:
     - dhis2.metadata
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -44,22 +53,11 @@ params:
       default: O6uvpzGd5pu
       description: The uid of the parent whose children are listed. Bo district by default.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
-
 steps:
   read:
     block: dhis2.metadata
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       resource: organisationUnits
       fields: id,name,level,path,openingDate
       filter: "parent.id:eq:${params.parent}"

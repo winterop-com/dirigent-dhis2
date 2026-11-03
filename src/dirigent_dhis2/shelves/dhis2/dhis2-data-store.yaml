@@ -1,0 +1,64 @@
+# List a data store namespace, then read one key in it.
+#
+# The data store holds JSON under a namespace and a key: an app's configuration, an
+# integration's high-water mark, a lookup table a pipeline keeps between runs. dhis2.data_store
+# addresses it with one action per step: keys lists a namespace, get reads one key, set writes
+# one, creating or replacing it, and delete removes one.
+#
+# A key that is not there is not an error: get answers found: false with a null value, so a
+# pipeline that keeps state reads its last mark and starts from scratch when there is none.
+# user_store: true addresses the signed-in user's own store instead of the shared one.
+#
+# This reads only. The capture namespace is the Capture app's, present on the demo; a set
+# against it would rewrite the app's settings for everyone, so try writes on your own instance.
+#
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-data-store.yaml
+#   dg run examples/dhis2/dhis2-data-store.yaml -p namespace=ORG_UNIT_PROFILE
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-data-store
+name: Read the data store
+description: |
+  List a data store namespace's keys, then read the first one.
+
+  A key that is not there answers found false rather than failing.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_store
+  connections:
+    - dhis2-play
+
+params:
+  type: object
+  properties:
+    namespace:
+      type: string
+      default: capture
+      description: The namespace to list and read in.
+
+steps:
+  keys:
+    block: dhis2.data_store
+    config:
+      connection: dhis2-play
+      action: keys
+      namespace: "${params.namespace}"
+  first:
+    block: dhis2.data_store
+    depends_on: [keys]
+    config:
+      connection: dhis2-play
+      action: get
+      namespace: "${params.namespace}"
+      key: "${steps.keys.output.rows.0}"

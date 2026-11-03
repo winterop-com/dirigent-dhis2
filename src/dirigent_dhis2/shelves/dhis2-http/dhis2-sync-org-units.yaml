@@ -35,16 +35,20 @@
 #
 #   dg dev
 #
-# `dg run --local` mounts no API of its own and reaches it over the network like anything
-# else; the two reads still go to the public demo.
+# The run is made on that instance, which serves the playground itself; the reads still go
+# to the public demo.
 #
-# The connection is carried here so the document runs standalone. A server refuses to store a
-# document that embeds a credential, which is why applying this one to an instance is refused
-# -- deliberately, and it is what makes `dg run --local` the way to run it.
+# The document carries no credential. It names the connections dhis2-play-http and receiver,
+# which the instance holds: create each once. The command asks how to sign in where one
+# needs a credential, and the demo takes the login it publishes on its own sign-in page.
 #
-#   dg dev &
-#   dg run --local examples/dhis2-http/dhis2-sync-org-units.yaml
-#   dg run --local examples/dhis2-http/dhis2-sync-org-units.yaml -p level=3
+#   dg connection create http dhis2-play-http --set base_url=https://play.dhis2.org/2.43 \
+#       --set follow_redirects_with_auth=true --set timeout=2m
+#   dg connection create http receiver --set base_url=http://127.0.0.1:3333/api/v1/playground \
+#       --set timeout=30s
+#
+#   dg run examples/dhis2-http/dhis2-sync-org-units.yaml
+#   dg run examples/dhis2-http/dhis2-sync-org-units.yaml -p level=3
 
 format: dirigent/v1
 kind: pipeline
@@ -71,27 +75,9 @@ requires:
     - http.request
     - map.jq
     - transform.jq
-
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: http
-    config:
-      base_url: https://play.dhis2.org/2.43
-      follow_redirects_with_auth: true
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
-  receiver:
-    name: Org unit receiver
-    description: Where the synced organisation units are sent. It points at the playground, which answers what it is sent, so the example runs without a DHIS2.
-    kind: http
-    config:
-      # The downstream system the sync feeds, which here is the playground the running
-      # instance serves itself. Repoint this at the real receiver and the document is a sync.
-      base_url: http://127.0.0.1:3333/api/v1/playground
-      timeout: 30s
+  connections:
+    - dhis2-play-http
+    - receiver
 
 params:
   type: object
@@ -109,7 +95,7 @@ steps:
   count_units:
     block: http.request
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/organisationUnits
       method: GET
       query:
@@ -121,7 +107,7 @@ steps:
     block: http.request
     depends_on: [count_units]
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/organisationUnits
       method: GET
       query:

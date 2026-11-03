@@ -1,70 +1,22 @@
 """``dhis2.analytics_run``: run the analytics tables job, submitted once and then probed."""
 
-import json
-import re
-from datetime import UTC, datetime, timedelta
-from typing import Any, ClassVar, Final
+from datetime import timedelta
+from typing import ClassVar, Final
 
-from dhis2w_client import Dhis2Client
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
 from pydantic import BaseModel
 
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
-from dirigent_dhis2.messages import ANALYTICS_NO_RESULT, ANALYTICS_NO_TASK_REFERENCE, ANALYTICS_TASK_DISAPPEARED
+from dirigent_dhis2.jobs import JOINED, NOTIFIER, fetch_task, probe_task, running_job, submitted, task_handle
 from dirigent_dhis2.web import Dhis2Operator, refuse
-from dirigent_plugin import (
-    BlockFailure,
-    ConnectionRef,
-    ErrorClass,
-    OperatorSpec,
-    ProbeResult,
-    ProbeStatus,
-    RemoteHandle,
-    StepContext,
-)
+from dirigent_plugin import ConnectionRef, OperatorSpec, ProbeResult, RemoteHandle, StepContext
 
 #: Where the analytics tables job is submitted.
 ANALYTICS_PATH: Final = "/api/resourceTables/analytics"
 
-#: The handle key holding the notifier endpoint the submission answered with.
-NOTIFIER = "notifier"
-
-#: The handle key holding the job type the task poll is keyed by, beside the handle's task uid.
-JOB_TYPE = "job_type"
-
-#: The handle key marking a job this step joined rather than submitted.
-JOINED = "joined"
-
 #: The job type DHIS2 files an analytics tables run under.
 ANALYTICS_JOB_TYPE: Final = "ANALYTICS_TABLE"
-
-#: The status an instance answers the job listing with for a user not allowed to read it.
-FORBIDDEN: Final = 403
-
-#: Where the instance's job configurations are listed, a running analytics job among them.
-JOB_CONFIGURATIONS_PATH: Final = "/api/jobConfigurations"
-
-#: The handle key holding the poll cursor: the notification identifiers already streamed in.
-#:
-#: It holds every identifier seen so far, because the client's poll tells new rows from old
-#: by membership. A table rebuild's story is a few hundred rows at most, so the handle stays
-#: small; it is not trimmed.
-CURSOR = "cursor"
-
-#: A job type or task uid as it may sit in the task poll's path: one segment, nothing to escape.
-TASK_SEGMENT: Final = re.compile(r"[A-Za-z0-9_-]+")
-
-#: How many notification messages the output keeps, from the end of the task's story.
-MESSAGE_TAIL = 10
-
-#: How long a task may stay silent from the attempt's start before it is taken to be lost.
-#:
-#: DHIS2 answers a task it has never heard of exactly the way it answers one that has not
-#: written its first notification yet: 200 and an empty feed. The two are told apart by time.
-#: A submitted job writes its first line within seconds of starting, so a feed still empty
-#: this long after the submission is a task the instance lost, restarted away, or never had.
-GONE_AFTER: Final = timedelta(minutes=15)
 
 
 class Dhis2AnalyticsRunConfig(BlockModel):
@@ -112,55 +64,6 @@ class Dhis2AnalyticsRunOutput(BlockModel):
     """Whether the step followed a job already running rather than submitting its own."""
 
 
-def _level(entry: Any) -> str:
-    """Read a notification's level, defaulting the one a version left unset."""
-    return (entry.level or "INFO").upper()
-
-
-def _completed_at(entry: Any) -> str | None:
-    """Read the completing notification's timestamp as the instance's own ISO instant."""
-    return entry.time.isoformat() if entry is not None and entry.time is not None else None
-
-
-def _identity(entry: Any) -> str:
-    """The identifier a notification is told from the others by, the way the client tells them.
-
-    A row without one is streamed on every poll, which is what the client does too.
-    """
-    time = getattr(entry, "time", None)
-    return str(getattr(entry, "uid", None) or getattr(entry, "id", None) or (time.isoformat() if time else ""))
-
-
-def _followable(job_type: str, task_uid: str) -> bool:
-    """Whether both halves of a task reference the instance answered can name one poll path."""
-    return all(TASK_SEGMENT.fullmatch(part) for part in (job_type, task_uid))
-
-
-def _silent_for(ctx: StepContext) -> timedelta:
-    """How long this attempt has been waiting on the task, measured from its first start."""
-    started = ctx.started_at if ctx.started_at.tzinfo is not None else ctx.started_at.replace(tzinfo=UTC)
-    return datetime.now(UTC) - started
-
-
-async def _running_job(client: Dhis2Client, ctx: StepContext) -> str | None:
-    """The uid of the analytics job the instance is running now, or None when it runs none.
-
-    The job configuration's status is read rather than the notification feed, because a feed
-    carries the instance's local time and says nothing of whether its job is still alive. A
-    user allowed to run analytics may still be refused the job listing; that answers None.
-    """
-    try:
-        running = await client.tasks.running(ANALYTICS_JOB_TYPE)
-    except Dhis2ApiError as error:
-        if error.status_code != FORBIDDEN:
-            raise refuse(error, f"GET {JOB_CONFIGURATIONS_PATH}") from error
-        ctx.log.warning("the job listing was refused, so a running analytics job cannot be joined")
-        return None
-    except AuthenticationError as error:
-        raise refuse(error, f"GET {JOB_CONFIGURATIONS_PATH}") from error
-    return next((job.id for job in running if job.id), None)
-
-
 class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2AnalyticsRunOutput]):
     """Submits the analytics tables job and follows its notifications until it settles."""
 
@@ -176,17 +79,11 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
         """Join a running job, or submit one, and hand back the task reference the engine probes."""
         async with client_for(ctx, config.connection) as client:
             if config.join_running:
-                running = await _running_job(client, ctx)
+                running = await running_job(client, ctx, ANALYTICS_JOB_TYPE)
                 if running is not None:
-                    if not _followable(ANALYTICS_JOB_TYPE, running):
-                        raise BlockFailure(ANALYTICS_NO_TASK_REFERENCE, error_class=ErrorClass.REJECTED)
-                    notifier = f"/api/system/tasks/{ANALYTICS_JOB_TYPE}/{running}"
-                    ctx.log.info("analytics job already running, following it", notifier=notifier)
-                    return RemoteHandle(
-                        block_id=self.spec.id,
-                        ref=running,
-                        meta={NOTIFIER: notifier, JOB_TYPE: ANALYTICS_JOB_TYPE, JOINED: "true"},
-                    )
+                    handle = task_handle(self.spec.id, ANALYTICS_JOB_TYPE, running, joined=True)
+                    ctx.log.info("analytics job already running, following it", notifier=handle.meta[NOTIFIER])
+                    return handle
             try:
                 envelope = await client.maintenance.run_analytics_tables(
                     last_years=config.last_years,
@@ -198,93 +95,23 @@ class Dhis2AnalyticsRunOperator(Dhis2Operator[Dhis2AnalyticsRunConfig, Dhis2Anal
                 )
             except (Dhis2ApiError, AuthenticationError) as error:
                 raise refuse(error, f"POST {ANALYTICS_PATH}") from error
-        task_ref = envelope.task_ref()
-        endpoint = envelope.notifier_endpoint()
-        if task_ref is None or endpoint is None:
-            raise BlockFailure(ANALYTICS_NO_TASK_REFERENCE, error_class=ErrorClass.REJECTED)
-        job_type, task_uid = task_ref
-        if not _followable(job_type, task_uid):
-            raise BlockFailure(ANALYTICS_NO_TASK_REFERENCE, error_class=ErrorClass.REJECTED)
-        ctx.log.info("analytics job submitted", notifier=endpoint)
-        return RemoteHandle(block_id=self.spec.id, ref=task_uid, meta={NOTIFIER: endpoint, JOB_TYPE: job_type})
+        handle = submitted(self.spec.id, envelope)
+        ctx.log.info("analytics job submitted", notifier=handle.meta[NOTIFIER])
+        return handle
 
     async def probe(self, handle: RemoteHandle, config: Dhis2AnalyticsRunConfig, ctx: StepContext) -> ProbeResult:
-        """Poll the task once, stream the notifications new since the cursor, and map its state.
-
-        The feed is read whole and the cursor applied here rather than in the client, because
-        the poll has to know whether the feed is empty: an instance that restarts drops every
-        task's notifications, and a feed that is empty after it had spoken is a task the
-        instance lost. The client's cursor would hide that, since it reports the rows it has
-        seen whether or not the instance still holds them.
-        """
-        task_ref = (handle.meta[JOB_TYPE], handle.ref)
-        seen: set[str] = set(json.loads(handle.meta.get(CURSOR, "[]")))
-        async with client_for(ctx, config.connection) as client:
-            try:
-                poll = await client.tasks.poll_once(task_ref)
-            except Dhis2ApiError as error:
-                if error.status_code == 404:
-                    return ProbeResult(
-                        status=ProbeStatus.GONE, message=f"the instance no longer knows task {handle.ref}"
-                    )
-                raise refuse(error, f"GET {handle.meta[NOTIFIER]}") from error
-            except AuthenticationError as error:
-                raise refuse(error, f"GET {handle.meta[NOTIFIER]}") from error
-        new = [entry for entry in poll.new if _identity(entry) not in seen]
-        for entry in new:
-            log = ctx.log.warning if _level(entry) == "ERROR" else ctx.log.info
-            log(entry.message or "", level=_level(entry))
-        advanced = {**handle.meta, CURSOR: json.dumps(sorted(seen | set(poll.cursor)))}
-        if not poll.completed:
-            if not poll.new and seen:
-                return ProbeResult(
-                    status=ProbeStatus.GONE,
-                    message=f"the instance has dropped the feed of task {handle.ref} after it had reported",
-                )
-            if not poll.new and _silent_for(ctx) >= GONE_AFTER:
-                return ProbeResult(
-                    status=ProbeStatus.GONE,
-                    message=f"the instance has reported nothing for task {handle.ref} since it was submitted",
-                )
-            return ProbeResult(status=ProbeStatus.RUNNING, message="the task is still running", meta=advanced)
-        # A settled outcome carries no cursor on purpose: a re-probe of the same handle reads
-        # the terminal row again and settles again, which is the at-least-once the contract
-        # asks for.
-        terminal = poll.new[-1] if poll.new else None
-        if terminal is not None and _level(terminal) == "ERROR":
-            return ProbeResult(status=ProbeStatus.FAILED, message=f"the task failed: {terminal.message or ''}")
-        return ProbeResult(status=ProbeStatus.SUCCEEDED, message=terminal.message if terminal is not None else None)
+        """Poll the task once, stream what is new into the run's log, and map its state."""
+        return await probe_task(handle, config.connection, ctx)
 
     async def fetch(
         self, handle: RemoteHandle, config: Dhis2AnalyticsRunConfig, ctx: StepContext
     ) -> Dhis2AnalyticsRunOutput:
-        """Collect the finished task's story; safe to call again.
-
-        The story is the whole feed, ending at the terminal row. A feed without one is not a
-        result: the instance restarted and dropped it, or the probe that settled read a feed
-        this fetch no longer sees. Either way the step has nothing to report, so it says so
-        instead of answering an empty story as a success.
-        """
-        task_ref = (handle.meta[JOB_TYPE], handle.ref)
-        async with client_for(ctx, config.connection) as client:
-            try:
-                poll = await client.tasks.poll_once(task_ref)
-            except Dhis2ApiError as error:
-                if error.status_code == 404:
-                    raise BlockFailure(
-                        ANALYTICS_TASK_DISAPPEARED, error_class=ErrorClass.TRANSIENT, task=handle.ref
-                    ) from error
-                raise refuse(error, f"GET {handle.meta[NOTIFIER]}") from error
-            except AuthenticationError as error:
-                raise refuse(error, f"GET {handle.meta[NOTIFIER]}") from error
-        story = poll.new
-        terminal = story[-1] if story and story[-1].completed else None
-        if terminal is None:
-            raise BlockFailure(ANALYTICS_NO_RESULT, error_class=ErrorClass.TRANSIENT, task=handle.ref)
+        """Collect the finished task's story; safe to call again."""
+        story = await fetch_task(handle, config.connection, ctx)
         return Dhis2AnalyticsRunOutput(
             task_id=handle.ref,
-            completed_at=_completed_at(terminal),
-            messages=[entry.message or "" for entry in story][-MESSAGE_TAIL:],
+            completed_at=story.completed_at,
+            messages=story.messages,
             joined=handle.meta.get(JOINED) == "true",
         )
 

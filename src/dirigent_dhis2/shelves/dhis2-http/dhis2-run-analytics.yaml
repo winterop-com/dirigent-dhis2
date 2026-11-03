@@ -23,8 +23,15 @@
 # A local run deletes its artifacts on the way out, so read it back with --keep, which leaves
 # them in place and prints where:
 #
-#   dg run --local examples/dhis2-http/dhis2-run-analytics.yaml
-#   dg run --local examples/dhis2-http/dhis2-run-analytics.yaml --keep
+# The document carries no credential. It names the http connection dhis2-play-http, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create http dhis2-play-http --set base_url=https://play.dhis2.org/2.43 \
+#       --set follow_redirects_with_auth=true --set timeout=2m
+#
+#   dg run examples/dhis2-http/dhis2-run-analytics.yaml
+#   dg run examples/dhis2-http/dhis2-run-analytics.yaml --keep
 
 format: dirigent/v1
 kind: pipeline
@@ -45,24 +52,14 @@ requires:
     - http.request
     - http.ready
     - storage.write
-
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: http
-    config:
-      base_url: https://play.dhis2.org/2.43
-      follow_redirects_with_auth: true
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
+  connections:
+    - dhis2-play-http
 
 steps:
   read_system_info:
     block: http.request
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/system/info
       method: GET
 
@@ -70,7 +67,7 @@ steps:
     block: http.request
     depends_on: [read_system_info]
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/resourceTables/analytics
       method: POST
       # Verified on the public stable instances from DHIS2 2.40.12 through 2.43.1.
@@ -89,7 +86,7 @@ steps:
     poll: 10s
     deadline: 2h
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: "${steps.start_analytics.output.body.response.relativeNotifierEndpoint}"
       expect_status: [200]
       contains: '"completed":true'
@@ -98,7 +95,7 @@ steps:
     block: http.request
     depends_on: [wait_for_analytics]
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: "${steps.start_analytics.output.body.response.relativeNotifierEndpoint}"
       method: GET
 

@@ -8,14 +8,20 @@
 #
 # The demo shifts its data era: if the export comes back empty, ask a nearby period.
 #
-#   dg run --local examples/dhis2/dhis2-rehearse-import.yaml
-#   dg run --local examples/dhis2/dhis2-rehearse-import.yaml -p period=202506
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
 #
-# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
-# requires.connections rather than carrying it, so create a `dhis2` connection under that code
-# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
-# rename it in the copy. Then change the data set, period and org unit to ones your instance
-# has, and turn dry_run off once the summary is what you expect.
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-rehearse-import.yaml
+#   dg run examples/dhis2/dhis2-rehearse-import.yaml -p period=202506
+#
+# TO MAKE IT YOURS: create a `dhis2` connection for your own instance -- `dg connection create
+# dhis2 my-dhis2 --set base_url=https://dhis2.example.org` -- and name it in a copy in place of
+# `dhis2-play`. Then change the data set, period and org unit to ones your instance has, and
+# turn dry_run off once the summary is what you expect.
 
 format: dirigent/v1
 kind: pipeline
@@ -37,23 +43,14 @@ requires:
   blocks:
     - dhis2.data_value_set_export
     - dhis2.data_value_set_import
-
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
+  connections:
+    - dhis2-play
 
 steps:
   export:
     block: dhis2.data_value_set_export
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       data_set: pBOMPrpg1QX
       period: ${params.period}
       org_unit: ImspTQPwCqd
@@ -62,6 +59,6 @@ steps:
     block: dhis2.data_value_set_import
     depends_on: [export]
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       data_values: ${steps.export.output.body}
       dry_run: true

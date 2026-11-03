@@ -1,0 +1,67 @@
+# Export one data set as CSV, written whole to storage and inlined as far as it fits.
+#
+# format: csv asks GET /api/dataValueSets.csv for the same selection a JSON export reads. CSV
+# is flat -- one row per value, every row carrying its own data element, period, org unit and
+# combos -- and a third the size of the JSON, which is what a spreadsheet, a warehouse loader or
+# another system's importer wants. xml and adx are the same switch; ADX is exported by 2.41 and
+# 2.42, and 2.43 answers JSON in its place, which the step refuses rather than mislabels.
+#
+# A form other than JSON is text, not a document to parse, so the output carries it two ways:
+# uri, where the whole export was written, and text, its head cut at the instance's inline
+# capture size, with truncated saying whether it was cut. A later step reads the file from uri;
+# dhis2-rehearse-csv-import.yaml hands it straight to an import.
+#
+# data_element_id_scheme: CODE writes each data element by its code rather than its uid, the
+# form a system that keys on codes reads.
+#
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-export-csv.yaml
+#   dg run examples/dhis2/dhis2-export-csv.yaml -p format=xml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-csv
+name: Export a data value set as CSV
+description: |
+  Export one data set for one month as CSV, or as XML or ADX.
+
+  The whole export lands in storage, and its head is inlined in the step's output.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+  connections:
+    - dhis2-play
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period to read, in the data set's own period type.
+    format:
+      type: string
+      enum: [csv, xml, adx]
+      default: csv
+      description: The form to export in.
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2-play
+      # Child Health at Ngelehun CHC.
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: DiszpKrYNg8
+      format: "${params.format}"
+      data_element_id_scheme: CODE

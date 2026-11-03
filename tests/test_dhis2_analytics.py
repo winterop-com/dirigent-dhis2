@@ -6,16 +6,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from dhis2server import BASE_URL, CONNECTION, Dhis2Server, json, notification, submitted, task_feed
-from dirigent_dhis2.analytics import (
-    CURSOR,
-    GONE_AFTER,
-    JOB_TYPE,
-    JOINED,
-    NOTIFIER,
-    Dhis2AnalyticsRunConfig,
-    Dhis2AnalyticsRunOperator,
-    Dhis2AnalyticsRunOutput,
-)
+from dirigent_dhis2.analytics import Dhis2AnalyticsRunConfig, Dhis2AnalyticsRunOperator, Dhis2AnalyticsRunOutput
+from dirigent_dhis2.jobs import CURSOR, GONE_AFTER, JOB_TYPE, JOINED, NOTIFIER
 from dirigent_plugin import BlockFailure, ErrorClass, ProbeStatus, RemoteHandle
 from dirigent_testing import FakeContext, call_block
 
@@ -109,7 +101,7 @@ async def test_a_submission_without_a_task_reference_is_rejected(ctx: FakeContex
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
     assert refused.value.error_class is ErrorClass.REJECTED
-    assert refused.value.code == "dhis2.analytics.no_task_reference"
+    assert refused.value.code == "dhis2.task.no_reference"
 
 
 async def test_a_refused_submission_is_classified_by_its_status(ctx: FakeContext, dhis2: Dhis2Server) -> None:
@@ -259,7 +251,7 @@ async def test_fetch_on_a_task_that_vanished_is_transient(ctx: FakeContext, dhis
     with pytest.raises(BlockFailure) as refused:
         await Dhis2AnalyticsRunOperator().fetch(handle(), config, ctx.as_context())
     assert refused.value.error_class is ErrorClass.TRANSIENT
-    assert refused.value.code == "dhis2.analytics.task_disappeared"
+    assert refused.value.code == "dhis2.task.disappeared"
 
 
 async def test_cancel_reports_that_the_job_cannot_be_told(ctx: FakeContext) -> None:
@@ -320,7 +312,7 @@ async def test_fetch_refuses_a_feed_without_a_terminal_row(ctx: FakeContext, dhi
     with pytest.raises(BlockFailure) as refused:
         await Dhis2AnalyticsRunOperator().fetch(handle(), config, ctx.as_context())
     assert refused.value.error_class is ErrorClass.TRANSIENT
-    assert refused.value.code == "dhis2.analytics.no_result"
+    assert refused.value.code == "dhis2.task.no_result"
     assert "no result to collect" in refused.value.message
 
 
@@ -335,7 +327,7 @@ async def test_a_submission_answering_a_task_uid_that_is_no_path_segment_is_refu
     dhis2.post(SUBMIT).answers(json(200, submitted(task_uid=task_uid, endpoint="/api/system/tasks/x/y")))
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION, "join_running": False}, ctx)
-    assert refused.value.code == "dhis2.analytics.no_task_reference"
+    assert refused.value.code == "dhis2.task.no_reference"
     assert refused.value.error_class is ErrorClass.REJECTED
 
 
@@ -346,7 +338,7 @@ async def test_a_submission_answering_a_job_type_that_is_no_path_segment_is_refu
     dhis2.post(SUBMIT).answers(json(200, submitted(job_type=job_type, endpoint="/api/system/tasks/x/y")))
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION, "join_running": False}, ctx)
-    assert refused.value.code == "dhis2.analytics.no_task_reference"
+    assert refused.value.code == "dhis2.task.no_reference"
 
 
 async def test_a_running_job_whose_id_is_no_path_segment_is_not_joined(ctx: FakeContext, dhis2: Dhis2Server) -> None:
@@ -354,5 +346,5 @@ async def test_a_running_job_whose_id_is_no_path_segment_is_not_joined(ctx: Fake
     submit = dhis2.post(SUBMIT).answers(json(200, submitted()))
     with pytest.raises(BlockFailure) as refused:
         await call_block(Dhis2AnalyticsRunOperator(), {"connection": CONNECTION}, ctx)
-    assert refused.value.code == "dhis2.analytics.no_task_reference"
+    assert refused.value.code == "dhis2.task.no_reference"
     assert submit.requests == []

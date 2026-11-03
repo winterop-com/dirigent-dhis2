@@ -16,14 +16,13 @@ A gate never writes a schema inline: it names one by `code`, and the code resolv
 ways.
 
 - **Carried in the document.** The shape sits in the document's own top-level `schemas:`
-  section, keyed by its code, exactly the way a document carries its own `connections:`. A
-  server refuses a document that carries a schema, so a carried schema is for a standalone or
-  `--local` run.
+  section, keyed by its code. A server refuses a document that carries a schema, so a carried
+  schema is for a `--local` run, which is handed the `dhis2-play-http` connection the document
+  names with `--connections FILE`.
 - **A named instance schema.** The code names a schema the instance holds, applied on its own
   from [`../schemas/`](../schemas) with `dg schema create`. The document declares it under
-  `requires.schemas`, so an instance that does not hold it refuses the document. A `--local`
-  run holds no instance schema until one is handed to it with `--schema FILE`; each such
-  document's top-of-file comment shows the invocation.
+  `requires.schemas`, so an instance that does not hold it refuses the document; each such
+  document's top-of-file comment shows the `dg schema create` it needs.
 
 `data-elements-carried` and `data-elements-named` are the same check supplied both ways: only
 the schema's location differs.

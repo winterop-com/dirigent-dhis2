@@ -3,7 +3,14 @@
 # DHIS2 metadata collections are ordinary HTTP resources. fields keeps the response focused,
 # while paging: false asks for the complete four-level hierarchy definition in one response.
 #
-#   dg run --local examples/dhis2-http/dhis2-org-unit-levels.yaml
+# The document carries no credential. It names the http connection dhis2-play-http, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create http dhis2-play-http --set base_url=https://play.dhis2.org/2.43 \
+#       --set follow_redirects_with_auth=true --set timeout=2m
+#
+#   dg run examples/dhis2-http/dhis2-org-unit-levels.yaml
 
 format: dirigent/v1
 kind: pipeline
@@ -16,24 +23,14 @@ tags: [dhis2, http]
 requires:
   blocks:
     - http.request
-
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: http
-    config:
-      base_url: https://play.dhis2.org/2.43
-      follow_redirects_with_auth: true
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
+  connections:
+    - dhis2-play-http
 
 steps:
   list_levels:
     block: http.request
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/organisationUnitLevels.json
       method: GET
       query:

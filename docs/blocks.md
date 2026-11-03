@@ -30,15 +30,21 @@ sibling produced it:
 - **A read of one collection** answers its rows under `rows`, a list of objects, and a `pager`
   when the read is paged: `page`, `page_size`, `total` and `page_count` when the instance
   counted them, and `more`, which says whether rows match past the ones read. That is
-  `dhis2.metadata`, `dhis2.tracker` and `dhis2.analytics_query`.
+  `dhis2.metadata`, `dhis2.tracker`, `dhis2.analytics_query` and `dhis2.sql_view`, and
+  `dhis2.data_store` answers a namespace's keys the same way.
 - **A read of several collections** answers `collections`, each one's rows under its own name,
   and `counts`, each one's row count under its name. That is `dhis2.metadata_export`.
 - **`body`** carries a DHIS2 document as the instance wrote it, and only where the document is
   itself the thing to hand on: the data value set `dhis2.data_value_set_export` reads, which an
   import takes whole, and the analytics grid beside its `rows`, for its `headers` and
   `metaData`.
+- **Text** a block does not parse, a data value set exported as CSV, XML or ADX, is written
+  whole to the run's storage at `uri`, and its head is inlined as `text`, cut at the instance's
+  inline capture size, with `truncated` and `content_bytes` saying how much there is.
 - **An import** answers its summary's `status`, `counts` holding `imported`, `updated`,
   `ignored` and `deleted`, and `conflicts`.
+- **A job** the block follows, the analytics and resource tables runs and `dhis2.task_wait`,
+  answers its `task_id`, `completed_at` and the last few `messages` of its notification feed.
 - **Every read** answers `duration_ms`.
 
 A read that names uids to scope itself to -- a data set, data element, org unit or program --
@@ -52,16 +58,22 @@ the metadata describing it.
 | [`dhis2.analytics_query`](#dhis2analytics_query) | operator | dhis2 | Run a DHIS2 analytics query. |
 | [`dhis2.analytics_run`](#dhis2analytics_run) | operator | dhis2 | Run the DHIS2 analytics tables job. |
 | [`dhis2.data_set_completion`](#dhis2data_set_completion) | operator | dhis2 | Mark a DHIS2 data set complete, or reopen it, for a period and org unit. |
+| [`dhis2.data_store`](#dhis2data_store) | operator | dhis2 | Get, set or delete a DHIS2 data store key, or list a namespace's keys. |
 | [`dhis2.data_value`](#dhis2data_value) | operator | dhis2 | Get, set or delete one DHIS2 data value by data element, period and org unit. |
-| [`dhis2.data_value_set_export`](#dhis2data_value_set_export) | operator | dhis2 | Export a DHIS2 data value set. |
-| [`dhis2.data_value_set_import`](#dhis2data_value_set_import) | operator | dhis2 | Import a data value set into DHIS2. |
+| [`dhis2.data_value_set_export`](#dhis2data_value_set_export) | operator | dhis2 | Export a DHIS2 data value set as JSON, CSV, XML or ADX. |
+| [`dhis2.data_value_set_import`](#dhis2data_value_set_import) | operator | dhis2 | Import a data value set into DHIS2, as JSON, CSV, XML or ADX. |
 | [`dhis2.message`](#dhis2message) | operator | dhis2 | Send a DHIS2 message to users, user groups or org units. |
 | [`dhis2.metadata`](#dhis2metadata) | operator | dhis2 | Read one DHIS2 metadata collection, whole or one page of it. |
 | [`dhis2.metadata_export`](#dhis2metadata_export) | operator | dhis2 | Read several DHIS2 metadata collections, every row of each, in one request. |
 | [`dhis2.metadata_import`](#dhis2metadata_import) | operator | dhis2 | Create, update or delete DHIS2 metadata from a bundle, one object or many. |
+| [`dhis2.predictor_run`](#dhis2predictor_run) | operator | dhis2 | Run DHIS2 predictors over a date range. |
+| [`dhis2.resource_tables_run`](#dhis2resource_tables_run) | operator | dhis2 | Rebuild the DHIS2 resource tables, without the analytics tables. |
+| [`dhis2.sql_view`](#dhis2sql_view) | operator | dhis2 | Run a DHIS2 SQL view by uid and read its rows. |
 | [`dhis2.system_info`](#dhis2system_info) | operator | dhis2 | Read a DHIS2 instance's version, build, server clock and analytics state. |
+| [`dhis2.task_wait`](#dhis2task_wait) | operator | dhis2 | Wait on a DHIS2 background job by its job type and id. |
 | [`dhis2.tracker`](#dhis2tracker) | operator | dhis2 | Read DHIS2 tracker objects. |
 | [`dhis2.tracker_import`](#dhis2tracker_import) | operator | dhis2 | Create, update or delete DHIS2 tracked entities, enrollments, events and relationships. |
+| [`dhis2.validation_run`](#dhis2validation_run) | operator | dhis2 | Run DHIS2 validation rule analysis and answer the violations. |
 | [`dhis2.data_set_complete`](#dhis2data_set_complete) | sensor | dhis2 | Wait for a DHIS2 data set to be marked complete. |
 
 ## Operators
@@ -119,7 +131,7 @@ Asks the instance first whether an analytics job is already running, and follows
 instead of submitting a second when it is; `join_running: false` always submits, and so does a
 user the instance refuses the job listing. Otherwise it submits the job to
 `/api/resourceTables/analytics`. A job type or task id in the answer that is not one plain path
-segment fails the step with `dhis2.analytics.no_task_reference`, before the task is polled. Either
+segment fails the step with `dhis2.task.no_reference`, before the task is polled. Either
 way it then follows the task's notification feed: each
 probe streams the messages new since its cursor into the run's log, and the feed's own
 completion is what ends the step. A task that has written nothing fifteen minutes after
@@ -192,6 +204,49 @@ the refused registrations.
 | `counts` | `object` | yes |  | What happened to the registration: imported, updated, ignored or deleted. |
 | `conflicts` | `object[]` | yes |  | Every refusal the summary names, empty when the registration was taken. |
 
+### `dhis2.data_store`
+
+Get, set or delete a DHIS2 data store key, or list a namespace's keys.
+
+Idempotent.
+
+Addresses the data store, `/api/dataStore`, or with `user_store` the signed-in user's own,
+`/api/userDataStore`. `keys` lists a namespace's keys as `rows`; `get`, `set` and `delete` take
+one `key`, and a config missing it is refused at apply with `dhis2.data_store.no_key`, as a `set`
+with no `value` is with `dhis2.data_store.no_value`.
+
+Every action reads first, so the output says whether the key was there: a `get` of a key the
+namespace does not hold answers `found: false` and a null `value` rather than failing, a
+`delete` of one sends nothing, and a `set` creates the key with a POST when it was not there and
+replaces it with a PUT when it was, saying which in `created`. The value is read as it is stored,
+an object, a list or a scalar. `encrypt` asks the instance to store a `set`'s value encrypted.
+DHIS2 has no dry run for the data store. A namespace and a key are each one path segment, escaped,
+and one holding a slash is refused.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `action` | `"get" or "set" or "delete" or "keys"` |  | `"get"` | What the step does: `get` reads the key, `set` writes `value` to it, creating or replacing it, `delete` removes it, and `keys` lists the namespace's keys. |
+| `namespace` | `string` | yes |  | The namespace, such as an app's own or one an integration keeps its state in. |
+| `key` | `string or null` |  | `null` | The key in the namespace; every action but `keys` needs one. |
+| `value` | `any` |  | `null` | The JSON to store, for `set`: an object, a list, a string, a number or a boolean. |
+| `encrypt` | `boolean` |  | `false` | Whether `set` asks the instance to store the value encrypted. |
+| `user_store` | `boolean` |  | `false` | Whether the step addresses the signed-in user's own store, `/api/userDataStore`, rather than the shared one. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `action` | `"get" or "set" or "delete" or "keys"` | yes |  | What the step did. |
+| `namespace` | `string` | yes |  | The namespace addressed. |
+| `key` | `string or null` |  | `null` | The key addressed; null for `keys`. |
+| `found` | `boolean` | yes |  | Whether the key, or for `keys` the namespace, was there before the step: a `get` of a key that is not there answers false rather than failing, and so does a `delete`. |
+| `value` | `any` |  | `null` | The value read, or the value written; null for `delete`, for `keys`, and for a key that was not there. |
+| `rows` | `string[]` |  |  | The namespace's keys, for `keys`; empty for every other action. |
+| `created` | `boolean` |  | `false` | Whether `set` made a new key rather than replacing one. |
+
 ### `dhis2.data_value`
 
 Get, set or delete one DHIS2 data value by data element, period and org unit.
@@ -248,7 +303,7 @@ step with `dhis2.data_value.refused` and its reason.
 
 ### `dhis2.data_value_set_export`
 
-Export a DHIS2 data value set.
+Export a DHIS2 data value set as JSON, CSV, XML or ADX.
 
 Idempotent.
 
@@ -286,6 +341,27 @@ With `children`, the body leaves out the document-level `orgUnit` DHIS2 echoes b
 applies that field to every value in place of the value's own, so a body that kept it would
 write each descendant's values onto the org unit the export was asked for.
 
+`format` picks the form: `json`, the default, parses the set into `body`; `csv`, `xml` and `adx`
+are text, streamed from `/api/dataValueSets.csv`, `/api/dataValueSets.xml`, or
+`/api/dataValueSets` with `Accept: application/adx+xml`, into the run's storage as it arrives.
+The output then carries `uri`, where the whole export was written and what an import's
+`data_values_uri` reads, and `text`, its head cut at the instance's inline capture size, with
+`truncated` saying whether it was cut and `content_bytes` its size; `body` is null. Every
+selector and id scheme applies in every form. An empty text answer is the same
+`dhis2.export.empty_answer` as an empty JSON one.
+
+| DHIS2 | JSON | CSV | XML | ADX |
+| --- | --- | --- | --- | --- |
+| 2.41 | export, import | export, import | export, import | export, import |
+| 2.42 | export, import | export, import | export, import | export, import |
+| 2.43 | export, import | export, import | export, import | import |
+| 2.44 | export, import | export, import | export, import | import |
+
+DHIS2 2.43 and 2.44 answer an ADX export with JSON, so an `adx` export from them is refused with
+`dhis2.export.format_unsupported` before it is asked, and an ADX answer that is JSON is refused
+the same way. Their XML export writes the set's period as an ISO interval, `2025-07-01/P1M`,
+which their own XML import refuses with a 500; CSV and JSON round-trip on every version.
+
 **Config**
 
 | Field | Type | Required | Default | Description |
@@ -307,23 +383,29 @@ write each descendant's values onto the org unit the export was asked for.
 | `data_element_id_scheme` | `string or null` |  | `null` | How data elements are written, in place of `id_scheme`. |
 | `org_unit_id_scheme` | `string or null` |  | `null` | How org units are written, in place of `id_scheme`. |
 | `category_option_combo_id_scheme` | `string or null` |  | `null` | How category option combos are written, in place of `id_scheme`. |
+| `format` | `"json" or "csv" or "xml" or "adx"` |  | `"json"` | The form the set is exported in: `json`, parsed into `body`; or `csv`, `xml` or `adx`, written whole to storage at `uri` with its head inlined as `text`. ADX is exported by 2.41 and 2.42 only. |
 | `require_known` | `boolean` |  | `true` | Whether the step fails when a named data set, data element, group or org unit is unknown to the instance, rather than answering an empty set for it. One metadata lookup asks for every named uid before the export. |
 
 **Output**
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `body` | `any or null` |  | `null` | The exported data value set, the document a `dhis2.data_value_set_import` takes whole as its `data_values`. Every value carries its own period, org unit and attribute option combo, whichever version answered. |
+| `format` | `"json" or "csv" or "xml" or "adx"` |  | `"json"` | The form the set was exported in. |
+| `body` | `any or null` |  | `null` | The exported data value set, for `json`: the document a `dhis2.data_value_set_import` takes whole as its `data_values`. Every value carries its own period, org unit and attribute option combo, whichever version answered. Null for every other form. |
+| `text` | `string or null` |  | `null` | The head of the exported text, for `csv`, `xml` and `adx`, cut at the instance's inline capture size; null for `json`. |
+| `uri` | `string or null` |  | `null` | Where the whole exported text was written, for `csv`, `xml` and `adx`; never cut, and what an import's `data_values_uri` takes. Null for `json`. |
+| `content_bytes` | `integer or null` |  | `null` | How large the exported text is, inlined or not; null for `json`. |
+| `truncated` | `boolean` |  | `false` | Whether `text` is short of the export. Only the inline copy is ever cut. |
 | `duration_ms` | `integer` | yes |  | How long the export took. |
 
 ### `dhis2.data_value_set_import`
 
-Import a data value set into DHIS2.
+Import a data value set into DHIS2, as JSON, CSV, XML or ADX.
 
 Not idempotent.
 
 Sends the document in `data_values`, written in the step or referenced from an upstream
-output (a set held in storage comes in through `storage.read`). A document that is not an object
+output, or the one stored at `data_values_uri`. A document that is not an object
 with a `dataValues` list fails `rejected` with `dhis2.import.no_data_values` before anything is
 sent: the usual cause is an export's whole output, `${steps.export.output}`, passed where its
 document, `${steps.export.output.body}`, was meant. An empty `dataValues` list is sent, and the
@@ -349,12 +431,33 @@ the indexes are what says which value it was, and a failure names it as `value #
 A dry run sends the document without its `completeDate`, and says so in the log. DHIS2 2.41 and
 2.42 register the data set complete under `dryRun=true`, and a rehearsal must persist nothing.
 
+`format` says what the document is written in, and it is sent in that media type to
+`/api/dataValueSets`: `json` takes the object above; `csv`, `xml` and `adx` take the document's
+text in `data_values`, and an object or a list there fails `rejected` with
+`dhis2.import.not_text`. `data_values_uri` names a storage object to send in place of
+`data_values`, such as an export's `uri`, and naming both is refused with
+`dhis2.import.two_sources`. `sent` counts a CSV's rows past its header, and the `dataValue`
+elements of XML and ADX. A dry run of XML or ADX leaves a `completeDate` attribute out the way
+a JSON dry run leaves the field out.
+
+`id_scheme`, `data_element_id_scheme`, `org_unit_id_scheme` and
+`category_option_combo_id_scheme` say how the document names things: `UID`, `CODE`, `NAME`, `ID`
+or `ATTRIBUTE:<uid>`. ADX is written in codes, which 2.41 and 2.42 assume and 2.43 and later do
+not, so an `adx` import is sent with `idScheme=CODE` unless `id_scheme` says otherwise. DHIS2 2.41
+to 2.44 import all four forms.
+
 **Config**
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
-| `data_values` | `any` | yes |  | The data value set document to send, an object with a `dataValues` list, written in the step or referenced from one: an export's document is `${steps.<step>.output.body}`, and a set held in storage comes in through storage.read. A document with no `dataValues` list fails the step before anything is sent. |
+| `data_values` | `any` |  | `null` | The data value set to send, written in the step or referenced from one. For `json` an object with a `dataValues` list: an export's document is `${steps.<step>.output.body}`, and a document with no `dataValues` list fails the step before anything is sent. For `csv`, `xml` and `adx` the document's text, such as an export's `${steps.<step>.output.text}` when it was not truncated. |
+| `data_values_uri` | `string or null` |  | `null` | A storage URI holding the document to send, read in place of `data_values`: an export's `${steps.<step>.output.uri}`, or a file a `storage.write` left. |
+| `format` | `"json" or "csv" or "xml" or "adx"` |  | `"json"` | The form the document is written in: `json`, `csv`, `xml` or `adx`. DHIS2 2.41 to 2.44 import all four. |
+| `id_scheme` | `string or null` |  | `null` | How every identifier in the document is written: `UID`, `CODE`, `NAME`, `ID` or `ATTRIBUTE:<uid>`; UID when unset, except for `adx`, which is sent as `CODE` unless this says otherwise. |
+| `data_element_id_scheme` | `string or null` |  | `null` | How data elements are written, in place of `id_scheme`. |
+| `org_unit_id_scheme` | `string or null` |  | `null` | How org units are written, in place of `id_scheme`. |
+| `category_option_combo_id_scheme` | `string or null` |  | `null` | How category option combos are written, in place of `id_scheme`. |
 | `dry_run` | `boolean` |  | `false` | Whether the instance validates the import without writing anything. A `completeDate` in the document is left out of a dry run: DHIS2 2.41 and 2.42 register the data set complete even under dryRun, and a rehearsal must persist nothing. |
 | `import_strategy` | `"CREATE" or "UPDATE" or "CREATE_AND_UPDATE" or "DELETE"` |  | `"CREATE_AND_UPDATE"` | What the import may do to existing values: CREATE, UPDATE, CREATE_AND_UPDATE, or DELETE. |
 | `atomic_mode` | `"ALL" or "NONE"` |  | `"ALL"` | ALL asks the instance to refuse the whole import on any conflict; NONE takes what it can. DHIS2 does not always honour ALL and may commit the good values beside the conflicts, so a failure under ALL names what landed. |
@@ -550,6 +653,108 @@ adds the instance's `error_code`, its words as `value`, and the `property` it is
 | `objects` | `object[]` | yes |  | Every object the report names, with its uid. |
 | `conflicts` | `object[]` | yes |  | Every object the report refused, empty when the import was clean. |
 
+### `dhis2.predictor_run`
+
+Run DHIS2 predictors over a date range.
+
+Idempotent.
+
+Runs one `predictor` through `/api/predictors/{uid}/run`, one `predictor_group` through
+`/api/predictorGroups/{uid}/run`, or with neither every predictor on the instance through
+`/api/predictors/run`, for `start_date` to `end_date`; naming both is refused with
+`dhis2.predictor.both_targets`. The run is one request that DHIS2 holds open until the values are
+written, and `predictions` is the count its answer gives, with the summary's `inserted`,
+`updated`, `deleted` and `unchanged` where the version reports them. DHIS2 has no dry run for
+predictors, so every example that runs one names no group by default.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `start_date` | `string` | yes |  | The ISO date the range starts on, such as 2026-01-01. |
+| `end_date` | `string` | yes |  | The ISO date the range ends on, such as 2026-03-31. |
+| `predictor` | `string or null` |  | `null` | The uid of one predictor to run. |
+| `predictor_group` | `string or null` |  | `null` | The uid of a predictor group whose members run. With neither this nor `predictor`, every predictor on the instance runs. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `predictions` | `integer` | yes |  | How many values the run predicted, as the instance counted them. |
+| `inserted` | `integer or null` |  | `null` | How many predicted values were new, where the instance reported it. |
+| `updated` | `integer or null` |  | `null` | How many replaced a value predicted before, where the instance reported it. |
+| `deleted` | `integer or null` |  | `null` | How many earlier predictions were removed, where the instance reported it. |
+| `unchanged` | `integer or null` |  | `null` | How many matched what was already there, where the instance reported it. |
+| `message` | `string or null` |  | `null` | What the instance said, in its own words. |
+
+### `dhis2.resource_tables_run`
+
+Rebuild the DHIS2 resource tables, without the analytics tables.
+
+Not idempotent. Polls every 30s unless the step says otherwise.
+
+Submits `POST /api/resourceTables`, the resource tables on their own without the analytics
+tables, and follows the `RESOURCE_TABLE` job exactly as `dhis2.analytics_run` follows its own: a
+job already running is joined unless `join_running` is off, each probe streams the new
+notifications into the run's log, and a task silent for fifteen minutes, or whose feed empties
+after it had spoken, is gone. A job that ends at level `ERROR` fails the step with its last
+message. DHIS2 offers no way to stop the job, so a cancelled step leaves it to finish.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `join_running` | `boolean` |  | `true` | Whether a resource tables job already running on the instance is followed instead of a second one being submitted. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `task_id` | `string` | yes |  | The id the instance gave the job. |
+| `completed_at` | `string or null` |  | `null` | When the task said it was done, in the instance's own timestamp. |
+| `messages` | `string[]` | yes |  | The last few notification messages, oldest first. |
+| `joined` | `boolean` |  | `false` | Whether the step followed a job already running rather than submitting its own. |
+
+### `dhis2.sql_view`
+
+Run a DHIS2 SQL view by uid and read its rows.
+
+Idempotent.
+
+Runs `GET /api/sqlViews/{uid}/data.json` for a stored view and answers its grid as `rows`, each
+an object keyed by the result's column names, with `columns` beside them. `variables` fill a
+`QUERY` view's `${name}` placeholders, each sent as `var=name:value`, and `criteria` narrow a
+`VIEW` or `MATERIALIZED_VIEW` by column, each sent as `criteria=column:value`. The block sends
+no SQL of its own.
+
+DHIS2 pages a view's result at 50 rows unless told otherwise, so an unpaged step asks for every
+row with `paging=false`; `paging: true` reads one `page` of `page_size` and answers a `pager`.
+A uid the instance holds no view by fails `rejected`.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `sql_view` | `string` | yes |  | The uid of the SQL view to run. |
+| `variables` | `object` |  |  | Values for a `QUERY` view's `${name}` placeholders, keyed by name. DHIS2 keeps only letters and digits of each value, so a wildcard belongs in the view's SQL. |
+| `criteria` | `object` |  |  | Column values a `VIEW` or `MATERIALIZED_VIEW` result is narrowed to, keyed by column, every one of them matched. |
+| `paging` | `boolean` |  | `false` | Whether the read is paged. Off by default: DHIS2 answers a view's first 50 rows unless told otherwise, and a view is read for all of its rows. |
+| `page` | `integer or null` |  | `null` | The 1-based page to read, when `paging` is on. |
+| `page_size` | `integer or null` |  | `null` | How many rows a page holds, when `paging` is on. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `rows` | `object[]` | yes |  | The view's rows, each an object keyed by column name. |
+| `columns` | `object[]` | yes |  | The result's columns, in the order the view selects them. |
+| `title` | `string or null` |  | `null` | The view's name, as the result carries it. |
+| `pager` | `object or null` |  | `null` | The page read, the page size, the total and whether more pages follow; null when the read is not paged and so answered every row. |
+| `duration_ms` | `integer` | yes |  | How long the read took. |
+
 ### `dhis2.system_info`
 
 Read a DHIS2 instance's version, build, server clock and analytics state.
@@ -586,6 +791,38 @@ string, is carried as the instance wrote it under `other`.
 | `interval_since_last_analytics_table_success` | `string or null` |  | `null` | How long ago that was, as the instance words it. |
 | `other` | `object` |  |  | Every other key of the answer, as the instance wrote it: the database, the Java runtime, the memory and processor counts, and any of the named keys that did not hold a string. |
 | `duration_ms` | `integer` | yes |  | How long the read took. |
+
+### `dhis2.task_wait`
+
+Wait on a DHIS2 background job by its job type and id.
+
+Idempotent. Polls every 10s unless the step says otherwise.
+
+Follows any DHIS2 background job by the `job_type` it is filed under and the `task_id` its
+submission answered with, through `/api/system/tasks/{job type}/{id}`, the same feed
+`dhis2.analytics_run` reads: nothing is sent at execute, each probe streams the notifications new
+since the last into the run's log, and the job's terminal notification settles the step. A job
+that ends at level `ERROR` fails the step with its last message, a task the instance answers 404
+for is gone, and so is one whose feed stays empty for fifteen minutes or empties after it had
+spoken. Both halves are held to one plain path segment at validation. Waiting on a job is not
+owning it, so a cancelled step leaves the job running.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `job_type` | `string` | yes |  | The job type the task is filed under, such as `DATAVALUE_IMPORT`, `METADATA_IMPORT`, `ANALYTICS_TABLE`, `RESOURCE_TABLE`, `PREDICTOR` or `DATA_INTEGRITY`. |
+| `task_id` | `string` | yes |  | The id the instance gave the job, the `response.id` its submission answered with. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `task_id` | `string` | yes |  | The id of the job that was followed. |
+| `job_type` | `string` | yes |  | The job type it is filed under. |
+| `completed_at` | `string or null` |  | `null` | When the task said it was done, in the instance's own timestamp. |
+| `messages` | `string[]` | yes |  | The last few notification messages, oldest first. |
 
 ### `dhis2.tracker`
 
@@ -695,6 +932,46 @@ answered as `imported`; `by_tracker_type` is keyed by DHIS2's own names: `TRACKE
 | `conflicts` | `object[]` | yes |  | Every error the validation report names, empty when the import was clean. |
 | `warnings` | `object[]` | yes |  | Every warning the validation report names. |
 
+### `dhis2.validation_run`
+
+Run DHIS2 validation rule analysis and answer the violations.
+
+Idempotent.
+
+Runs `POST /api/dataAnalysis/validationRules` over `org_unit` and every unit below it, for
+`start_date` to `end_date`, every rule or one `validation_rule_group`, and answers each
+violation: the rule, the org unit, the period, the attribute option combo, both sides and the
+operator. DHIS2 runs the analysis in the foreground and answers in that one request, on every
+supported version; there is no job to follow for it. `max_results` caps the answer.
+
+`persist` and `notification` are the analysis's two writes, storing each violation under
+`/api/validationResults` and sending the rules' notifications, and both are off by default, so
+the analysis is a read. `fail_on_violations: true` fails the step `rejected` with
+`dhis2.validation.violated`, naming the first violations, so a later step runs only on data
+that holds.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `org_unit` | `string` | yes |  | The uid of the org unit the analysis covers, with every unit below it. |
+| `start_date` | `string` | yes |  | The ISO date the range starts on, such as 2026-01-01. |
+| `end_date` | `string` | yes |  | The ISO date the range ends on, such as 2026-03-31. |
+| `validation_rule_group` | `string or null` |  | `null` | The uid of a validation rule group to evaluate alone; every rule when unset. |
+| `max_results` | `integer or null` |  | `null` | The most violations the instance answers with; its own cap, 500, when unset. |
+| `persist` | `boolean` |  | `false` | Whether the instance also stores each violation as a validation result, a write to `/api/validationResults`. Off, the analysis writes nothing. |
+| `notification` | `boolean` |  | `false` | Whether the instance also sends the notifications the violated rules are set up with. |
+| `fail_on_violations` | `boolean` |  | `false` | Whether the step fails when any rule is violated, so a later step runs only on data that holds. Off, the violations are the output. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `violations` | `object[]` | yes |  | Each place a rule does not hold, empty when every rule held. |
+| `count` | `integer` | yes |  | How many violations the analysis answered, at most `max_results`. |
+| `duration_ms` | `integer` | yes |  | How long the analysis took. |
+
 ## Sensors
 
 ### `dhis2.data_set_complete`
@@ -753,9 +1030,9 @@ codes from `dhis2.analytics_query.no_program` on are what a config refuses at va
 | `dhis2.export.empty_answer` | `{where} answered with an empty body rather than a data value set, which DHIS2 does when {org_unit} is outside the account's data scope; nothing was exported` |
 | `dhis2.unknown_uids` | `{where} is scoped to uids the instance knows no object by: {unknown}; the read would answer nothing for them, so it was not made. Check the uids, or set require_known: false to read anyway` |
 | `dhis2.tracker.cap_reached` | `reading every page of {kind} reached {cap} ({limit}) with rows still to read; nothing is answered rather than a part of the collection. Raise {cap} or narrow the read` |
-| `dhis2.analytics.no_task_reference` | `the analytics job submission answered without a task reference to follow` |
-| `dhis2.analytics.task_disappeared` | `task {task} disappeared before its result could be collected` |
-| `dhis2.analytics.no_result` | `task {task} has no result to collect: the instance holds no terminal notification for it` |
+| `dhis2.task.no_reference` | `the job submission answered without a task reference to follow: a job type and a task id, each one plain path segment` |
+| `dhis2.task.disappeared` | `task {task} disappeared before its result could be collected` |
+| `dhis2.task.no_result` | `task {task} has no result to collect: the instance holds no terminal notification for it` |
 | `dhis2.import.no_data_values` | `data_values {found}, not a data value set with a dataValues list, so nothing was sent. A step's whole output passed where its document was meant is the usual cause: an export's document is steps.<step>.output.body, not steps.<step>.output` |
 | `dhis2.import.no_values_taken` | `the instance took none of the {sent} values sent, and require_values asks for at least one: {detail}` |
 | `dhis2.import.no_summary` | `{where} answered without an import summary, so nothing says the import took` |
@@ -770,6 +1047,17 @@ codes from `dhis2.analytics_query.no_program` on are what a config refuses at va
 | `dhis2.metadata.unknown_resource` | `the instance's version knows no metadata resource named '{resource}'` |
 | `dhis2.message.no_recipient` | `a message needs at least one recipient in users, user_groups or org_units` |
 | `dhis2.message.no_conversation` | `{where} took the message but answered without the conversation it created` |
+| `dhis2.analytics_query.no_program` | `a {mode} analytics query needs a program to read under` |
+| `dhis2.export.no_data` | `a data value set export names what to read: a data_set, data_element or data_element_group` |
+| `dhis2.export.no_org_unit` | `a data value set export names where to read: an org_unit or org_unit_group` |
+| `dhis2.export.no_period` | `a data value set export names when to read: a period, a start_date with an end_date, last_updated or last_updated_duration` |
+| `dhis2.export.half_range` | `start_date and end_date bound one range, so a data value set export takes both or neither` |
+| `dhis2.tracker.page_with_all_pages` | `all_pages reads every page from the first, so it takes no page` |
+| `dhis2.connection.both_credentials` | `a dhis2 connection takes an api_token or basic credentials, not both` |
+| `dhis2.connection.no_credential` | `a dhis2 connection needs an api_token or basic credentials` |
+| `dhis2.connection.no_basic_password` | `basic credentials need a basic_password beside the basic_username` |
+| `dhis2.connection.base_url_holds_more` | `base_url says where the instance is and nothing else: a user, a password, a query or a fragment in it is refused, because it is stored as written; a credential goes in api_token or basic_password` |
+| `dhis2.connection.bad_api_token` | `an api_token must be visible ASCII with no whitespace, or it cannot be sent as a header value` |
 | `dhis2.metadata_import.not_a_bundle` | `a metadata bundle is an object keyed by collection, such as dataElements, and this one is {got}` |
 | `dhis2.metadata_import.no_report` | `{where} answered without an import report, so nothing says the import took` |
 | `dhis2.metadata_import.refused` | `the metadata import was refused: {detail}` |
@@ -783,14 +1071,10 @@ codes from `dhis2.analytics_query.no_program` on are what a config refuses at va
 | `dhis2.data_value.unknown_attribute` | `attribute combo {combo} has no option combo made of exactly the options {options}` |
 | `dhis2.data_value.refused` | `the instance would not take the data value: {detail}` |
 | `dhis2.data_set_completion.refused` | `the completion registration was refused: {detail}` |
-| `dhis2.analytics_query.no_program` | `a {mode} analytics query needs a program to read under` |
-| `dhis2.export.no_data` | `a data value set export names what to read: a data_set, data_element or data_element_group` |
-| `dhis2.export.no_org_unit` | `a data value set export names where to read: an org_unit or org_unit_group` |
-| `dhis2.export.no_period` | `a data value set export names when to read: a period, a start_date with an end_date, last_updated or last_updated_duration` |
-| `dhis2.export.half_range` | `start_date and end_date bound one range, so a data value set export takes both or neither` |
-| `dhis2.tracker.page_with_all_pages` | `all_pages reads every page from the first, so it takes no page` |
-| `dhis2.connection.both_credentials` | `a dhis2 connection takes an api_token or basic credentials, not both` |
-| `dhis2.connection.no_credential` | `a dhis2 connection needs an api_token or basic credentials` |
-| `dhis2.connection.no_basic_password` | `basic credentials need a basic_password beside the basic_username` |
-| `dhis2.connection.base_url_holds_more` | `base_url says where the instance is and nothing else: a user, a password, a query or a fragment in it is refused, because it is stored as written; a credential goes in api_token or basic_password` |
-| `dhis2.connection.bad_api_token` | `an api_token must be visible ASCII with no whitespace, or it cannot be sent as a header value` |
+| `dhis2.export.format_unsupported` | `DHIS2 {version} does not export a data value set as {format}, and answers JSON in its place; ADX is exported by 2.41 and 2.42, and every version imports it` |
+| `dhis2.import.not_text` | `a {format} import sends its document as text, and data_values is {found}; give the document's text, or its storage URI as data_values_uri` |
+| `dhis2.import.two_sources` | `data_values and data_values_uri each name the document to send, so an import takes one of them` |
+| `dhis2.data_store.no_key` | `get, set and delete address one key, so they need a key` |
+| `dhis2.data_store.no_value` | `setting a data store key needs a value to store` |
+| `dhis2.validation.violated` | `validation rule analysis found {count} violations, and fail_on_violations asks for none: {detail}` |
+| `dhis2.predictor.both_targets` | `a predictor run names one predictor or one predictor group, not both; name neither to run every predictor` |

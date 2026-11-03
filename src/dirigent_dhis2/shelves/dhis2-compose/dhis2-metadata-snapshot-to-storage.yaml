@@ -12,15 +12,21 @@
 # The read is a `dhis2.*` step and the keeping is `storage.write`, which is why the document
 # is on this shelf: no DHIS2 block writes a file, so a snapshot is two hops.
 #
-#   dg run --local examples/dhis2-compose/dhis2-metadata-snapshot-to-storage.yaml
-#   dg run --local examples/dhis2-compose/dhis2-metadata-snapshot-to-storage.yaml --keep
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
 #
-# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
-# requires.connections rather than carrying it, so create a `dhis2` connection under that code
-# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
-# rename it in the copy. Then choose the collection and the fields you want to watch, point the
-# target at durable storage rather than the run's scratch space, and add a schedule so a
-# snapshot lands every night.
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2-compose/dhis2-metadata-snapshot-to-storage.yaml
+#   dg run examples/dhis2-compose/dhis2-metadata-snapshot-to-storage.yaml --keep
+#
+# TO MAKE IT YOURS: create a `dhis2` connection for your own instance -- `dg connection create
+# dhis2 my-dhis2 --set base_url=https://dhis2.example.org` -- and name it in a copy in place of
+# `dhis2-play`. Then choose the collection and the fields you want to watch, point the target at
+# durable storage rather than the run's scratch space, and add a schedule so a snapshot lands
+# every night.
 
 format: dirigent/v1
 kind: pipeline
@@ -37,6 +43,8 @@ requires:
   blocks:
     - dhis2.metadata
     - storage.write
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -50,22 +58,11 @@ params:
       default: id,name,shortName,valueType,domainType
       description: The fields projection the snapshot keeps.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
-
 steps:
   read:
     block: dhis2.metadata
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       resource: "${params.resource}"
       fields: "${params.fields}"
       order: [name:asc]

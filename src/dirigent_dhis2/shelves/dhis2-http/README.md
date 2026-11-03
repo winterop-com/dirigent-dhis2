@@ -8,17 +8,18 @@ rest. The native adapter and its growing family live beside this in [`../dhis2/`
 the documents that put an adapter block next to one of the engine's own live in
 [`../dhis2-compose/`](../dhis2-compose).
 
-Each document carries the connection it uses, in a `connections:` block beside its steps, so
-it runs on its own with nothing to set up first:
+No document carries a credential. Each names the connections it uses under
+`requires.connections`, and the instance holds them: `dhis2-play-http`, an `http` connection to
+the public demo, which `dg connection create` makes once and asks how to sign in for:
 
 ```bash
-dg run --local examples/dhis2-http/dhis2-system-info.yaml
+dg connection create http dhis2-play-http --set base_url=https://play.dhis2.org/2.43 \
+    --set follow_redirects_with_auth=true --set timeout=2m
+dg run examples/dhis2-http/dhis2-system-info.yaml
 ```
 
-Carrying a connection is for a document that has to run standalone; an instance you own names
-its connections instead, and a server refuses to apply a document that embeds one.
-`--connections FILE` replaces a carried connection by code, so these point at your own DHIS2
-without editing them.
+The demo takes the login it publishes on its own sign-in page. Create the same code against
+your own DHIS2, or rename it in a copy, and the documents read yours instead.
 
 ## The write target
 
@@ -31,16 +32,18 @@ Five of them name a connection for it, because the connection is what a reader r
 their own DHIS2. `dhis2-forward-org-units.yaml` takes a parameter instead: the playground
 needs no credential, and there is nothing for a connection to hold.
 
-That makes those six need a live instance even for a `--local` run, because `dg run --local`
-builds a throwaway database and mounts no API of its own:
+Those connections are created the same way, on the instance that serves the playground, and
+each document's top-of-file comment gives the command:
 
 ```bash
 dg dev &
-dg run --local examples/dhis2-http/dhis2-sync-org-units.yaml
+dg connection create http receiver --set base_url=http://127.0.0.1:3333/api/v1/playground
+dg run examples/dhis2-http/dhis2-sync-org-units.yaml
 ```
 
-`dhis2-fhir-to-data-values.yaml` needs only that one: its capture is inline, so it reaches no
-DHIS2 at all. The other five read the play demo as well.
+`dhis2-fhir-to-data-values.yaml` needs only the playground: its capture is inline, so it reaches
+no DHIS2 at all, and it carries its credential-free connection so a `dg run --local` runs it
+against a `dg dev` beside it. The other five read the play demo as well.
 
 ## The demo redirect
 

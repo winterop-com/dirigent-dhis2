@@ -17,8 +17,15 @@
 # The value is an ISO instant, and in a scheduled pipeline it is usually the previous run's
 # window rather than a literal.
 #
-#   dg run --local examples/dhis2/dhis2-tracker-enrollments.yaml
-#   dg run --local examples/dhis2/dhis2-tracker-enrollments.yaml -p status=COMPLETED
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-tracker-enrollments.yaml
+#   dg run examples/dhis2/dhis2-tracker-enrollments.yaml -p status=COMPLETED
 
 format: dirigent/v1
 kind: pipeline
@@ -31,6 +38,8 @@ tags: [dhis2, tracker]
 requires:
   blocks:
     - dhis2.tracker
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -55,22 +64,11 @@ params:
         Read only enrollments touched at or after this ISO instant. The demo's tracker
         records were last written in 2018, so a recent cutoff answers with nothing.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 120s
-
 steps:
   read:
     block: dhis2.tracker
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       kind: enrollments
       program: "${params.program}"
       org_unit: "${params.org_unit}"

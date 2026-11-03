@@ -30,6 +30,7 @@ from dirigent_dhis2.data_set_completion import (
     Dhis2DataSetCompletionOperator,
     Dhis2DataSetCompletionOutput,
 )
+from dirigent_dhis2.data_store import Dhis2DataStoreConfig, Dhis2DataStoreOperator, Dhis2DataStoreOutput
 from dirigent_dhis2.data_value import Dhis2DataValueConfig, Dhis2DataValueOperator, Dhis2DataValueOutput
 from dirigent_dhis2.export import (
     Dhis2DataValueSetExportConfig,
@@ -62,12 +63,20 @@ from dirigent_dhis2.metadata_import import (
     Dhis2MetadataImportOperator,
     Dhis2MetadataImportOutput,
 )
+from dirigent_dhis2.predictor_run import Dhis2PredictorRunConfig, Dhis2PredictorRunOperator, Dhis2PredictorRunOutput
 from dirigent_dhis2.reads import Dhis2Pager
+from dirigent_dhis2.resource_tables import (
+    Dhis2ResourceTablesRunConfig,
+    Dhis2ResourceTablesRunOperator,
+    Dhis2ResourceTablesRunOutput,
+)
+from dirigent_dhis2.sql_view import Dhis2SqlViewConfig, Dhis2SqlViewOperator, Dhis2SqlViewOutput
 from dirigent_dhis2.system_info import (
     Dhis2SystemInfoConfig,
     Dhis2SystemInfoOperator,
     Dhis2SystemInfoOutput,
 )
+from dirigent_dhis2.task_wait import Dhis2TaskWaitConfig, Dhis2TaskWaitOperator, Dhis2TaskWaitOutput
 from dirigent_dhis2.tracker import (
     Dhis2TrackerConfig,
     Dhis2TrackerOperator,
@@ -77,6 +86,12 @@ from dirigent_dhis2.tracker_import import (
     Dhis2TrackerImportConfig,
     Dhis2TrackerImportOperator,
     Dhis2TrackerImportOutput,
+)
+from dirigent_dhis2.validation_run import (
+    Dhis2ValidationRunConfig,
+    Dhis2ValidationRunOperator,
+    Dhis2ValidationRunOutput,
+    Dhis2Violation,
 )
 from dirigent_dhis2.web import Dhis2Operator, Dhis2Sensor, classify
 from dirigent_plugin import Contribution, extension
@@ -96,6 +111,7 @@ class Dhis2Plugin:
                 Dhis2AnalyticsRunOperator(),
                 Dhis2AnalyticsQueryOperator(),
                 Dhis2DataSetCompletionOperator(),
+                Dhis2DataStoreOperator(),
                 Dhis2DataValueOperator(),
                 Dhis2DataValueSetExportOperator(),
                 Dhis2DataValueSetImportOperator(),
@@ -103,9 +119,14 @@ class Dhis2Plugin:
                 Dhis2MetadataOperator(),
                 Dhis2MetadataExportOperator(),
                 Dhis2MetadataImportOperator(),
+                Dhis2PredictorRunOperator(),
+                Dhis2ResourceTablesRunOperator(),
+                Dhis2SqlViewOperator(),
                 Dhis2SystemInfoOperator(),
+                Dhis2TaskWaitOperator(),
                 Dhis2TrackerOperator(),
                 Dhis2TrackerImportOperator(),
+                Dhis2ValidationRunOperator(),
             ],
             sensors=[Dhis2DataSetCompleteSensor()],
             connection_kinds=[Dhis2ConnectionKind()],
@@ -140,6 +161,9 @@ __all__ = [
     "Dhis2DataSetCompletionConfig",
     "Dhis2DataSetCompletionOperator",
     "Dhis2DataSetCompletionOutput",
+    "Dhis2DataStoreConfig",
+    "Dhis2DataStoreOperator",
+    "Dhis2DataStoreOutput",
     "Dhis2DataValueConfig",
     "Dhis2DataValueOperator",
     "Dhis2DataValueOutput",
@@ -163,20 +187,36 @@ __all__ = [
     "Dhis2MetadataImportOutput",
     "Dhis2MetadataOperator",
     "Dhis2MetadataOutput",
+    "Dhis2MetadataSelection",
     "Dhis2Operator",
     "Dhis2Pager",
     "Dhis2Plugin",
-    "Dhis2MetadataSelection",
+    "Dhis2PredictorRunConfig",
+    "Dhis2PredictorRunOperator",
+    "Dhis2PredictorRunOutput",
+    "Dhis2ResourceTablesRunConfig",
+    "Dhis2ResourceTablesRunOperator",
+    "Dhis2ResourceTablesRunOutput",
     "Dhis2Sensor",
+    "Dhis2SqlViewConfig",
+    "Dhis2SqlViewOperator",
+    "Dhis2SqlViewOutput",
     "Dhis2SystemInfoConfig",
     "Dhis2SystemInfoOperator",
     "Dhis2SystemInfoOutput",
+    "Dhis2TaskWaitConfig",
+    "Dhis2TaskWaitOperator",
+    "Dhis2TaskWaitOutput",
     "Dhis2TrackerConfig",
     "Dhis2TrackerImportConfig",
     "Dhis2TrackerImportOperator",
     "Dhis2TrackerImportOutput",
     "Dhis2TrackerOperator",
     "Dhis2TrackerOutput",
+    "Dhis2ValidationRunConfig",
+    "Dhis2ValidationRunOperator",
+    "Dhis2ValidationRunOutput",
+    "Dhis2Violation",
     "build_client",
     "classify",
     "client_for",

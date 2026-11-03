@@ -2,8 +2,9 @@
 
 import time
 from datetime import timedelta
-from typing import Any, ClassVar, Final, cast
+from typing import Any, ClassVar, Final, Literal, cast
 
+from dhis2w_client import Dhis2Client
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
 from pydantic import BaseModel, Field, JsonValue, model_validator
 
@@ -11,6 +12,7 @@ from dirigent_common import BlockModel, Duration
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.messages import (
     EXPORT_EMPTY_ANSWER,
+    EXPORT_FORMAT_UNSUPPORTED,
     EXPORT_HALF_RANGE,
     EXPORT_NO_DATA,
     EXPORT_NO_ORG_UNIT,
@@ -18,7 +20,15 @@ from dirigent_dhis2.messages import (
 )
 from dirigent_dhis2.reads import require_known
 from dirigent_dhis2.web import Dhis2Operator, refuse
-from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, RemoteHandle, StepContext
+from dirigent_plugin import (
+    BlockFailure,
+    ByteSink,
+    ConnectionRef,
+    ErrorClass,
+    OperatorSpec,
+    RemoteHandle,
+    StepContext,
+)
 
 #: Where data value sets are read and written.
 DATA_VALUE_SETS_PATH: Final = "/api/dataValueSets.json"
@@ -35,6 +45,28 @@ ID_SCHEME_PATTERN: Final = r"^(UID|CODE|NAME|ID|ATTRIBUTE:[A-Za-z][A-Za-z0-9]{10
 
 #: One identifier, or several, written as one string or a list.
 Uids = str | list[str] | None
+
+#: The forms a data value set is written in on the wire.
+DataValueSetFormat = Literal["json", "csv", "xml", "adx"]
+
+#: The media type each form is sent and asked for as.
+CONTENT_TYPES: Final[dict[str, str]] = {
+    "json": "application/json",
+    "csv": "application/csv",
+    "xml": "application/xml",
+    "adx": "application/adx+xml",
+}
+
+#: The first DHIS2 minor whose export answers JSON when asked for ADX.
+NO_ADX_EXPORT_FROM: Final = 43
+
+#: Where a data value set is exported in a form other than JSON. ADX has no extension of its
+#: own and is asked for by ``Accept``.
+TEXT_EXPORT_PATHS: Final[dict[str, str]] = {
+    "csv": "/api/dataValueSets.csv",
+    "xml": "/api/dataValueSets.xml",
+    "adx": "/api/dataValueSets",
+}
 
 
 class Dhis2DataValueSetExportConfig(BlockModel):
@@ -97,6 +129,11 @@ class Dhis2DataValueSetExportConfig(BlockModel):
     category_option_combo_id_scheme: str | None = Field(default=None, pattern=ID_SCHEME_PATTERN)
     """How category option combos are written, in place of ``id_scheme``."""
 
+    format: DataValueSetFormat = "json"
+    """The form the set is exported in: ``json``, parsed into ``body``; or ``csv``, ``xml`` or
+    ``adx``, written whole to storage at ``uri`` with its head inlined as ``text``. ADX is
+    exported by 2.41 and 2.42 only."""
+
     require_known: bool = True
     """Whether the step fails when a named data set, data element, group or org unit is unknown
     to the instance, rather than answering an empty set for it. One metadata lookup asks for
@@ -119,10 +156,27 @@ class Dhis2DataValueSetExportConfig(BlockModel):
 class Dhis2DataValueSetExportOutput(BlockModel):
     """The data value set the export answered, which an import takes as it is."""
 
+    format: DataValueSetFormat = "json"
+    """The form the set was exported in."""
+
     body: JsonValue | None = None
-    """The exported data value set, the document a ``dhis2.data_value_set_import`` takes whole as
-    its ``data_values``. Every value carries its own period, org unit and attribute option combo,
-    whichever version answered."""
+    """The exported data value set, for ``json``: the document a ``dhis2.data_value_set_import``
+    takes whole as its ``data_values``. Every value carries its own period, org unit and
+    attribute option combo, whichever version answered. Null for every other form."""
+
+    text: str | None = None
+    """The head of the exported text, for ``csv``, ``xml`` and ``adx``, cut at the instance's
+    inline capture size; null for ``json``."""
+
+    uri: str | None = None
+    """Where the whole exported text was written, for ``csv``, ``xml`` and ``adx``; never cut,
+    and what an import's ``data_values_uri`` takes. Null for ``json``."""
+
+    content_bytes: int | None = None
+    """How large the exported text is, inlined or not; null for ``json``."""
+
+    truncated: bool = False
+    """Whether ``text`` is short of the export. Only the inline copy is ever cut."""
 
     duration_ms: int
     """How long the export took."""
@@ -181,6 +235,83 @@ def _extra_params(config: Dhis2DataValueSetExportConfig) -> dict[str, Any]:
     return params
 
 
+def export_params(config: Dhis2DataValueSetExportConfig) -> dict[str, Any]:
+    """The whole query an export sends, in DHIS2's own names."""
+    params: dict[str, Any] = {}
+    for name, uids in (("dataSet", config.data_set), ("period", config.period), ("orgUnit", config.org_unit)):
+        if listed := _listed(uids):
+            params[name] = listed
+    if config.children:
+        params["children"] = "true"
+    for name, value in (
+        ("startDate", config.start_date),
+        ("endDate", config.end_date),
+        ("lastUpdated", config.last_updated),
+    ):
+        if value is not None:
+            params[name] = value
+    if config.last_updated_duration is not None:
+        params["lastUpdatedDuration"] = dhis2_duration(config.last_updated_duration)
+    return {**params, **_extra_params(config)}
+
+
+def _minor(client: Dhis2Client) -> int:
+    """The DHIS2 minor the client speaks, 42 for 2.42."""
+    return int(client.version_key.removeprefix("v"))
+
+
+class _Head:
+    """The write end an export streams into: storage gets every byte, the head is kept to inline."""
+
+    def __init__(self, sink: ByteSink, limit: int) -> None:
+        """Write through to the sink, keeping at most this much of the beginning."""
+        self._sink = sink
+        self._limit = limit
+        self.head = bytearray()
+        self.total = 0
+
+    async def write(self, chunk: bytes) -> None:
+        """Take one piece of the body."""
+        if len(self.head) < self._limit:
+            self.head.extend(chunk[: self._limit - len(self.head)])
+        self.total += len(chunk)
+        await self._sink.write(chunk)
+
+
+async def _export_text(
+    client: Dhis2Client, config: Dhis2DataValueSetExportConfig, ctx: StepContext
+) -> Dhis2DataValueSetExportOutput:
+    """Stream a CSV, XML or ADX export into storage, keeping its head to inline."""
+    if config.format == "adx" and _minor(client) >= NO_ADX_EXPORT_FROM:
+        raise BlockFailure(
+            EXPORT_FORMAT_UNSUPPORTED, error_class=ErrorClass.REJECTED, version=client.raw_version, format="adx"
+        )
+    path = TEXT_EXPORT_PATHS[config.format]
+    content_type = CONTENT_TYPES[config.format]
+    async with ctx.capture(f"data-value-set.{config.format}", content_type=content_type) as sink:
+        written = _Head(sink, ctx.inline_capture)
+        try:
+            await client.stream(
+                "GET", path, written.write, params=export_params(config), extra_headers={"Accept": content_type}
+            )
+        except (Dhis2ApiError, AuthenticationError) as error:
+            raise refuse(error, f"GET {path}") from error
+    if not written.total:
+        raise _scope_refusal(config)
+    if config.format == "adx" and bytes(written.head).lstrip().startswith(b"{"):
+        raise BlockFailure(
+            EXPORT_FORMAT_UNSUPPORTED, error_class=ErrorClass.REJECTED, version=client.raw_version, format="adx"
+        )
+    return Dhis2DataValueSetExportOutput(
+        format=config.format,
+        text=bytes(written.head).decode("utf-8", errors="replace"),
+        uri=sink.uri,
+        content_bytes=written.total,
+        truncated=written.total > len(written.head),
+        duration_ms=0,
+    )
+
+
 def _empty_answer(error: Dhis2ApiError) -> bool:
     """Say whether the client refused a successful read for answering with no body at all."""
     return 200 <= error.status_code < 300 and error.body is None
@@ -210,7 +341,7 @@ class Dhis2DataValueSetExportOperator(Dhis2Operator[Dhis2DataValueSetExportConfi
 
     spec = OperatorSpec(
         id="dhis2.data_value_set_export",
-        summary="Export a DHIS2 data value set.",
+        summary="Export a DHIS2 data value set as JSON, CSV, XML or ADX.",
         idempotent=True,
     )
     config_model: ClassVar[type[BaseModel]] = Dhis2DataValueSetExportConfig
@@ -234,6 +365,16 @@ class Dhis2DataValueSetExportOperator(Dhis2Operator[Dhis2DataValueSetExportConfi
                     },
                     f"GET {DATA_VALUE_SETS_PATH}",
                 )
+            if config.format != "json":
+                exported_text = await _export_text(client, config, ctx)
+                elapsed = round((time.monotonic() - started) * 1000)
+                ctx.log.info(
+                    "data value set exported",
+                    format=config.format,
+                    content_bytes=exported_text.content_bytes,
+                    duration_ms=elapsed,
+                )
+                return exported_text.model_copy(update={"duration_ms": elapsed})
             duration = config.last_updated_duration
             try:
                 exported = await client.data_values.export(
