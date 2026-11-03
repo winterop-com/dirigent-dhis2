@@ -12,7 +12,7 @@ from dhis2w_client import Dhis2Client, Profile, build_auth_provider
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 
-from dirigent_common import BlockModel, Duration, HealthReport, Size, scrub, spellings
+from dirigent_common import BlockModel, CredentialForm, Duration, HealthReport, Size, scrub, spellings
 from dirigent_dhis2.messages import (
     BAD_API_TOKEN,
     BASE_URL_HOLDS_MORE,
@@ -198,6 +198,11 @@ class Dhis2ConnectionKind(ConnectionKind):
     id: ClassVar[str] = "dhis2"
     config_model: ClassVar[type[BaseModel]] = Dhis2ConnectionConfig
     mark: ClassVar[str | None] = DHIS2_MARK
+    credential_forms: ClassVar[tuple[CredentialForm, ...]] = (
+        CredentialForm(code="api_token", name="Personal access token", fields=("api_token",)),
+        CredentialForm(code="basic", name="Username and password", fields=("basic_username", "basic_password")),
+    )
+    credential_required: ClassVar[bool] = True
 
     async def check(self, config: BaseModel) -> HealthReport:
         """Ask the instance what it is, proving the credential works, never raising.
