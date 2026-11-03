@@ -15,10 +15,16 @@ own conformance corpus, and every block a step there names must be one this pack
 contributes. A document naming `transform.jq` is correct and simply belongs here instead.
 The pack's tests still hold the `dhis2.*` half of each document below to the same catalog.
 
-Each carries the connection it uses, so it runs standalone against the public play demo.
-Nothing here writes to it, except `dhis2-alert-on-threshold.yaml` when it is given a threshold.
-The four tagged `starter` are the ones `dg pipeline new` copies into a project, with
-`dhis2-demo` named under `requires.connections` rather than carried.
+Each names the `dhis2` connection `dhis2-play` under `requires.connections` and carries no
+credential; create it once against the public play demo, and `dg connection create` asks how
+to sign in:
+
+```bash
+dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 --set timeout=2m
+```
+
+Nothing here writes to the demo, except `dhis2-alert-on-threshold.yaml` when it is given a
+threshold. The four tagged `starter` are the ones `dg pipeline new` copies into a project.
 
 | File | What it composes |
 | --- | --- |

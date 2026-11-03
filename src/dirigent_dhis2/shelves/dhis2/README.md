@@ -20,19 +20,27 @@ engine's own -- a schema gate, a jq reshape, a fan-out, or the `storage.write` a
 `storage.read` steps that are the only way a value becomes a file and comes back -- live in
 [`../dhis2-compose/`](../dhis2-compose).
 
-Each document carries the connection it uses so it runs standalone; a server refuses to store
-one that does, so a copy is what an instance applies. `dg pipeline new` makes that copy from a
-document tagged `starter`: the `connections:` block goes and its code, `dhis2-demo`, is named
-under `requires.connections` instead, so create a `dhis2` connection under that code or rename
-it in the copy. They run against the public play demo, resolved to a versioned host (see
-[`../dhis2-http/README.md`](../dhis2-http/README.md) for the redirect lore the connection
-url depends on).
+No document carries a credential. Each names the `dhis2` connection `dhis2-play` under
+`requires.connections`, and the instance holds it; create it once against the public play demo,
+and `dg connection create` asks how to sign in, where the demo takes the login it publishes on
+its own sign-in page:
+
+```bash
+dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 --set timeout=2m
+dg run examples/dhis2/dhis2-system-report.yaml
+```
+
+Create the same code against your own instance, or rename it in a copy, and the documents read
+yours. `https://play.dhis2.org/2.43` redirects to a versioned host (see
+[`../dhis2-http/README.md`](../dhis2-http/README.md) for the redirect lore the connection url
+depends on).
 
 The demo shifts its data era from release to release, and every document that reads data
 takes the period as a parameter for that reason. An empty answer is usually a period outside
 the era rather than a wrong read.
 
-Nothing here writes to the demo: every import in this directory is a `dry_run`.
+Nothing here writes data to the demo: every import in this directory is a `dry_run`, and the
+predictor run names no group unless it is told one.
 
 ## Data value sets
 
@@ -40,6 +48,7 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | --- | --- |
 | [dhis2-export-data-values.yaml](dhis2-export-data-values.yaml) | Read one data set for one period at one organisation unit. |
 | [dhis2-export-with-children.yaml](dhis2-export-with-children.yaml) | The same export widened to the org unit's descendants with `children`. |
+| [dhis2-export-csv.yaml](dhis2-export-csv.yaml) | Export as CSV, XML or ADX: the whole text to storage at `uri`, its head inlined as `text`. |
 | [dhis2-export-incremental.yaml](dhis2-export-incremental.yaml) | Only the values changed within a window, across two data sets and a subtree, deletions included. |
 | [dhis2-import-dry-run.yaml](dhis2-import-dry-run.yaml) | Send a hand-written data value set with `dry_run` on and read the summary. |
 | [dhis2-import-create.yaml](dhis2-import-create.yaml) | `import_strategy: CREATE` -- fill the gaps, revise nothing. |
@@ -48,6 +57,7 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | [dhis2-import-delete.yaml](dhis2-import-delete.yaml) | `import_strategy: DELETE` -- remove the values a document names. |
 | [dhis2-import-partial.yaml](dhis2-import-partial.yaml) | `atomic_mode: NONE` -- take the good values, report the rest as conflicts. |
 | [dhis2-rehearse-import.yaml](dhis2-rehearse-import.yaml) | Export one month of a data set, then hand it straight back as a dry run. |
+| [dhis2-rehearse-csv-import.yaml](dhis2-rehearse-csv-import.yaml) | The same round trip in CSV, the import reading the export's file at `data_values_uri`, by code. |
 | [dhis2-data-value.yaml](dhis2-data-value.yaml) | Read one data value, then rehearse setting it with `dhis2.data_value`. |
 
 ## Completeness
@@ -71,6 +81,15 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | [dhis2-analytics-resource-tables.yaml](dhis2-analytics-resource-tables.yaml) | The same job with every data table skipped: the run to make after a metadata change. |
 | [dhis2-rebuild-then-query.yaml](dhis2-rebuild-then-query.yaml) | Rebuild, then read -- the edge that makes the query wait for the job to finish. |
 | [dhis2-analytics.yaml](dhis2-analytics.yaml) | The production-shaped nightly: sign-off gate, rebuild, export, with a nightly's deadlines and retries. |
+| [dhis2-resource-tables.yaml](dhis2-resource-tables.yaml) | `dhis2.resource_tables_run`: the resource tables as their own job, followed to the end. |
+
+## Data quality and jobs
+
+| File | The operation |
+| --- | --- |
+| [dhis2-validation-run.yaml](dhis2-validation-run.yaml) | Run validation rule analysis over a facility for a year and read the violations. |
+| [dhis2-predictor-run.yaml](dhis2-predictor-run.yaml) | Run the predictors of each named group over a quarter; none is named by default, so nothing is written. |
+| [dhis2-task-wait.yaml](dhis2-task-wait.yaml) | Follow one DHIS2 background job by its job type and id until it settles. |
 
 ## Tracker
 
@@ -94,6 +113,8 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | [dhis2-metadata-paged.yaml](dhis2-metadata-paged.yaml) | Read one page of organisation units and how many there are in total. |
 | [dhis2-metadata-create-data-element.yaml](dhis2-metadata-create-data-element.yaml) | Create one data element with `dhis2.metadata_import`, validated only. |
 | [dhis2-metadata-round-trip.yaml](dhis2-metadata-round-trip.yaml) | Export a few data elements and validate them straight back as an update. |
+| [dhis2-sql-view.yaml](dhis2-sql-view.yaml) | Run the demo's data-element-by-value-type SQL view with a variable, every row keyed by column. |
+| [dhis2-data-store.yaml](dhis2-data-store.yaml) | List a data store namespace's keys, then read the first one. |
 | [dhis2-system-report.yaml](dhis2-system-report.yaml) | System info, a two-collection `dhis2.metadata_export` and an org unit count, rendered as the run's `report:`. |
 
 The instance's own version and system information is not a metadata collection: it is

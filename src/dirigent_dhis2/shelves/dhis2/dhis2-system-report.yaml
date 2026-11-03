@@ -14,7 +14,14 @@
 # The report: section renders the run's own page from those outputs when it settles, so
 # `dg runs report RUN_ID --markdown` is the system report.
 #
-#   dg run --local examples/dhis2/dhis2-system-report.yaml
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-system-report.yaml
 
 format: dirigent/v1
 kind: pipeline
@@ -33,28 +40,19 @@ requires:
     - dhis2.system_info
     - dhis2.metadata_export
     - dhis2.metadata
-
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
+  connections:
+    - dhis2-play
 
 steps:
   info:
     block: dhis2.system_info
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
 
   holdings:
     block: dhis2.metadata_export
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       fields: id,name
       order: name:asc
       resources:
@@ -65,7 +63,7 @@ steps:
   org_units:
     block: dhis2.metadata
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       resource: organisationUnits
       fields: id
       paging: true

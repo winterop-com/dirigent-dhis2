@@ -19,8 +19,15 @@
 # The answer comes back inline as rows, with a pager beside them saying which page this was
 # and, in pager.more, whether more rows match than one page of 50 held.
 #
-#   dg run --local examples/dhis2/dhis2-tracker-entities.yaml
-#   dg run --local examples/dhis2/dhis2-tracker-entities.yaml -p org_unit=O6uvpzGd5pu
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-tracker-entities.yaml
+#   dg run examples/dhis2/dhis2-tracker-entities.yaml -p org_unit=O6uvpzGd5pu
 
 format: dirigent/v1
 kind: pipeline
@@ -36,6 +43,8 @@ tags: [dhis2, tracker]
 requires:
   blocks:
     - dhis2.tracker
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -49,22 +58,11 @@ params:
       default: ImspTQPwCqd
       description: The uid of the subtree root to read within.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 120s
-
 steps:
   read:
     block: dhis2.tracker
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       kind: trackedEntities
       program: "${params.program}"
       org_unit: "${params.org_unit}"

@@ -20,8 +20,15 @@
 #
 # dhis2-import-from-storage.yaml is what reading the file back looks like.
 #
-#   dg run --local examples/dhis2-compose/dhis2-export-to-storage.yaml
-#   dg run --local examples/dhis2-compose/dhis2-export-to-storage.yaml --keep
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2-compose/dhis2-export-to-storage.yaml
+#   dg run examples/dhis2-compose/dhis2-export-to-storage.yaml --keep
 
 format: dirigent/v1
 kind: pipeline
@@ -38,6 +45,8 @@ requires:
   blocks:
     - dhis2.data_value_set_export
     - storage.write
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -47,22 +56,11 @@ params:
       default: "202507"
       description: The ISO period to read.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 120s
-
 steps:
   export:
     block: dhis2.data_value_set_export
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       data_set: BfMAe6Itzgt
       period: "${params.period}"
       org_unit: O6uvpzGd5pu

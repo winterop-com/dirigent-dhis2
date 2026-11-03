@@ -45,12 +45,20 @@
 #
 #   dg dev
 #
-# `dg run --local` mounts no API of its own and reaches it over the network like anything
-# else; the export above still reads the public demo.
+# The run is made on that instance, which serves the playground itself; the reads still go
+# to the public demo.
 #
-#   dg dev &
-#   dg run --local examples/dhis2-http/dhis2-export-data-elements.yaml
-#   dg run --local examples/dhis2-http/dhis2-export-data-elements.yaml -p group_filter=Anaemia
+# The document carries no credential. It names the connections dhis2-play-http and staging,
+# which the instance holds: create each once. The command asks how to sign in where one
+# needs a credential, and the demo takes the login it publishes on its own sign-in page.
+#
+#   dg connection create http dhis2-play-http --set base_url=https://play.dhis2.org/2.43 \
+#       --set follow_redirects_with_auth=true --set timeout=2m
+#   dg connection create http staging --set base_url=http://127.0.0.1:3333/api/v1/playground \
+#       --set timeout=30s
+#
+#   dg run examples/dhis2-http/dhis2-export-data-elements.yaml
+#   dg run examples/dhis2-http/dhis2-export-data-elements.yaml -p group_filter=Anaemia
 
 format: dirigent/v1
 kind: pipeline
@@ -82,29 +90,9 @@ requires:
   blocks:
     - http.request
     - transform.jq
-
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: http
-    config:
-      base_url: https://play.dhis2.org/2.43
-      follow_redirects_with_auth: true
-      basic_username: admin
-      basic_password: district
-      timeout: 120s
-  staging:
-    name: Staging DHIS2
-    description: The instance the data elements are exported from. It points at the playground, which answers what it is sent, so the example runs without a DHIS2.
-    kind: http
-    config:
-      # The playground, standing in for the instance being imported INTO. Point this at your
-      # own DHIS2 and change the step's path to /api/metadata to perform the real dry run:
-      # the base URL lives here rather than in a step, so moving between instances is one
-      # edit however many steps name the connection.
-      base_url: http://127.0.0.1:3333/api/v1/playground
-      timeout: 30s
+  connections:
+    - dhis2-play-http
+    - staging
 
 params:
   type: object
@@ -120,7 +108,7 @@ steps:
   survey_data_elements:
     block: http.request
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/dataElements
       method: GET
       query:
@@ -135,7 +123,7 @@ steps:
     block: http.request
     depends_on: [survey_data_elements]
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/metadata
       method: GET
       query:

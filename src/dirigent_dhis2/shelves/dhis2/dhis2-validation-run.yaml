@@ -1,0 +1,65 @@
+# Run validation rule analysis over a facility and a year, and read the violations.
+#
+# A validation rule is a comparison DHIS2 keeps between two expressions over data -- ANC 2nd
+# visits cannot outnumber 1st visits, an outbreak threshold is crossed -- and the analysis
+# evaluates every rule over the org unit and everything below it, for every period in the
+# range. dhis2.validation_run answers each place a rule does not hold: the rule, the org unit,
+# the period, both sides and the operator between them.
+#
+# DHIS2 runs the analysis in the foreground and answers in the one request; there is no job to
+# follow. persist and notification stay off, so nothing is stored and nobody is told: this is
+# a read. fail_on_violations: true turns the step into a gate, so a later step runs only on
+# data that holds.
+#
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-validation-run.yaml
+#   dg run examples/dhis2/dhis2-validation-run.yaml -p org_unit=O6uvpzGd5pu
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-validation-run
+name: Run validation rules
+description: |
+  Run validation rule analysis over a facility for a year and read the violations.
+
+  Nothing is stored and nobody is notified.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.validation_run
+  connections:
+    - dhis2-play
+
+params:
+  type: object
+  properties:
+    org_unit:
+      type: string
+      default: DiszpKrYNg8
+      description: The uid of the org unit the analysis covers. Ngelehun CHC by default.
+    start_date:
+      type: string
+      default: "2025-01-01"
+      description: The ISO date the range starts on.
+    end_date:
+      type: string
+      default: "2025-12-31"
+      description: The ISO date the range ends on.
+
+steps:
+  validate:
+    block: dhis2.validation_run
+    config:
+      connection: dhis2-play
+      org_unit: "${params.org_unit}"
+      start_date: "${params.start_date}"
+      end_date: "${params.end_date}"
+      max_results: 100

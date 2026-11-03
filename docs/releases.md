@@ -31,6 +31,16 @@ for the old fields.
 | `dhis2.analytics_query` | `output.body.rows`, each row a list in header order | `output.rows`, each row an object keyed by header name; the grid as DHIS2 sent it stays under `output.body` |
 | `dhis2.data_value_set_import` | `output.imported`, `output.updated`, `output.ignored`, `output.deleted` | `output.counts.imported`, `.updated`, `.ignored`, `.deleted`, beside the new `output.sent` |
 
+The refusals of a job a block follows are coded for any job rather than for analytics alone:
+`dhis2.analytics.no_task_reference`, `dhis2.analytics.task_disappeared` and
+`dhis2.analytics.no_result` are `dhis2.task.no_reference`, `dhis2.task.disappeared` and
+`dhis2.task.no_result`.
+
+The pack's shelves carry no credential. Every document names its connection under
+`requires.connections`: `dhis2-play`, a `dhis2` connection, or `dhis2-play-http`, an `http`
+one, where they carried `dhis2-demo` before, so create them once with
+`dg connection create` and run the documents on the instance.
+
 Three refusals are new, so a step that passed before can fail now:
 
 - An export, a tracker read or an event or enrollment analytics query scoped to a uid the
@@ -54,3 +64,10 @@ Three refusals are new, so a step that passed before can fail now:
   answering part.
 - `dhis2.data_value_set_import` answers `sent`, the values the document held, and fails a
   summary that took none with `require_values: true`.
+- `dhis2.data_value_set_export` and `dhis2.data_value_set_import` take `format`: `json`, `csv`,
+  `xml` or `adx`. An export in text is written to storage at `uri` with its head inlined as
+  `text`; an import reads text inline or a stored document at `data_values_uri`, and takes the
+  four id schemes. ADX is exported by 2.41 and 2.42 only, and imported by every version.
+- New blocks: `dhis2.data_store`, `dhis2.sql_view`, `dhis2.validation_run`,
+  `dhis2.predictor_run`, `dhis2.resource_tables_run` and `dhis2.task_wait`, each with an example
+  on the `dhis2` shelf.

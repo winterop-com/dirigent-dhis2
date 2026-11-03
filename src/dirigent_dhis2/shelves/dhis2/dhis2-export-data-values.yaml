@@ -19,8 +19,15 @@
 # The demo shifts its data era from release to release. An empty answer usually means the
 # period is outside it rather than that the read is wrong, so ask a nearby month.
 #
-#   dg run --local examples/dhis2/dhis2-export-data-values.yaml
-#   dg run --local examples/dhis2/dhis2-export-data-values.yaml -p period=202506
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-export-data-values.yaml
+#   dg run examples/dhis2/dhis2-export-data-values.yaml -p period=202506
 
 format: dirigent/v1
 kind: pipeline
@@ -36,6 +43,8 @@ tags: [dhis2]
 requires:
   blocks:
     - dhis2.data_value_set_export
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -49,21 +58,11 @@ params:
       default: DiszpKrYNg8
       description: The uid of the organisation unit to read at. Ngelehun CHC by default.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-
 steps:
   export:
     block: dhis2.data_value_set_export
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       # Child Health, a monthly aggregate set. A facility-level read: one org unit, so the
       # answer is the values that facility itself reported, with nothing rolled up into it.
       data_set: BfMAe6Itzgt

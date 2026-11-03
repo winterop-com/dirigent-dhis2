@@ -24,18 +24,19 @@ TRACKER_CAP_REACHED = DHIS2.define(
     "answered rather than a part of the collection. Raise {cap} or narrow the read",
 )
 
-ANALYTICS_NO_TASK_REFERENCE = DHIS2.define(
-    "analytics.no_task_reference",
-    "the analytics job submission answered without a task reference to follow",
+TASK_NO_REFERENCE = DHIS2.define(
+    "task.no_reference",
+    "the job submission answered without a task reference to follow: a job type and a task id, "
+    "each one plain path segment",
 )
 
-ANALYTICS_TASK_DISAPPEARED = DHIS2.define(
-    "analytics.task_disappeared",
+TASK_DISAPPEARED = DHIS2.define(
+    "task.disappeared",
     "task {task} disappeared before its result could be collected",
 )
 
-ANALYTICS_NO_RESULT = DHIS2.define(
-    "analytics.no_result",
+TASK_NO_RESULT = DHIS2.define(
+    "task.no_result",
     "task {task} has no result to collect: the instance holds no terminal notification for it",
 )
 
@@ -210,3 +211,34 @@ DATA_VALUE_UNKNOWN_ATTRIBUTE = DHIS2.define(
 DATA_VALUE_REFUSED = DHIS2.define("data_value.refused", "the instance would not take the data value: {detail}")
 
 COMPLETION_REFUSED = DHIS2.define("data_set_completion.refused", "the completion registration was refused: {detail}")
+
+EXPORT_FORMAT_UNSUPPORTED = DHIS2.define(
+    "export.format_unsupported",
+    "DHIS2 {version} does not export a data value set as {format}, and answers JSON in its place; "
+    "ADX is exported by 2.41 and 2.42, and every version imports it",
+)
+
+IMPORT_NOT_TEXT = DHIS2.define(
+    "import.not_text",
+    "a {format} import sends its document as text, and data_values is {found}; give the document's "
+    "text, or its storage URI as data_values_uri",
+)
+
+IMPORT_TWO_SOURCES = DHIS2.define(
+    "import.two_sources",
+    "data_values and data_values_uri each name the document to send, so an import takes one of them",
+)
+
+DATA_STORE_NO_KEY = DHIS2.define("data_store.no_key", "get, set and delete address one key, so they need a key")
+
+DATA_STORE_NO_VALUE = DHIS2.define("data_store.no_value", "setting a data store key needs a value to store")
+
+VALIDATION_VIOLATED = DHIS2.define(
+    "validation.violated",
+    "validation rule analysis found {count} violations, and fail_on_violations asks for none: {detail}",
+)
+
+PREDICTOR_BOTH_TARGETS = DHIS2.define(
+    "predictor.both_targets",
+    "a predictor run names one predictor or one predictor group, not both; name neither to run every predictor",
+)

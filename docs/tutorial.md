@@ -100,12 +100,16 @@ uv run dg blocks list
 │ dhis2.data_set_completion   │ operator │ dhis2   │ Mark a DHIS2 data set complete,   │
 │                             │          │         │ or reopen it, for a period and    │
 │                             │          │         │ org unit.                         │
+│ dhis2.data_store            │ operator │ dhis2   │ Get, set or delete a DHIS2 data   │
+│                             │          │         │ store key, or list a namespace's  │
+│                             │          │         │ keys.                             │
 │ dhis2.data_value            │ operator │ dhis2   │ Get, set or delete one DHIS2 data │
 │                             │          │         │ value by data element, period and │
 │                             │          │         │ org unit.                         │
-│ dhis2.data_value_set_export │ operator │ dhis2   │ Export a DHIS2 data value set.    │
+│ dhis2.data_value_set_export │ operator │ dhis2   │ Export a DHIS2 data value set as  │
+│                             │          │         │ JSON, CSV, XML or ADX.            │
 │ dhis2.data_value_set_import │ operator │ dhis2   │ Import a data value set into      │
-│                             │          │         │ DHIS2.                            │
+│                             │          │         │ DHIS2, as JSON, CSV, XML or ADX.  │
 │ dhis2.message               │ operator │ dhis2   │ Send a DHIS2 message to users,    │
 │                             │          │         │ user groups or org units.         │
 │ dhis2.metadata              │ operator │ dhis2   │ Read one DHIS2 metadata           │
@@ -117,23 +121,35 @@ uv run dg blocks list
 │ dhis2.metadata_import       │ operator │ dhis2   │ Create, update or delete DHIS2    │
 │                             │          │         │ metadata from a bundle, one       │
 │                             │          │         │ object or many.                   │
+│ dhis2.predictor_run         │ operator │ dhis2   │ Run DHIS2 predictors over a date  │
+│                             │          │         │ range.                            │
+│ dhis2.resource_tables_run   │ operator │ dhis2   │ Rebuild the DHIS2 resource        │
+│                             │          │         │ tables, without the analytics     │
+│                             │          │         │ tables.                           │
+│ dhis2.sql_view              │ operator │ dhis2   │ Run a DHIS2 SQL view by uid and   │
+│                             │          │         │ read its rows.                    │
 │ dhis2.system_info           │ operator │ dhis2   │ Read a DHIS2 instance's version,  │
 │                             │          │         │ build, server clock and analytics │
 │                             │          │         │ state.                            │
+│ dhis2.task_wait             │ operator │ dhis2   │ Wait on a DHIS2 background job by │
+│                             │          │         │ its job type and id.              │
 │ dhis2.tracker               │ operator │ dhis2   │ Read DHIS2 tracker objects.       │
 │ dhis2.tracker_import        │ operator │ dhis2   │ Create, update or delete DHIS2    │
 │                             │          │         │ tracked entities, enrollments,    │
 │                             │          │         │ events and relationships.         │
+│ dhis2.validation_run        │ operator │ dhis2   │ Run DHIS2 validation rule         │
+│                             │          │         │ analysis and answer the           │
+│                             │          │         │ violations.                       │
 └─────────────────────────────┴──────────┴─────────┴───────────────────────────────────┘
 storage schemes: -   connection kinds: dhis2, docker, email, git, http, kafka, rabbitmq,
 slack, sql, webhook
 ```
 
-Fourteen blocks in the `dhis2` group, and `dhis2` among the connection kinds. The same catalog is
+Twenty blocks in the `dhis2` group, and `dhis2` among the connection kinds. The same catalog is
 the Blocks screen in the UI, where each block says how many of the pack's example documents use
 it:
 
-![The Blocks screen filtered to dhis2: fourteen blocks, thirteen operators and one sensor, each with how many of the examples use it.](images/tutorial/blocks.png)
+![The Blocks screen filtered to dhis2: twenty blocks, nineteen operators and one sensor, each with how many of the examples use it.](images/tutorial/blocks.png)
 
 *The blocks the pack contributes, as the instance's own catalog reports them.*
 
@@ -862,18 +878,18 @@ uv run dg pipeline new dhis2-rehearse-import
 ```
 
 It copies the document into `pipelines/` verbatim -- comments, the TO MAKE IT YOURS paragraph
-and all -- rewriting three lines: the `code:`, the dropped `starter` tag, and the
-`connections:` block, which goes so that the instance will store the document, its code
-`dhis2-demo` named under `requires.connections` instead. Your connection here is coded `play`,
-so either create a second one coded `dhis2-demo` or change that one line in the copy. The
+and all -- rewriting two lines: the `code:` and the dropped `starter` tag. The document names
+its connection under `requires.connections` and carries no credential, and the code it names is
+`dhis2-play`. Your connection here is coded `play`, so either create a second one coded
+`dhis2-play` or change that one line in the copy. The
 Examples screen is the same catalogue, where a starter is called a template, and it says per
 document what this instance is still missing:
 
-![The Examples screen filtered to the pack's templates: seven documents, each with its tags, what it requires, and the note that it carries its connections.](images/tutorial/examples-starters.png)
+![The Examples screen filtered to the pack's templates: seven documents, each with its tags and what it requires, one connection among it.](images/tutorial/examples-starters.png)
 
-*The template set, each row saying it carries its connections and a copy names them. Only the
-schema gate is short of anything here: this instance holds the tutorial's schema, not the one
-that document names.*
+*The template set, each row counting what it requires and what this instance is still missing:
+the `dhis2-play` connection every one names, and for the schema gate the schema it names as
+well, where this instance holds the tutorial's.*
 
 From here:
 

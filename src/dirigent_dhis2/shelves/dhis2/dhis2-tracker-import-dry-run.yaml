@@ -15,7 +15,14 @@
 # so even an ACTIVE event carries its four compulsory data elements: admission and discharge
 # dates, the mode of discharge and an ICD-10 diagnosis, each an option code of its option set.
 #
-#   dg run --local examples/dhis2/dhis2-tracker-import-dry-run.yaml
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-tracker-import-dry-run.yaml
 
 format: dirigent/v1
 kind: pipeline
@@ -29,6 +36,8 @@ tags: [dhis2]
 requires:
   blocks:
     - dhis2.tracker_import
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -42,23 +51,12 @@ params:
       default: "2025-07-04"
       description: The date the patient was discharged.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
-
 steps:
   rehearse:
     block: dhis2.tracker_import
     poll: 5s
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       tracker:
         events:
           - program: eBAyeGv0exc

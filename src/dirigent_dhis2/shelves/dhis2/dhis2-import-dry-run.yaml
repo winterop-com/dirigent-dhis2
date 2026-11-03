@@ -23,7 +23,14 @@
 # Turning dry_run off is what makes this a real import -- against your own instance, never
 # against the shared demo.
 #
-#   dg run --local examples/dhis2/dhis2-import-dry-run.yaml
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-import-dry-run.yaml
 
 format: dirigent/v1
 kind: pipeline
@@ -39,6 +46,8 @@ tags: [dhis2]
 requires:
   blocks:
     - dhis2.data_value_set_import
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -48,22 +57,11 @@ params:
       default: "202507"
       description: The ISO period the values belong to.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
-
 steps:
   rehearse:
     block: dhis2.data_value_set_import
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       # The envelope's dataSet, period and orgUnit are the defaults each value inherits, so
       # a value only repeats what differs from them.
       data_values:

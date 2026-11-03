@@ -21,7 +21,14 @@
 # The step's output carries the task id, when the instance said it was done, and the tail of
 # its notification messages; the whole story streams into the run's log while it happens.
 #
-#   dg run --local examples/dhis2/dhis2-analytics-resource-tables.yaml
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-analytics-resource-tables.yaml
 
 format: dirigent/v1
 kind: pipeline
@@ -41,24 +48,15 @@ concurrency: skip
 requires:
   blocks:
     - dhis2.analytics_run
-
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
+  connections:
+    - dhis2-play
 
 steps:
   rebuild:
     block: dhis2.analytics_run
     timeout: 30m
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       skip_resource_tables: false
       skip_aggregate: true
       skip_events: true

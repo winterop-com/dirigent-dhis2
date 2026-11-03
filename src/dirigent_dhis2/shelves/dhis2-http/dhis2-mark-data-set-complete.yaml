@@ -30,12 +30,20 @@
 #
 #   dg dev
 #
-# `dg run --local` mounts no API of its own and reaches it over the network like anything
-# else; the read above still goes to the public demo.
+# The run is made on that instance, which serves the playground itself; the reads still go
+# to the public demo.
 #
-#   dg dev &
-#   dg run --local examples/dhis2-http/dhis2-mark-data-set-complete.yaml
-#   dg run --local examples/dhis2-http/dhis2-mark-data-set-complete.yaml -p period=202506
+# The document carries no credential. It names the connections dhis2-play-http and reporting,
+# which the instance holds: create each once. The command asks how to sign in where one
+# needs a credential, and the demo takes the login it publishes on its own sign-in page.
+#
+#   dg connection create http dhis2-play-http --set base_url=https://play.dhis2.org/2.43 \
+#       --set follow_redirects_with_auth=true --set timeout=2m
+#   dg connection create http reporting --set base_url=http://127.0.0.1:3333/api/v1/playground \
+#       --set timeout=30s
+#
+#   dg run examples/dhis2-http/dhis2-mark-data-set-complete.yaml
+#   dg run examples/dhis2-http/dhis2-mark-data-set-complete.yaml -p period=202506
 
 format: dirigent/v1
 kind: pipeline
@@ -52,6 +60,9 @@ tags: [dhis2, http]
 requires:
   blocks:
     - http.request
+  connections:
+    - dhis2-play-http
+    - reporting
 
 params:
   type: object
@@ -71,35 +82,13 @@ params:
       default: vSbt6cezomG
       description: The uid of the organisation unit doing the signing off.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: http
-    config:
-      base_url: https://play.dhis2.org/2.43
-      follow_redirects_with_auth: true
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
-  reporting:
-    name: Reporting DHIS2
-    description: The instance whose data set registrations are marked complete or incomplete. It points at the playground, which answers what it is sent, so the example runs without a DHIS2.
-    kind: http
-    config:
-      # The playground, standing in for the instance being written to. Repoint this and the
-      # document performs the real registration, which is the argument for naming a
-      # connection rather than writing a URL into a step.
-      base_url: http://127.0.0.1:3333/api/v1/playground
-      timeout: 30s
-
 steps:
   # What is already recorded. A registration carrying completed: false is a window that was
   # signed off and then reopened, which reads differently from no registration at all.
   read_registration:
     block: http.request
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/completeDataSetRegistrations
       method: GET
       query:

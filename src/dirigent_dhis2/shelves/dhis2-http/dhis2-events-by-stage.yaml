@@ -24,8 +24,15 @@
 # The demo's Child Programme events are dated 2026, so a window outside that answers with an
 # empty events array rather than an error.
 #
-#   dg run --local examples/dhis2-http/dhis2-events-by-stage.yaml
-#   dg run --local examples/dhis2-http/dhis2-events-by-stage.yaml -p stage=ZzYYXq4fJie
+# The document carries no credential. It names the http connection dhis2-play-http, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create http dhis2-play-http --set base_url=https://play.dhis2.org/2.43 \
+#       --set follow_redirects_with_auth=true --set timeout=2m
+#
+#   dg run examples/dhis2-http/dhis2-events-by-stage.yaml
+#   dg run examples/dhis2-http/dhis2-events-by-stage.yaml -p stage=ZzYYXq4fJie
 
 format: dirigent/v1
 kind: pipeline
@@ -41,6 +48,8 @@ tags: [dhis2, http, tracker]
 requires:
   blocks:
     - http.request
+  connections:
+    - dhis2-play-http
 
 params:
   type: object
@@ -71,23 +80,11 @@ params:
       default: "2026-12-31"
       description: The last day of the occurrence window.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: http
-    config:
-      base_url: https://play.dhis2.org/2.43
-      follow_redirects_with_auth: true
-      basic_username: admin
-      basic_password: district
-      timeout: 120s
-
 steps:
   read_stage_events:
     block: http.request
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/tracker/events
       method: GET
       query:

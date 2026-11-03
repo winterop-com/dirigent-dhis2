@@ -21,20 +21,24 @@
 #
 #   dg dev
 #
-# `dg run --local` mounts no API of its own, so it reaches the playground over the network
-# like anything else. The reads above still go to the public demo, so this document wants
-# both.
+# The run is made on that instance, which serves the playground itself; the reads still go
+# to the public demo.
 #
 # The playground answers with the request it received, so the receipt is the final step's
 # output: the envelope composed below comes back under `.request.body`, once.
 #
+# The document carries no credential. It names the http connection dhis2-play-http, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create http dhis2-play-http --set base_url=https://play.dhis2.org/2.43 \
+#       --set follow_redirects_with_auth=true --set timeout=2m
+#
 # Level 2 is the thirteen districts beneath Sierra Leone in the public demo. Choose another
 # configured level to send a different slice:
 #
-#   dg dev &
-#   dg run --local examples/dhis2-http/dhis2-forward-org-units.yaml
-#
-#   dg run --local examples/dhis2-http/dhis2-forward-org-units.yaml -p level=3
+#   dg run examples/dhis2-http/dhis2-forward-org-units.yaml
+#   dg run examples/dhis2-http/dhis2-forward-org-units.yaml -p level=3
 
 format: dirigent/v1
 kind: pipeline
@@ -50,6 +54,8 @@ requires:
     - storage.write
     - storage.read
     - transform.jq
+  connections:
+    - dhis2-play-http
 
 params:
   type: object
@@ -66,30 +72,18 @@ params:
       default: http://127.0.0.1:3333/api/v1/playground
       description: The playground routes on the instance this forwards to; `dg dev` serves them here.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: http
-    config:
-      base_url: https://play.dhis2.org/2.43
-      follow_redirects_with_auth: true
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
-
 steps:
   read_system_info:
     block: http.request
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/system/info
       method: GET
 
   select_org_units:
     block: http.request
     config:
-      connection: dhis2-demo
+      connection: dhis2-play-http
       path: /api/organisationUnits.json
       method: GET
       query:

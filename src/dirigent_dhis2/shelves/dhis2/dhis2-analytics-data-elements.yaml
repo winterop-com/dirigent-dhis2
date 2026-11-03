@@ -23,8 +23,15 @@
 # and a value that looks stale is usually a table that has not been rebuilt since the data
 # landed.
 #
-#   dg run --local examples/dhis2/dhis2-analytics-data-elements.yaml
-#   dg run --local examples/dhis2/dhis2-analytics-data-elements.yaml -p period=2025
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-analytics-data-elements.yaml
+#   dg run examples/dhis2/dhis2-analytics-data-elements.yaml -p period=2025
 
 format: dirigent/v1
 kind: pipeline
@@ -37,6 +44,8 @@ tags: [dhis2, analytics]
 requires:
   blocks:
     - dhis2.analytics_query
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -50,22 +59,11 @@ params:
       default: ImspTQPwCqd
       description: The uid of the subtree whose level-2 units are compared.
 
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
-
 steps:
   compare:
     block: dhis2.analytics_query
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       mode: aggregate
       dimension:
         # ANC 1st visit and ANC 2nd visit, side by side in the same grid.

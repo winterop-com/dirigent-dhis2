@@ -1,6 +1,6 @@
 # The production-shaped composition: wait for the month to be signed off, rebuild the
 # analytics, then export the data values -- with the deadlines, timeouts and retries a
-# nightly deserves. It carries a dhis2-production connection so it runs standalone; an
+# nightly deserves. It carries a dhis2-play connection so it runs standalone; an
 # instance you own names its own connection instead. The demo-sized versions of each step
 # live beside it in this directory.
 #
@@ -9,7 +9,14 @@
 # storage -- which is what dhis2-export-to-storage.yaml on the compose shelf shows.
 #
 # WARNING: as written the connection is the shared public demo, and run_analytics rebuilds its
-# tables in full. Point dhis2-production at an instance of your own before running it.
+# tables in full. Point dhis2-play at an instance of your own before running it.
+#
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
+#
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
 
 format: dirigent/v1
 kind: pipeline
@@ -24,16 +31,8 @@ requires:
     - dhis2.analytics_run
     - dhis2.data_value_set_export
     - dhis2.data_set_complete
-
-connections:
-  dhis2-production:
-    name: Production DHIS2
-    description: The instance whose analytics the example reads. It points at the public demo, so the example runs as written.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
+  connections:
+    - dhis2-play
 
 params:
   type: object
@@ -53,7 +52,7 @@ steps:
     deadline: 48h
     on_timeout: skip
     config:
-      connection: dhis2-production
+      connection: dhis2-play
       data_set: pBOMPrpg1QX
       period: "${params.period}"
       org_unit: "${params.org_unit}"
@@ -66,14 +65,14 @@ steps:
       max_attempts: 2
       backoff: 10m
     config:
-      connection: dhis2-production
+      connection: dhis2-play
       skip_resource_tables: false
 
   export_values:
     block: dhis2.data_value_set_export
     depends_on: [run_analytics]
     config:
-      connection: dhis2-production
+      connection: dhis2-play
       data_set: pBOMPrpg1QX
       period: "${params.period}"
       org_unit: "${params.org_unit}"

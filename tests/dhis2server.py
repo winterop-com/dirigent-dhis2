@@ -106,6 +106,10 @@ class Dhis2Server:
         """The route a POST to this URL is answered from, scripting it the first time."""
         return self._route("POST", url)
 
+    def put(self, url: str) -> Route:
+        """The route a PUT to this URL is answered from, scripting it the first time."""
+        return self._route("PUT", url)
+
     def delete(self, url: str) -> Route:
         """The route a DELETE of this URL is answered from, scripting it the first time."""
         return self._route("DELETE", url)

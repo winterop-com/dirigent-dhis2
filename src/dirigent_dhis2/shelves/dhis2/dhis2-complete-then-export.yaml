@@ -9,14 +9,20 @@
 # on the first poke. Against a real instance the deadline is the interesting part: a
 # month nobody signs off inside two days skips the run rather than failing it.
 #
-#   dg run --local examples/dhis2/dhis2-complete-then-export.yaml
+# The document carries no credential. It names the dhis2 connection dhis2-play, which the
+# instance holds: create it once, and the command asks how to sign in. The demo takes
+# the login it publishes on its own sign-in page.
 #
-# TO MAKE IT YOURS: a copy made from this document names `dhis2-demo` under
-# requires.connections rather than carrying it, so create a `dhis2` connection under that code
-# -- `dg connection create dhis2 dhis2-demo --set base_url=https://dhis2.example.org` -- or
-# rename it in the copy. Then name the data set and facility you are waiting on, take the
-# period from a param or a schedule's window, and put whatever consumes the month -- an import
-# into a warehouse, a report, a file on a share -- behind the export.
+#   dg connection create dhis2 dhis2-play --set base_url=https://play.dhis2.org/2.43 \
+#       --set timeout=2m
+#
+#   dg run examples/dhis2/dhis2-complete-then-export.yaml
+#
+# TO MAKE IT YOURS: create a `dhis2` connection for your own instance -- `dg connection create
+# dhis2 my-dhis2 --set base_url=https://dhis2.example.org` -- and name it in a copy in place of
+# `dhis2-play`. Then name the data set and facility you are waiting on, take the period from a
+# param or a schedule's window, and put whatever consumes the month -- an import into a
+# warehouse, a report, a file on a share -- behind the export.
 
 format: dirigent/v1
 kind: pipeline
@@ -30,17 +36,8 @@ requires:
   blocks:
     - dhis2.data_set_complete
     - dhis2.data_value_set_export
-
-connections:
-  dhis2-demo:
-    name: DHIS2 play demo
-    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
-    kind: dhis2
-    config:
-      base_url: https://play.dhis2.org/2.43
-      basic_username: admin
-      basic_password: district
-      timeout: 60s
+  connections:
+    - dhis2-play
 
 steps:
   signed_off:
@@ -49,7 +46,7 @@ steps:
     deadline: 48h
     on_timeout: skip
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       data_set: BfMAe6Itzgt
       period: "202507"
       org_unit: vSbt6cezomG
@@ -57,7 +54,7 @@ steps:
     block: dhis2.data_value_set_export
     depends_on: [signed_off]
     config:
-      connection: dhis2-demo
+      connection: dhis2-play
       data_set: BfMAe6Itzgt
       period: "202507"
       org_unit: vSbt6cezomG
