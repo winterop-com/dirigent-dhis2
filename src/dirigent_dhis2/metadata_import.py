@@ -13,6 +13,7 @@ from dirigent_dhis2.reports import (
     as_list,
     as_object,
     body_of,
+    coded,
     document_kind,
     import_counts,
     named_first,
@@ -278,7 +279,7 @@ class Dhis2MetadataImportOperator(Dhis2Operator[Dhis2MetadataImportConfig, Dhis2
             conflicts=len(conflicts),
         )
         if status == "ERROR" and config.fail_on_error:
-            named = [f"{_subject(conflict)}: {conflict.value}" for conflict in conflicts]
+            named = [f"{_subject(conflict)}: {conflict.value}{coded(conflict.error_code)}" for conflict in conflicts]
             detail = named_first(named) or str(body.get("message") or "the report named no object")
             raise BlockFailure(
                 METADATA_IMPORT_REFUSED, error_class=ErrorClass.REJECTED, detail=detail, **counts.model_dump()

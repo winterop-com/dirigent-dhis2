@@ -191,3 +191,72 @@ async def test_object_atomicity_is_not_a_metadata_mode(ctx: FakeContext) -> None
             {"connection": CONNECTION, "metadata": BUNDLE, "atomic_mode": "OBJECT"},
             ctx,
         )
+
+
+#: What DHIS2 2.42.7 answers a dry run of a data element with no value, domain or aggregation type.
+MISSING_PROPERTIES_42 = {
+    "httpStatus": "Conflict",
+    "httpStatusCode": 409,
+    "status": "WARNING",
+    "message": "One or more errors occurred, please see full details in import report.",
+    "response": {
+        "status": "ERROR",
+        "stats": stats(ignored=1),
+        "typeReports": [
+            {
+                "klass": KLASS,
+                "stats": stats(ignored=1),
+                "objectReports": [
+                    {
+                        "klass": KLASS,
+                        "index": 0,
+                        "uid": "W9l4e5S3u8i",
+                        "displayName": "dirigent probe",
+                        "errorReports": [
+                            {
+                                "message": f"Missing required property `{field}`",
+                                "args": [field],
+                                "mainKlass": KLASS,
+                                "errorCode": "E4000",
+                                "errorKlass": "org.hisp.dhis.common.ValueType",
+                                "errorProperty": field,
+                                "errorProperties": [field],
+                            }
+                            for field in ("aggregationType", "domainType", "valueType")
+                        ],
+                    }
+                ],
+            }
+        ],
+        "responseType": "ImportReport",
+    },
+}
+
+
+async def test_a_recorded_refusal_fails_with_each_reason_and_code(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    """The envelope says WARNING while the report says ERROR: the report's word decides."""
+    dhis2.post(METADATA).answers(json(409, MISSING_PROPERTIES_42))
+    bundle = {"dataElements": [{"name": "dirigent probe", "shortName": "dirigent probe"}]}
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(
+            Dhis2MetadataImportOperator(), {"connection": CONNECTION, "metadata": bundle, "dry_run": True}, ctx
+        )
+    assert refused.value.code == "dhis2.metadata_import.refused"
+    assert refused.value.error_class is ErrorClass.REJECTED
+    assert "DataElement W9l4e5S3u8i: Missing required property `valueType` (E4000)" in refused.value.message
+
+
+async def test_a_recorded_refusal_with_fail_on_error_off_answers_every_conflict(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    dhis2.post(METADATA).answers(json(409, MISSING_PROPERTIES_42))
+    output = await call_block(
+        Dhis2MetadataImportOperator(), {"connection": CONNECTION, "metadata": BUNDLE, "fail_on_error": False}, ctx
+    )
+    assert isinstance(output, Dhis2MetadataImportOutput)
+    assert output.status == "ERROR"
+    assert [(error.uid, error.error_code, error.property) for error in output.conflicts] == [
+        ("W9l4e5S3u8i", "E4000", "aggregationType"),
+        ("W9l4e5S3u8i", "E4000", "domainType"),
+        ("W9l4e5S3u8i", "E4000", "valueType"),
+    ]

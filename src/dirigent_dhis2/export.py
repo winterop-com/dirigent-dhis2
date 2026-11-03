@@ -197,7 +197,11 @@ def _scope_refusal(config: Dhis2DataValueSetExportConfig) -> BlockFailure:
 
 
 def _one_data_set(config: Dhis2DataValueSetExportConfig) -> bool:
-    """Whether the export asks for exactly one data set and nothing else, the case DHIS2 names it for."""
+    """Whether the export asks for exactly one data set and nothing else.
+
+    DHIS2 answers such a read with the data set named or with a ``dataValues`` list, empty or
+    not; an answer carrying neither is refused as the empty answer.
+    """
     return len(_listed(config.data_set)) == 1 and not (config.data_element or config.data_element_group)
 
 
@@ -250,8 +254,7 @@ class Dhis2DataValueSetExportOperator(Dhis2Operator[Dhis2DataValueSetExportConfi
             except AuthenticationError as error:
                 raise refuse(error, f"GET {DATA_VALUE_SETS_PATH}") from error
         body = exported.model_dump(mode="json", by_alias=True, exclude_none=True)
-        if _one_data_set(config) and not body.get("dataSet"):
-            # A set read for one data set always names it, values or none.
+        if _one_data_set(config) and not body.get("dataSet") and "dataValues" not in body:
             raise _scope_refusal(config)
         if config.children:
             body.pop(DOCUMENT_ORG_UNIT, None)
