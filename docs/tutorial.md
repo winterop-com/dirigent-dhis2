@@ -102,20 +102,28 @@ uv run dg blocks list
 │                             │          │         │ DHIS2.                            │
 │ dhis2.message               │ operator │ dhis2   │ Send a DHIS2 message to users,    │
 │                             │          │         │ user groups or org units.         │
-│ dhis2.metadata              │ operator │ dhis2   │ Read a DHIS2 metadata resource.   │
+│ dhis2.metadata              │ operator │ dhis2   │ Read one DHIS2 metadata           │
+│                             │          │         │ collection, whole or one page of  │
+│                             │          │         │ it.                               │
+│ dhis2.metadata_export       │ operator │ dhis2   │ Read several DHIS2 metadata       │
+│                             │          │         │ collections, every row of each,   │
+│                             │          │         │ in one request.                   │
+│ dhis2.system_info           │ operator │ dhis2   │ Read a DHIS2 instance's version,  │
+│                             │          │         │ build, server clock and analytics │
+│                             │          │         │ state.                            │
 │ dhis2.tracker               │ operator │ dhis2   │ Read DHIS2 tracker objects.       │
 └─────────────────────────────┴──────────┴─────────┴───────────────────────────────────┘
 storage schemes: -   connection kinds: dhis2, docker, email, git, http, kafka, rabbitmq,
 slack, sql, webhook
 ```
 
-Eight blocks in the `dhis2` group, and `dhis2` among the connection kinds. The same catalog is
+Ten blocks in the `dhis2` group, and `dhis2` among the connection kinds. The same catalog is
 the Blocks screen in the UI, where each block says how many of the pack's example documents use
 it:
 
-![The Blocks screen filtered to dhis2: eight blocks, seven operators and one sensor, each with how many of the examples use it.](images/tutorial/blocks.png)
+![The Blocks screen filtered to dhis2: ten blocks, nine operators and one sensor, each with how many of the examples use it.](images/tutorial/blocks.png)
 
-*The eight blocks the pack contributes, as the instance's own catalog reports them.*
+*The blocks the pack contributes, as the instance's own catalog reports them.*
 
 ## 2. The connection
 

@@ -16,6 +16,8 @@ DHIS2_BLOCKS = [
     "dhis2.data_value_set_import",
     "dhis2.message",
     "dhis2.metadata",
+    "dhis2.metadata_export",
+    "dhis2.system_info",
     "dhis2.tracker",
 ]
 

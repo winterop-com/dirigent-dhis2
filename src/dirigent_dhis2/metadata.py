@@ -22,7 +22,12 @@ _CAMEL_BOUNDARY: Final = re.compile(r"(?<!^)(?=[A-Z])")
 
 
 class Dhis2MetadataConfig(BlockModel):
-    """Which metadata resource to read, and how the collection is narrowed."""
+    """Which metadata resource to read, and how the collection is narrowed.
+
+    One collection per step. Several collections at once are one ``dhis2.metadata_export``
+    step instead. Counting a collection is this block with ``paging: true`` and
+    ``page_size: 1``: the answer's ``pager.total`` is the count, and one row is all that is sent.
+    """
 
     connection: ConnectionRef
     """The code of the dhis2 connection naming the instance."""
@@ -74,7 +79,7 @@ def accessor_name(resource: str) -> str:
     return _CAMEL_BOUNDARY.sub("_", resource).lower()
 
 
-def _accessor(client: Dhis2Client, resource: str) -> Any:
+def resource_accessor(client: Dhis2Client, resource: str) -> Any:
     """Find the generic resource accessor whose DHIS2 collection name is ``resource``.
 
     The version-bound ``client.resources`` publishes one accessor per collection, named
@@ -93,7 +98,7 @@ class Dhis2MetadataOperator(Dhis2Operator[Dhis2MetadataConfig, Dhis2MetadataOutp
 
     spec = OperatorSpec(
         id="dhis2.metadata",
-        summary="Read a DHIS2 metadata resource.",
+        summary="Read one DHIS2 metadata collection, whole or one page of it.",
         idempotent=True,
     )
     config_model: ClassVar[type[BaseModel]] = Dhis2MetadataConfig
@@ -104,7 +109,7 @@ class Dhis2MetadataOperator(Dhis2Operator[Dhis2MetadataConfig, Dhis2MetadataOutp
         started = time.monotonic()
         terms = query_terms(fields=config.fields, filter=config.filter, order=config.order)
         async with client_for(ctx, config.connection) as client:
-            resource = _accessor(client, config.resource)
+            resource = resource_accessor(client, config.resource)
             try:
                 body = await resource.list_raw(
                     fields=terms.fields,

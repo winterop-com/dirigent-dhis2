@@ -32,6 +32,7 @@ class Route:
         """Start with nothing scripted and nothing taken."""
         self.requests: list[httpx2.Request] = []
         self._response: httpx2.Response | None = None
+        self._first: list[httpx2.Response] = []
         self._error: Exception | None = None
 
     def answers(self, response: httpx2.Response) -> Self:
@@ -39,6 +40,11 @@ class Route:
         self._response = response
         self._error = None
         return self
+
+    def answers_in_turn(self, *responses: httpx2.Response) -> Self:
+        """Answer each request with the next of these, and every one after the last with the last."""
+        *self._first, last = responses
+        return self.answers(last)
 
     def raises(self, error: Exception) -> Self:
         """Fail every request on this route with this error, the way a transport fails."""
@@ -60,11 +66,10 @@ class Route:
         self.requests.append(request)
         if self._error is not None:
             raise self._error
-        if self._response is None:
+        response = self._first.pop(0) if self._first else self._response
+        if response is None:
             raise AssertionError(f"{request.method} {request.url} has a route but no answer")
-        return httpx2.Response(
-            self._response.status_code, content=self._response.content, headers=self._response.headers
-        )
+        return httpx2.Response(response.status_code, content=response.content, headers=response.headers)
 
 
 class Dhis2Server:
