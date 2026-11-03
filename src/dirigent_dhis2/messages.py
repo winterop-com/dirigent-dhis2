@@ -188,6 +188,11 @@ TRACKER_IMPORT_NO_JOB = DHIS2.define(
     "{where} accepted the import as a job but answered without a job id to follow",
 )
 
+TRACKER_IMPORT_JOB_FAILED = DHIS2.define(
+    "tracker_import.job_failed",
+    "import job {job} ended in error without a report to read; the job said: {said}",
+)
+
 TRACKER_IMPORT_REFUSED = DHIS2.define("tracker_import.refused", "the tracker import was refused: {detail}")
 
 DATA_VALUE_NO_VALUE = DHIS2.define("data_value.no_value", "setting a data value needs a value")

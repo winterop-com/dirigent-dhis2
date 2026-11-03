@@ -7,11 +7,13 @@
 # held while the instance works.
 #
 # dry_run sends importMode=VALIDATE, so the instance runs every validation and writes nothing.
-# A report whose status is ERROR fails the step and names the objects it refused.
+# A report whose status is ERROR fails the step, naming each refused object with the
+# instance's reason and code, such as E1303 for a compulsory data element left out.
 #
 # eBAyeGv0exc is the demo's inpatient event programme, Zj7UnCAulEk its one stage, and
-# DiszpKrYNg8 Ngelehun CHC, which the programme is assigned to. An ACTIVE event is held to the
-# stage's compulsory data elements only once it is completed.
+# DiszpKrYNg8 Ngelehun CHC, which the programme is assigned to. The stage validates on insert,
+# so even an ACTIVE event carries its four compulsory data elements: admission and discharge
+# dates, the mode of discharge and an ICD-10 diagnosis, each an option code of its option set.
 #
 #   dg run --local examples/dhis2/dhis2-tracker-import-dry-run.yaml
 
@@ -34,7 +36,11 @@ params:
     occurred_at:
       type: string
       default: "2025-07-01"
-      description: The date the event happened.
+      description: The date the event happened, which is also the admission date.
+    discharged_at:
+      type: string
+      default: "2025-07-04"
+      description: The date the patient was discharged.
 
 connections:
   dhis2-demo:
@@ -61,6 +67,19 @@ steps:
             occurredAt: "${params.occurred_at}"
             status: ACTIVE
             dataValues:
+              # Age in years.
               - dataElement: qrur9Dvnyt5
                 value: "34"
+              # Admission date.
+              - dataElement: eMyVanycQSC
+                value: "${params.occurred_at}"
+              # Discharge date.
+              - dataElement: msodh3rEMJa
+                value: "${params.discharged_at}"
+              # Mode of discharge: discharged.
+              - dataElement: fWIAEtYVEGk
+                value: MODDISCH
+              # Diagnosis (ICD-10): cholera due to Vibrio cholerae 01.
+              - dataElement: K6uUAvq500H
+                value: A000
       dry_run: true

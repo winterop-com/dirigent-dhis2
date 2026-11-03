@@ -433,3 +433,79 @@ async def test_an_export_of_several_data_sets_needs_no_data_set_on_the_document(
     )
     assert isinstance(output, Dhis2DataValueSetExportOutput)
     assert output.body == values
+
+
+#: A ``lastUpdated`` export of one data set as DHIS2 2.42.7 answers it: no data set on the document.
+SINCE_42 = {
+    "dataValues": [
+        {
+            "dataElement": "vI2csg55S9C",
+            "period": "202508",
+            "orgUnit": "N3tpEjZcPm9",
+            "categoryOptionCombo": "V6L425pT3A0",
+            "attributeOptionCombo": "HllvX50cXC0",
+            "value": "6",
+        }
+    ]
+}
+
+#: The same export as DHIS2 2.43.2 answers it: the data set named, and the shared combo once.
+SINCE_43 = {
+    "dataSet": "BfMAe6Itzgt",
+    "attributeOptionCombo": "HllvX50cXC0",
+    "dataValues": [
+        {
+            "dataElement": "vI2csg55S9C",
+            "period": "202508",
+            "orgUnit": "N3tpEjZcPm9",
+            "categoryOptionCombo": "V6L425pT3A0",
+            "value": "6",
+        }
+    ],
+}
+
+SINCE = {"connection": CONNECTION, "data_set": "BfMAe6Itzgt", "org_unit": "ImspTQPwCqd", "last_updated": "2026-01-01"}
+
+
+@pytest.mark.parametrize("answer", [SINCE_42, SINCE_43], ids=["2.42", "2.43"])
+async def test_a_last_updated_export_of_one_data_set_is_an_export_from_either_version(
+    ctx: FakeContext, dhis2: Dhis2Server, answer: dict[str, Any]
+) -> None:
+    route = dhis2.get(EXPORT).answers(json(200, answer))
+    output = await call_block(Dhis2DataValueSetExportOperator(), SINCE, ctx)
+    assert isinstance(output, Dhis2DataValueSetExportOutput)
+    body = cast("dict[str, Any]", output.body)
+    assert [value["attributeOptionCombo"] for value in body["dataValues"]] == ["HllvX50cXC0"]
+    assert route.last.url.params["lastUpdated"] == "2026-01-01"
+
+
+@pytest.mark.parametrize("answer", [{"dataValues": []}, {**SINCE_43, "dataValues": []}], ids=["2.42", "2.43"])
+async def test_a_last_updated_export_with_nothing_changed_is_an_empty_export(
+    ctx: FakeContext, dhis2: Dhis2Server, answer: dict[str, Any]
+) -> None:
+    dhis2.get(EXPORT).answers(json(200, answer))
+    output = await call_block(Dhis2DataValueSetExportOperator(), SINCE, ctx)
+    assert isinstance(output, Dhis2DataValueSetExportOutput)
+    assert cast("dict[str, Any]", output.body)["dataValues"] == []
+
+
+async def test_an_answer_naming_neither_the_data_set_nor_values_is_the_empty_answer(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    dhis2.get(EXPORT).answers(json(200, {}))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetExportOperator(), SINCE, ctx)
+    assert refused.value.code == "dhis2.export.empty_answer"
+    assert refused.value.error_class is ErrorClass.REJECTED
+
+
+async def test_an_unknown_data_set_read_since_a_date_is_still_refused_by_the_lookup(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    """2.42 answers an unknown data set with an empty list too, so the lookup is what catches it."""
+    dhis2.get(METADATA).responds(knowing("BfMAe6Itzgx"))
+    route = dhis2.get(EXPORT).answers(json(200, {"dataValues": []}))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetExportOperator(), {**SINCE, "data_set": "BfMAe6Itzgx"}, ctx)
+    assert refused.value.code == "dhis2.unknown_uids"
+    assert route.requests == []

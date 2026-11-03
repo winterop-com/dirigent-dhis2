@@ -64,6 +64,11 @@ def short_class(klass: object) -> str:
     return str(klass).rsplit(".", 1)[-1] if isinstance(klass, str) and klass else ""
 
 
+def coded(code: str | None) -> str:
+    """The instance's code for a refusal as a suffix to its words, such as `` (E1303)``, or nothing."""
+    return f" ({code})" if code else ""
+
+
 def import_summary(body: dict[str, Any]) -> dict[str, Any] | None:
     """Find an import summary in an answer: under ``response`` on current versions, else at the top."""
     for candidate in (as_object(body.get("response")), body):

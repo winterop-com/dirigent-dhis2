@@ -124,11 +124,92 @@ async def test_a_finished_job_is_probed_as_succeeded(ctx: FakeContext, dhis2: Dh
     assert probed.status is ProbeStatus.SUCCEEDED
 
 
-async def test_a_job_that_ended_in_error_is_probed_as_failed(ctx: FakeContext, dhis2: Dhis2Server) -> None:
-    dhis2.get(JOB_URL).answers(json(200, [{"level": "ERROR", "message": "Import failed", "completed": True}]))
+#: The notification DHIS2 2.42.7 ends a job with when its report refused an object.
+ENDED_IN_ERROR = {
+    "level": "ERROR",
+    "category": "TRACKER_IMPORT_JOB",
+    "message": "Import complete with status ERROR, 0 created, 0 updated, 0 deleted, 1 ignored",
+    "completed": True,
+}
+
+#: The report DHIS2 2.42.7 answers for an event missing its stage's compulsory data elements,
+#: at /api/tracker/jobs/{id}/report after a job, and on 409 to a synchronous import.
+COMPULSORY_MISSING = {
+    "status": "ERROR",
+    "validationReport": {
+        "errorReports": [
+            {
+                "message": f"Mandatory DataElement `{element}` is not present.",
+                "errorCode": "E1303",
+                "trackerType": "EVENT",
+                "uid": "o1eUeutWZrJ",
+                "args": [f"MetadataIdentifier(idScheme=UID, identifier={element}, attributeValue=null)"],
+            }
+            for element in ("eMyVanycQSC", "K6uUAvq500H")
+        ],
+        "warningReports": [],
+    },
+    "stats": {"created": 0, "updated": 0, "deleted": 0, "ignored": 1, "total": 1},
+}
+
+
+async def test_a_job_that_ended_in_error_is_finished_so_its_report_is_read(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    dhis2.get(JOB_URL).answers(json(200, [ENDED_IN_ERROR, {"level": "INFO", "message": "Running Validation"}]))
     probed = await Dhis2TrackerImportOperator().probe(handle(), config(), ctx.as_context())
-    assert probed.status is ProbeStatus.FAILED
-    assert "Import failed" in (probed.message or "")
+    assert probed.status is ProbeStatus.SUCCEEDED
+    assert probed.meta == {"job_error": ENDED_IN_ERROR["message"]}
+
+
+async def test_a_job_refused_for_missing_compulsory_values_fails_saying_why(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    dhis2.get(REPORT_URL).answers(json(200, COMPULSORY_MISSING))
+    errored = RemoteHandle(block_id="dhis2.tracker_import", ref=JOB, meta={"job_error": "Import complete"})
+    with pytest.raises(BlockFailure) as refused:
+        await Dhis2TrackerImportOperator().fetch(errored, config(), ctx.as_context())
+    assert refused.value.code == "dhis2.tracker_import.refused"
+    assert refused.value.error_class is ErrorClass.REJECTED
+    assert "EVENT o1eUeutWZrJ: Mandatory DataElement `eMyVanycQSC` is not present." in refused.value.message
+    assert refused.value.params["ignored"] == 1
+
+
+async def test_a_job_refused_with_fail_on_error_off_answers_the_conflicts(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(REPORT_URL).answers(json(200, COMPULSORY_MISSING))
+    errored = RemoteHandle(block_id="dhis2.tracker_import", ref=JOB, meta={"job_error": "Import complete"})
+    output = await Dhis2TrackerImportOperator().fetch(errored, config(fail_on_error=False), ctx.as_context())
+    assert output.status == "ERROR"
+    assert output.counts.ignored == 1
+    assert [(item.tracker_type, item.uid, item.error_code) for item in output.conflicts] == [
+        ("EVENT", "o1eUeutWZrJ", "E1303"),
+        ("EVENT", "o1eUeutWZrJ", "E1303"),
+    ]
+    assert output.conflicts[1].value == "Mandatory DataElement `K6uUAvq500H` is not present."
+
+
+async def test_a_synchronous_refusal_for_missing_compulsory_values_says_why(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    dhis2.post(TRACKER).answers(json(409, COMPULSORY_MISSING))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(
+            Dhis2TrackerImportOperator(), {"connection": CONNECTION, "tracker": BUNDLE, "async_mode": False}, ctx
+        )
+    assert refused.value.code == "dhis2.tracker_import.refused"
+    assert refused.value.error_class is ErrorClass.REJECTED
+    assert "EVENT o1eUeutWZrJ: Mandatory DataElement `eMyVanycQSC` is not present. (E1303)" in refused.value.message
+
+
+async def test_a_job_that_ended_in_error_with_no_report_fails_with_its_words(
+    ctx: FakeContext, dhis2: Dhis2Server
+) -> None:
+    dhis2.get(REPORT_URL).answers(json(404, {"status": "ERROR", "message": "not found"}))
+    errored = RemoteHandle(block_id="dhis2.tracker_import", ref=JOB, meta={"job_error": "Import failed: boom"})
+    with pytest.raises(BlockFailure) as refused:
+        await Dhis2TrackerImportOperator().fetch(errored, config(), ctx.as_context())
+    assert refused.value.code == "dhis2.tracker_import.job_failed"
+    assert "Import failed: boom" in refused.value.message
 
 
 async def test_a_job_the_instance_does_not_know_is_gone(ctx: FakeContext, dhis2: Dhis2Server) -> None:

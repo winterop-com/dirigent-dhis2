@@ -271,7 +271,10 @@ empty set for it. `require_known: false` skips the lookup.
 
 An answer with no body at all fails the step as `rejected` with `dhis2.export.empty_answer`:
 DHIS2 answers 200 and nothing else for an org unit outside the account's data scope, where an
-export that found no values still answers with the data set it was asked for.
+export that found no values still answers with a `dataValues` list. An export of one data set
+whose answer names neither the data set nor a `dataValues` list is refused the same way; DHIS2
+2.42 leaves the data set out of a `last_updated` read, values or none, so a `dataValues` list
+alone is an answer.
 
 Every value in the body carries its own `period`, `orgUnit` and `attributeOptionCombo`. DHIS2
 2.43 writes a field once on the set when every value shares it, and a one-unit export's values
@@ -646,8 +649,10 @@ Posts one bundle of `trackedEntities`, `enrollments`, `events` and `relationship
 and the step hands the job to the engine rather than holding a worker: each probe reads
 `/api/tracker/jobs/{id}`, a notification marked complete ends the wait, and the finished job's
 report is read from `/api/tracker/jobs/{id}/report`. A job the instance answers 404 for is gone,
-and so is one that has written nothing fifteen minutes after submission; a job whose final
-notification is an `ERROR` fails the step. DHIS2 offers no way to stop a running import, so
+and so is one that has written nothing fifteen minutes after submission. A job whose final
+notification is an `ERROR`, as it is when the report refused an object, is finished too: its
+report is read and says why, and a job that ended in error with no report to read fails with
+`dhis2.tracker_import.job_failed` and the job's own words. DHIS2 offers no way to stop a running import, so
 cancelling the step leaves it to finish. `async_mode: false` holds one request open and reads the
 report it answers with.
 
@@ -771,6 +776,7 @@ codes from `dhis2.analytics_query.no_program` on are what a config refuses at va
 | `dhis2.tracker_import.not_a_bundle` | `a tracker bundle is an object of trackedEntities, enrollments, events or relationships, and this one is {got}` |
 | `dhis2.tracker_import.no_report` | `{where} answered without an import report, so nothing says the import took` |
 | `dhis2.tracker_import.no_job` | `{where} accepted the import as a job but answered without a job id to follow` |
+| `dhis2.tracker_import.job_failed` | `import job {job} ended in error without a report to read; the job said: {said}` |
 | `dhis2.tracker_import.refused` | `the tracker import was refused: {detail}` |
 | `dhis2.data_value.no_value` | `setting a data value needs a value` |
 | `dhis2.data_value.half_attribute` | `attribute_combo and attribute_options name an attribute option combo together: give both or neither` |

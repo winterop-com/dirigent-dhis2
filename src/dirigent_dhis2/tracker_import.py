@@ -12,6 +12,7 @@ from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.imports import Dhis2ImportCounts
 from dirigent_dhis2.messages import (
+    TRACKER_IMPORT_JOB_FAILED,
     TRACKER_IMPORT_NO_JOB,
     TRACKER_IMPORT_NO_REPORT,
     TRACKER_IMPORT_NOT_A_BUNDLE,
@@ -21,6 +22,7 @@ from dirigent_dhis2.reports import (
     as_list,
     as_object,
     body_of,
+    coded,
     document_kind,
     import_counts,
     named_first,
@@ -47,6 +49,9 @@ JOB_SEGMENT: Final = re.compile(r"[A-Za-z0-9_-]+")
 
 #: How long a job may stay silent from the attempt's start before it is taken to be lost.
 GONE_AFTER: Final = timedelta(minutes=15)
+
+#: The handle's note that the job ended at level ERROR, holding what its last notification said.
+JOB_ERROR: Final = "job_error"
 
 #: The lists a tracker bundle holds its objects in.
 TRACKER_COLLECTIONS: Final = ("trackedEntities", "enrollments", "events", "relationships")
@@ -228,7 +233,10 @@ def _settle(
         "tracker import report", status=status, dry_run=config.dry_run, **counts.model_dump(), conflicts=len(conflicts)
     )
     if status == "ERROR" and config.fail_on_error:
-        named = [f"{conflict.tracker_type} {conflict.uid or '?'}: {conflict.value}" for conflict in conflicts]
+        named = [
+            f"{conflict.tracker_type} {conflict.uid or '?'}: {conflict.value}{coded(conflict.error_code)}"
+            for conflict in conflicts
+        ]
         detail = named_first(named) or str(report.get("message") or "the report named no object")
         raise BlockFailure(
             TRACKER_IMPORT_REFUSED, error_class=ErrorClass.REJECTED, detail=detail, **counts.model_dump()
@@ -298,7 +306,11 @@ class Dhis2TrackerImportOperator(Dhis2Operator[Dhis2TrackerImportConfig, Dhis2Tr
         return RemoteHandle(block_id=self.spec.id, ref=job_id)
 
     async def probe(self, handle: RemoteHandle, config: Dhis2TrackerImportConfig, ctx: StepContext) -> ProbeResult:
-        """Read the job's notifications once and say whether it has finished."""
+        """Read the job's notifications once and say whether it has finished.
+
+        A job that finished at level ERROR, as one whose report refused objects does, is still
+        finished: its report is what says why, so the fetch reads it.
+        """
         path = f"{TRACKER_PATH}/jobs/{handle.ref}"
         async with client_for(ctx, config.connection) as client:
             try:
@@ -322,13 +334,16 @@ class Dhis2TrackerImportOperator(Dhis2Operator[Dhis2TrackerImportConfig, Dhis2Tr
             return ProbeResult(status=ProbeStatus.RUNNING, message="the import is still running")
         said = text(finished.get("message"))
         if str(finished.get("level") or "").upper() == "ERROR":
-            return ProbeResult(status=ProbeStatus.FAILED, message=f"the import job failed: {said or ''}")
+            return ProbeResult(status=ProbeStatus.SUCCEEDED, message=said, meta={**handle.meta, JOB_ERROR: said or ""})
         return ProbeResult(status=ProbeStatus.SUCCEEDED, message=said)
 
     async def fetch(
         self, handle: RemoteHandle, config: Dhis2TrackerImportConfig, ctx: StepContext
     ) -> Dhis2TrackerImportOutput:
-        """Read the finished job's report; safe to call again."""
+        """Read the finished job's report; safe to call again.
+
+        A job that ended at level ERROR with no report to read fails with what the job said.
+        """
         path = f"{TRACKER_PATH}/jobs/{handle.ref}/report"
         where = f"GET {path}"
         async with client_for(ctx, config.connection) as client:
@@ -337,6 +352,10 @@ class Dhis2TrackerImportOperator(Dhis2Operator[Dhis2TrackerImportConfig, Dhis2Tr
             except Dhis2ApiError as error:
                 refused = body_of(error)
                 if refused is None or _report(refused) is None:
+                    if error.status_code == 404 and JOB_ERROR in handle.meta:
+                        raise BlockFailure(
+                            TRACKER_IMPORT_JOB_FAILED, job=handle.ref, said=handle.meta[JOB_ERROR] or "nothing"
+                        ) from error
                     if error.status_code == 404:
                         raise BlockFailure(
                             TRACKER_IMPORT_NO_REPORT, error_class=ErrorClass.TRANSIENT, where=where
