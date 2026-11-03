@@ -138,7 +138,7 @@ async def test_a_read_within_the_limit_still_answers(ctx: FakeContext, instance:
     instance.handlers[ORG_UNITS] = _answer(gzip.compress(body), "Content-Encoding: gzip")
     ctx.connections[CONNECTION] = instance.connection(max_response="1MB")
     output = await call_block(Dhis2MetadataOperator(), {"connection": CONNECTION, "resource": "organisationUnits"}, ctx)
-    assert output.model_dump()["body"] == {"organisationUnits": [{"id": "ImspTQPwCqd"}]}
+    assert output.model_dump()["rows"] == [{"id": "ImspTQPwCqd"}]
 
 
 async def test_an_import_answer_past_the_limit_is_held_to_it_too(ctx: FakeContext, instance: Instance) -> None:

@@ -2,7 +2,7 @@
 
 import re
 import time
-from typing import Any, ClassVar, Final
+from typing import Any, ClassVar, Final, cast
 
 from dhis2w_client import Dhis2Client
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, JsonValue
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.messages import METADATA_UNKNOWN_RESOURCE
+from dirigent_dhis2.reads import Dhis2Pager, pager_of
 from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
 from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, StepContext
 
@@ -26,7 +27,7 @@ class Dhis2MetadataConfig(BlockModel):
 
     One collection per step. Several collections at once are one ``dhis2.metadata_export``
     step instead. Counting a collection is this block with ``paging: true`` and
-    ``page_size: 1``: the answer's ``pager.total`` is the count, and one row is all that is sent.
+    ``page_size: 1``: the output's ``pager.total`` is the count, and one row is all that is sent.
     """
 
     connection: ConnectionRef
@@ -65,10 +66,14 @@ class Dhis2MetadataConfig(BlockModel):
 
 
 class Dhis2MetadataOutput(BlockModel):
-    """The collection the read answered, for a downstream step to reference by field."""
+    """The rows the read answered, and where a paged read stands in the collection."""
 
-    body: JsonValue | None = None
-    """The parsed response: the collection under its own key, and a ``pager`` when paged."""
+    rows: list[JsonValue]
+    """The collection's rows, each with the fields ``fields`` selected."""
+
+    pager: Dhis2Pager | None = None
+    """The page read, the page size, the collection's total, and whether more pages follow;
+    null when the read is not paged and so answered every row."""
 
     duration_ms: int
     """How long the read took."""
@@ -123,5 +128,9 @@ class Dhis2MetadataOperator(Dhis2Operator[Dhis2MetadataConfig, Dhis2MetadataOutp
             except (Dhis2ApiError, AuthenticationError) as error:
                 raise refuse(error, f"GET /api/{config.resource}") from error
         duration = round((time.monotonic() - started) * 1000)
-        ctx.log.info("metadata read", resource=config.resource, duration_ms=duration)
-        return Dhis2MetadataOutput(body=body, duration_ms=duration)
+        answer: dict[str, Any] = cast("dict[str, Any]", body) if isinstance(body, dict) else {}
+        listed = answer.get(config.resource)
+        rows = cast("list[JsonValue]", listed) if isinstance(listed, list) else []
+        pager = pager_of(answer, len(rows)) if config.paging else None
+        ctx.log.info("metadata read", resource=config.resource, rows=len(rows), duration_ms=duration)
+        return Dhis2MetadataOutput(rows=rows, pager=pager, duration_ms=duration)

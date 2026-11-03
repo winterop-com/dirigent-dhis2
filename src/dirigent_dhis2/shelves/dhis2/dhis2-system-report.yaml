@@ -92,7 +92,7 @@ report:
     ## Holdings
 
     {% if org_units %}
-    {{ org_units.body.pager.total }} organisation units.
+    {{ org_units.pager.total }} organisation units.
     {% endif %}
     {% if holdings %}
 

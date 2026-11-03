@@ -12,7 +12,9 @@ from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.export import DATA_VALUE_SETS_PATH
 from dirigent_dhis2.messages import (
     IMPORT_CONFLICTS_AND_MORE,
+    IMPORT_NO_DATA_VALUES,
     IMPORT_NO_SUMMARY,
+    IMPORT_NO_VALUES_TAKEN,
     IMPORT_PARTIAL,
     IMPORT_REFUSED,
     IMPORT_TOOK_NOTHING,
@@ -54,6 +56,22 @@ class Dhis2ImportConflict(BlockModel):
     """Where the refused values sit in the document that was sent, counted from zero."""
 
 
+class Dhis2ImportCounts(BlockModel):
+    """What an import summary counted, by what happened to each value."""
+
+    imported: int = 0
+    """How many values were created."""
+
+    updated: int = 0
+    """How many values were revised."""
+
+    ignored: int = 0
+    """How many values the instance did not take."""
+
+    deleted: int = 0
+    """How many values were removed."""
+
+
 class Dhis2DataValueSetImportConfig(BlockModel):
     """What one import sends, and how the instance is told to take it."""
 
@@ -61,8 +79,10 @@ class Dhis2DataValueSetImportConfig(BlockModel):
     """The code of the dhis2 connection naming the instance."""
 
     data_values: JsonValue
-    """The data value set document to send, written in the step or referenced from one; a set
-    held in storage comes in through storage.read."""
+    """The data value set document to send, an object with a ``dataValues`` list, written in the
+    step or referenced from one: an export's document is ``${steps.<step>.output.body}``, and a
+    set held in storage comes in through storage.read. A document with no ``dataValues`` list
+    fails the step before anything is sent."""
 
     dry_run: bool = False
     """Whether the instance validates the import without writing anything. A `completeDate`
@@ -77,24 +97,22 @@ class Dhis2DataValueSetImportConfig(BlockModel):
     DHIS2 does not always honour ALL and may commit the good values beside the conflicts, so
     a failure under ALL names what landed."""
 
+    require_values: bool = False
+    """Whether the step fails when the instance took no value at all: none imported, updated or
+    deleted. Off, an empty ``dataValues`` list is sent and answers zero counts."""
+
 
 class Dhis2DataValueSetImportOutput(BlockModel):
-    """What the import summary counted."""
+    """What the import sent, and what its summary counted."""
 
     status: str
     """The summary's own word: SUCCESS or WARNING."""
 
-    imported: int
-    """How many values were created."""
+    sent: int
+    """How many values the document held; zero says nothing was there to import."""
 
-    updated: int
-    """How many values were revised."""
-
-    ignored: int
-    """How many values the instance did not take."""
-
-    deleted: int
-    """How many values were removed."""
+    counts: Dhis2ImportCounts
+    """What happened to the values: imported, updated, ignored and deleted."""
 
     conflicts: list[Dhis2ImportConflict]
     """Every value the instance refused, empty when the import was clean."""
@@ -182,6 +200,27 @@ def _taken(counts: dict[str, int]) -> int:
     return counts["imported"] + counts["updated"] + counts["deleted"]
 
 
+def _values_in(document: JsonValue) -> int:
+    """Count the values a document holds, refusing one that is not a data value set before it is sent."""
+    if not isinstance(document, dict):
+        if isinstance(document, list):
+            found = "is a list"
+        elif isinstance(document, str):
+            found = "is a string"
+        else:
+            found = "is null" if document is None else "is not an object"
+        raise BlockFailure(IMPORT_NO_DATA_VALUES, error_class=ErrorClass.REJECTED, found=found)
+    values = document.get("dataValues")
+    if isinstance(values, list):
+        return len(values)
+    if "dataValues" in document:
+        found = "holds a dataValues that is not a list"
+    else:
+        keys = ", ".join(sorted(document)[:5]) or "nothing"
+        found = f"holds no dataValues (its keys: {keys})"
+    raise BlockFailure(IMPORT_NO_DATA_VALUES, error_class=ErrorClass.REJECTED, found=found)
+
+
 def _rehearsal(document: JsonValue, ctx: StepContext) -> JsonValue:
     """The document a dry run sends: the same one, without the completeness claim.
 
@@ -212,6 +251,9 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
         self, config: Dhis2DataValueSetImportConfig, ctx: StepContext
     ) -> Dhis2DataValueSetImportOutput | RemoteHandle:
         """Send the document and turn the summary into an output, or into a classified refusal."""
+        sent = _values_in(config.data_values)
+        if not sent:
+            ctx.log.warning("the document holds no data values, so the import has none to take")
         document = _rehearsal(config.data_values, ctx) if config.dry_run else config.data_values
         payload = json.dumps(document).encode()
         async with client_for(ctx, config.connection) as client:
@@ -257,4 +299,14 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
                 taken=taken,
                 **counts,
             )
-        return Dhis2DataValueSetImportOutput(status=status, conflicts=conflicts, **counts)
+        if config.require_values and not _taken(counts):
+            raise BlockFailure(
+                IMPORT_NO_VALUES_TAKEN,
+                error_class=ErrorClass.REJECTED,
+                sent=sent,
+                detail=_detail(conflicts, counts),
+                **counts,
+            )
+        return Dhis2DataValueSetImportOutput(
+            status=status, sent=sent, counts=Dhis2ImportCounts(**counts), conflicts=conflicts
+        )

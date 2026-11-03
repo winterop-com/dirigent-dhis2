@@ -12,6 +12,18 @@ EXPORT_EMPTY_ANSWER = DHIS2.define(
     "{org_unit} is outside the account's data scope; nothing was exported",
 )
 
+UNKNOWN_UIDS = DHIS2.define(
+    "unknown_uids",
+    "{where} is scoped to uids the instance knows no object by: {unknown}; the read would answer "
+    "nothing for them, so it was not made. Check the uids, or set require_known: false to read anyway",
+)
+
+TRACKER_CAP_REACHED = DHIS2.define(
+    "tracker.cap_reached",
+    "reading every page of {kind} reached {cap} ({limit}) with rows still to read; nothing is "
+    "answered rather than a part of the collection. Raise {cap} or narrow the read",
+)
+
 ANALYTICS_NO_TASK_REFERENCE = DHIS2.define(
     "analytics.no_task_reference",
     "the analytics job submission answered without a task reference to follow",
@@ -25,6 +37,18 @@ ANALYTICS_TASK_DISAPPEARED = DHIS2.define(
 ANALYTICS_NO_RESULT = DHIS2.define(
     "analytics.no_result",
     "task {task} has no result to collect: the instance holds no terminal notification for it",
+)
+
+IMPORT_NO_DATA_VALUES = DHIS2.define(
+    "import.no_data_values",
+    "data_values {found}, not a data value set with a dataValues list, so nothing was sent. A step's "
+    "whole output passed where its document was meant is the usual cause: an export's document is "
+    "steps.<step>.output.body, not steps.<step>.output",
+)
+
+IMPORT_NO_VALUES_TAKEN = DHIS2.define(
+    "import.no_values_taken",
+    "the instance took none of the {sent} values sent, and require_values asks for at least one: {detail}",
 )
 
 IMPORT_NO_SUMMARY = DHIS2.define(
@@ -81,6 +105,32 @@ MESSAGE_NO_CONVERSATION = DHIS2.define(
 # the wire under, so these are rendered into the ``ValueError`` it wraps.
 
 NO_PROGRAM = DHIS2.define("analytics_query.no_program", "a {mode} analytics query needs a program to read under")
+
+EXPORT_NO_DATA = DHIS2.define(
+    "export.no_data",
+    "a data value set export names what to read: a data_set, data_element or data_element_group",
+)
+
+EXPORT_NO_ORG_UNIT = DHIS2.define(
+    "export.no_org_unit",
+    "a data value set export names where to read: an org_unit or org_unit_group",
+)
+
+EXPORT_NO_PERIOD = DHIS2.define(
+    "export.no_period",
+    "a data value set export names when to read: a period, a start_date with an end_date, "
+    "last_updated or last_updated_duration",
+)
+
+EXPORT_HALF_RANGE = DHIS2.define(
+    "export.half_range",
+    "start_date and end_date bound one range, so a data value set export takes both or neither",
+)
+
+TRACKER_PAGE_WITH_ALL_PAGES = DHIS2.define(
+    "tracker.page_with_all_pages",
+    "all_pages reads every page from the first, so it takes no page",
+)
 
 BOTH_CREDENTIALS = DHIS2.define(
     "connection.both_credentials",

@@ -88,14 +88,14 @@ steps:
     depends_on: [coverage]
     config:
       input:
-        rows: ${steps.coverage.output.body.rows}
+        rows: ${steps.coverage.output.rows}
         period: ${params.period}
         threshold: ${params.threshold}
-      # Each row is [indicator, district, value]. The answer is a list of at most one alert.
+      # Each row is an object keyed by header: {dx, ou, value}. The answer is a list of at most one alert.
       program: |
         .period as $period
         | .threshold as $below
-        | [.rows[] | {district: .[1], coverage: (.[2] | tonumber)} | select(.coverage < $below)]
+        | [.rows[] | {district: .ou, coverage: (.value | tonumber)} | select(.coverage < $below)]
         | sort_by(.coverage)
         | {alerts: (if length == 0 then [] else [{
             subject: "ANC 1 coverage below \($below)% for \($period)",

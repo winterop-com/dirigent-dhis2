@@ -5,17 +5,15 @@
 # generous page size means fewer round trips and a larger response to hold, and there is a
 # ceiling above which the instance refuses or the read times out.
 #
-# This document reads one page deliberately, which is the honest shape of a paged read
-# inside a pipeline: a step is one call, and one call is one page. The page block that comes
-# back beside the collection is what tells a reader where they are -- whether a next page
-# exists, and on a request that asks for it, how many rows there are in total.
+# This document reads one page deliberately. The pager that comes back beside the rows is what
+# tells a reader where they are: pager.more says whether rows match past this page, and with
+# total: true the instance also counts them, filling pager.total and pager.page_count.
 #
-# Reading every page is a different pipeline rather than a different config. Two shapes work:
-# fan a step out over a list of page numbers, which for_each reads from a param when the page
-# count is known in advance and from a first read's output when it is not; or, better for a feed
-# that keeps growing, drop paging as the way through the collection and use updated_after to read only
-# what changed since the last run, which is bounded by the change rather than by the size of
-# the program.
+# Reading every page is all_pages: true, the next step below. It walks the pages from the first
+# until the instance has no more and answers them as one list, bounded by max_rows, max_pages
+# and max_total, and it fails at a cap rather than answering part of the program. For a feed
+# that keeps growing, updated_after is the better bound still: it reads only what changed since
+# the last run, which is bounded by the change rather than by the size of the program.
 #
 # page_size is also the throttle on a shared instance. A nightly extract asking for ten
 # thousand rows at a time out of a national tracker program is a load decision, not a
@@ -28,7 +26,7 @@ format: dirigent/v1
 kind: pipeline
 code: dhis2-tracker-paged
 name: Page through a tracker collection
-description: Read one page of tracker events, with the page number and size as parameters.
+description: Read one page of tracker events and its count, then every recent change.
 
 tags: [dhis2, tracker]
 
@@ -54,6 +52,10 @@ params:
       maximum: 1000
       default: 100
       description: How many rows the page holds.
+    updated_after:
+      type: string
+      default: "2024-01-01"
+      description: The ISO date from which every_page reads changed events.
 
 connections:
   dhis2-demo:
@@ -80,3 +82,20 @@ steps:
       fields: event,programStage,orgUnit,occurredAt,status
       page: "${params.page}"
       page_size: "${params.page_size}"
+      total: true
+
+  every_page:
+    block: dhis2.tracker
+    config:
+      connection: dhis2-demo
+      kind: events
+      program: "${params.program}"
+      org_unit: ImspTQPwCqd
+      ou_mode: DESCENDANTS
+      fields: event,programStage,orgUnit,occurredAt,status
+      # Only the last week's changes, so every page of them is a small read.
+      updated_after: "${params.updated_after}"
+      all_pages: true
+      page_size: "${params.page_size}"
+      max_rows: 20000
+      max_total: 32MB

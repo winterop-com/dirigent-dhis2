@@ -16,8 +16,8 @@
 # per entity -- attributes, enrollments, relationships -- and naming the columns is the
 # difference between a page and a payload.
 #
-# The answer comes back inline as the collection under its own key, with a page block
-# alongside it carrying the paging state.
+# The answer comes back inline as rows, with a pager beside them saying which page this was
+# and, in pager.more, whether more rows match than one page of 50 held.
 #
 #   dg run --local examples/dhis2/dhis2-tracker-entities.yaml
 #   dg run --local examples/dhis2/dhis2-tracker-entities.yaml -p org_unit=O6uvpzGd5pu

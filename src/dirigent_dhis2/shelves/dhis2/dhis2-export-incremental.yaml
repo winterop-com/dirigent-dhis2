@@ -1,0 +1,67 @@
+# Read only the data values that changed recently, across several data sets and periods.
+#
+# A nightly sync does not want the whole year again, only what moved since the last run.
+# last_updated_duration bounds the read by change rather than by size: 1d reads every value
+# touched in the last day, whatever period it belongs to. last_updated, an ISO date, is the
+# same bound written as a point in time, the form to use when the previous run's start is at
+# hand.
+#
+# Every selector takes a list: two data sets here, and the org unit with its descendants
+# through children. DHIS2 needs one selector of each kind -- what (data_set, data_element or
+# data_element_group), where (org_unit or org_unit_group) and when (period, start_date with
+# end_date, last_updated or last_updated_duration) -- and the block refuses a document missing
+# one before any request is made.
+#
+# include_deleted carries the values deleted in the window too, each marked deleted: true,
+# which is what lets a downstream copy remove them rather than keep them forever.
+#
+# Every uid named is looked up before the export, in one request. A typo in a data set uid
+# fails the step with dhis2.unknown_uids naming it, rather than exporting an empty set that
+# looks like a quiet day.
+#
+#   dg run --local examples/dhis2/dhis2-export-incremental.yaml
+#   dg run --local examples/dhis2/dhis2-export-incremental.yaml -p window=7d
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-export-incremental
+name: Export the data values changed recently
+description: Read the values changed within a window, across two data sets and a subtree.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value_set_export
+
+params:
+  type: object
+  properties:
+    window:
+      type: string
+      default: 30d
+      description: How far back a change counts, such as 1d or 12h.
+
+connections:
+  dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
+    kind: dhis2
+    config:
+      base_url: https://play.dhis2.org/2.43
+      basic_username: admin
+      basic_password: district
+      timeout: 120s
+
+steps:
+  export:
+    block: dhis2.data_value_set_export
+    config:
+      connection: dhis2-demo
+      # Child Health and Reproductive Health.
+      data_set: [BfMAe6Itzgt, QX4ZTUbOt3a]
+      # Bo district and everything beneath it.
+      org_unit: O6uvpzGd5pu
+      children: true
+      last_updated_duration: "${params.window}"
+      include_deleted: true

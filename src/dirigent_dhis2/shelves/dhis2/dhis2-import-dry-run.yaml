@@ -9,7 +9,8 @@
 # DHIS2 2.41 and 2.42 register the data set complete even under dryRun.
 #
 # The summary comes back parsed in the step's output: status (SUCCESS, WARNING or ERROR),
-# the imported, updated, ignored and deleted counts, and a conflicts list naming each value
+# sent, the number of values the document held, counts with imported, updated, ignored and
+# deleted, and a conflicts list naming each value
 # the instance refused and why. A summary whose status is ERROR fails the step rather than
 # being reported as a success with bad news inside it.
 #

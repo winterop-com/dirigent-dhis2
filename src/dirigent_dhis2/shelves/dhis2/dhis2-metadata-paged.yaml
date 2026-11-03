@@ -5,8 +5,8 @@
 # a way nothing catches. Turning it on is therefore a decision, and it comes with page and
 # page_size.
 #
-# What paging buys is the pager block in the answer. With paging off there is no pager, only
-# the collection; with it on, the answer carries page, pageSize, pageCount and total beside
+# What paging buys is the pager in the output. With paging off there is no pager, only the
+# rows; with it on, the output carries page, page_size, page_count, total and more beside
 # the rows. That total is the number worth having even when the whole collection is what you
 # want: a first page of one row is the cheapest way to ask an instance how big something is
 # before deciding how to read it.

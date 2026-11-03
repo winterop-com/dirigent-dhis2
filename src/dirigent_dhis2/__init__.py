@@ -36,6 +36,7 @@ from dirigent_dhis2.imports import (
     Dhis2DataValueSetImportOperator,
     Dhis2DataValueSetImportOutput,
     Dhis2ImportConflict,
+    Dhis2ImportCounts,
 )
 from dirigent_dhis2.messages import DHIS2
 from dirigent_dhis2.messaging import Dhis2MessageConfig, Dhis2MessageOperator, Dhis2MessageOutput
@@ -50,6 +51,7 @@ from dirigent_dhis2.metadata_export import (
     Dhis2MetadataExportOutput,
     Dhis2MetadataSelection,
 )
+from dirigent_dhis2.reads import Dhis2Pager
 from dirigent_dhis2.system_info import (
     Dhis2SystemInfoConfig,
     Dhis2SystemInfoOperator,
@@ -122,6 +124,7 @@ __all__ = [
     "Dhis2DataValueSetImportOperator",
     "Dhis2DataValueSetImportOutput",
     "Dhis2ImportConflict",
+    "Dhis2ImportCounts",
     "Dhis2MessageConfig",
     "Dhis2MessageOperator",
     "Dhis2MessageOutput",
@@ -132,6 +135,7 @@ __all__ = [
     "Dhis2MetadataOperator",
     "Dhis2MetadataOutput",
     "Dhis2Operator",
+    "Dhis2Pager",
     "Dhis2Plugin",
     "Dhis2MetadataSelection",
     "Dhis2Sensor",
