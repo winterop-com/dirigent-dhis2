@@ -1,0 +1,55 @@
+# Read a slice of metadata, then hand it straight back as a validated update.
+#
+# dhis2.metadata_export answers its collections keyed by name, which is the bundle shape
+# dhis2.metadata_import sends, so the export's collections output is a bundle as it stands.
+# Reading with fields ':owner' keeps every property the object owns and nothing computed,
+# which is what an import expects.
+#
+# Validated with UPDATE, the report counts how many objects would be updated and names any
+# the instance would refuse. On a real migration the export reads one instance and the import
+# writes another, each through its own connection.
+#
+#   dg run --local examples/dhis2/dhis2-metadata-round-trip.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-metadata-round-trip
+name: Round-trip metadata
+description: |
+  Export a few data elements, then validate them as an update, writing nothing.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.metadata_export
+    - dhis2.metadata_import
+
+connections:
+  dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
+    kind: dhis2
+    config:
+      base_url: https://play.dhis2.org/2.43
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  export:
+    block: dhis2.metadata_export
+    config:
+      connection: dhis2-demo
+      resources:
+        dataElements:
+          filter: name:like:ANC
+      fields: ":owner"
+  validate:
+    block: dhis2.metadata_import
+    depends_on: [export]
+    config:
+      connection: dhis2-demo
+      metadata: ${steps.export.output.collections}
+      import_strategy: UPDATE
+      dry_run: true

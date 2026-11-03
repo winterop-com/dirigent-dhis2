@@ -25,6 +25,12 @@ from dirigent_dhis2.connection import (
     build_client,
     client_for,
 )
+from dirigent_dhis2.data_set_completion import (
+    Dhis2DataSetCompletionConfig,
+    Dhis2DataSetCompletionOperator,
+    Dhis2DataSetCompletionOutput,
+)
+from dirigent_dhis2.data_value import Dhis2DataValueConfig, Dhis2DataValueOperator, Dhis2DataValueOutput
 from dirigent_dhis2.export import (
     Dhis2DataValueSetExportConfig,
     Dhis2DataValueSetExportOperator,
@@ -51,6 +57,11 @@ from dirigent_dhis2.metadata_export import (
     Dhis2MetadataExportOutput,
     Dhis2MetadataSelection,
 )
+from dirigent_dhis2.metadata_import import (
+    Dhis2MetadataImportConfig,
+    Dhis2MetadataImportOperator,
+    Dhis2MetadataImportOutput,
+)
 from dirigent_dhis2.reads import Dhis2Pager
 from dirigent_dhis2.system_info import (
     Dhis2SystemInfoConfig,
@@ -61,6 +72,11 @@ from dirigent_dhis2.tracker import (
     Dhis2TrackerConfig,
     Dhis2TrackerOperator,
     Dhis2TrackerOutput,
+)
+from dirigent_dhis2.tracker_import import (
+    Dhis2TrackerImportConfig,
+    Dhis2TrackerImportOperator,
+    Dhis2TrackerImportOutput,
 )
 from dirigent_dhis2.web import Dhis2Operator, Dhis2Sensor, classify
 from dirigent_plugin import Contribution, extension
@@ -79,13 +95,17 @@ class Dhis2Plugin:
             operators=[
                 Dhis2AnalyticsRunOperator(),
                 Dhis2AnalyticsQueryOperator(),
+                Dhis2DataSetCompletionOperator(),
+                Dhis2DataValueOperator(),
                 Dhis2DataValueSetExportOperator(),
                 Dhis2DataValueSetImportOperator(),
                 Dhis2MessageOperator(),
                 Dhis2MetadataOperator(),
                 Dhis2MetadataExportOperator(),
+                Dhis2MetadataImportOperator(),
                 Dhis2SystemInfoOperator(),
                 Dhis2TrackerOperator(),
+                Dhis2TrackerImportOperator(),
             ],
             sensors=[Dhis2DataSetCompleteSensor()],
             connection_kinds=[Dhis2ConnectionKind()],
@@ -117,6 +137,12 @@ __all__ = [
     "Dhis2DataSetCompleteConfig",
     "Dhis2DataSetCompleteOutput",
     "Dhis2DataSetCompleteSensor",
+    "Dhis2DataSetCompletionConfig",
+    "Dhis2DataSetCompletionOperator",
+    "Dhis2DataSetCompletionOutput",
+    "Dhis2DataValueConfig",
+    "Dhis2DataValueOperator",
+    "Dhis2DataValueOutput",
     "Dhis2DataValueSetExportConfig",
     "Dhis2DataValueSetExportOperator",
     "Dhis2DataValueSetExportOutput",
@@ -132,6 +158,9 @@ __all__ = [
     "Dhis2MetadataExportConfig",
     "Dhis2MetadataExportOperator",
     "Dhis2MetadataExportOutput",
+    "Dhis2MetadataImportConfig",
+    "Dhis2MetadataImportOperator",
+    "Dhis2MetadataImportOutput",
     "Dhis2MetadataOperator",
     "Dhis2MetadataOutput",
     "Dhis2Operator",
@@ -143,6 +172,9 @@ __all__ = [
     "Dhis2SystemInfoOperator",
     "Dhis2SystemInfoOutput",
     "Dhis2TrackerConfig",
+    "Dhis2TrackerImportConfig",
+    "Dhis2TrackerImportOperator",
+    "Dhis2TrackerImportOutput",
     "Dhis2TrackerOperator",
     "Dhis2TrackerOutput",
     "build_client",

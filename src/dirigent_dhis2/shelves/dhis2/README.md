@@ -8,16 +8,17 @@ the block preflight.
 
 Each file here is one operation, small enough to read in a sitting and to lift into a real
 pipeline unchanged. Find yours by its file name: the exports, the imports and their
-strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker
-collections, the metadata reads, and a system report.
+strategies, one data value, the sign-off and its gate, the analytics reads and rebuilds, the
+three tracker collections and the tracker import, the metadata reads and writes, and a system
+report.
 
 Two neighbours hold what this shelf deliberately does not. The generic-HTTP way of talking
 to DHIS2 -- what you reach for when no adapter is installed, or for a call the adapter does
-not yet cover, such as a CSV export, a period range, a completion registration or a
-stage-scoped event read -- lives in [`../dhis2-http/`](../dhis2-http). Documents that put a
-`dhis2.*` block beside one of the engine's own -- a schema gate, a jq reshape, a fan-out, or
-the `storage.write` and `storage.read` steps that are the only way a value becomes a file and
-comes back -- live in [`../dhis2-compose/`](../dhis2-compose).
+not yet cover, such as a CSV export, a period range or a stage-scoped event read -- lives in
+[`../dhis2-http/`](../dhis2-http). Documents that put a `dhis2.*` block beside one of the
+engine's own -- a schema gate, a jq reshape, a fan-out, or the `storage.write` and
+`storage.read` steps that are the only way a value becomes a file and comes back -- live in
+[`../dhis2-compose/`](../dhis2-compose).
 
 Each document carries the connection it uses so it runs standalone; a server refuses to store
 one that does, so a copy is what an instance applies. `dg pipeline new` makes that copy from a
@@ -47,6 +48,7 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | [dhis2-import-delete.yaml](dhis2-import-delete.yaml) | `import_strategy: DELETE` -- remove the values a document names. |
 | [dhis2-import-partial.yaml](dhis2-import-partial.yaml) | `atomic_mode: NONE` -- take the good values, report the rest as conflicts. |
 | [dhis2-rehearse-import.yaml](dhis2-rehearse-import.yaml) | Export one month of a data set, then hand it straight back as a dry run. |
+| [dhis2-data-value.yaml](dhis2-data-value.yaml) | Read one data value, then rehearse setting it with `dhis2.data_value`. |
 
 ## Completeness
 
@@ -54,6 +56,7 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | --- | --- |
 | [dhis2-wait-for-complete.yaml](dhis2-wait-for-complete.yaml) | Wait until a data set is marked complete for a period and org unit. |
 | [dhis2-complete-then-export.yaml](dhis2-complete-then-export.yaml) | The sign-off gate, with the export that reads the month behind it. |
+| [dhis2-mark-complete.yaml](dhis2-mark-complete.yaml) | Sign a data set off for a period and org unit with `dhis2.data_set_completion`, as a dry run. |
 
 ## Analytics
 
@@ -78,6 +81,7 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | [dhis2-tracker-enrollments.yaml](dhis2-tracker-enrollments.yaml) | The open enrollments in a program, by `status` and `updated_after`. |
 | [dhis2-tracker-paged.yaml](dhis2-tracker-paged.yaml) | One page of a large collection with its count, then every page of the recent changes with `all_pages`. |
 | [dhis2-tracker-events-filtered.yaml](dhis2-tracker-events-filtered.yaml) | Status, change window and a data element `filter`, at once. |
+| [dhis2-tracker-import-dry-run.yaml](dhis2-tracker-import-dry-run.yaml) | Validate one event against the tracker importer, followed as a job. |
 
 ## Metadata
 
@@ -88,6 +92,8 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | [dhis2-metadata-org-units.yaml](dhis2-metadata-org-units.yaml) | Read the org units directly beneath one unit, with their hierarchy paths. |
 | [dhis2-metadata-data-set.yaml](dhis2-metadata-data-set.yaml) | Read one data set's period type, data elements, and their disaggregations. |
 | [dhis2-metadata-paged.yaml](dhis2-metadata-paged.yaml) | Read one page of organisation units and how many there are in total. |
+| [dhis2-metadata-create-data-element.yaml](dhis2-metadata-create-data-element.yaml) | Create one data element with `dhis2.metadata_import`, validated only. |
+| [dhis2-metadata-round-trip.yaml](dhis2-metadata-round-trip.yaml) | Export a few data elements and validate them straight back as an update. |
 | [dhis2-system-report.yaml](dhis2-system-report.yaml) | System info, a two-collection `dhis2.metadata_export` and an org unit count, rendered as the run's `report:`. |
 
 The instance's own version and system information is not a metadata collection: it is

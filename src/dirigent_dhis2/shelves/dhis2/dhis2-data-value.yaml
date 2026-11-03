@@ -1,0 +1,74 @@
+# Read one data value, then rehearse writing a new one to the same cell.
+#
+# dhis2.data_value addresses one cell of aggregate data: a data element, a period and an
+# organisation unit, narrowed by a category option combo. action get reads it; set writes value,
+# and delete removes it.
+#
+# A dry run of a set or a delete is sent as a one-value /api/dataValueSets import with
+# dryRun=true, because /api/dataValues accepts dryRun and writes the value anyway. The instance
+# validates the value against its data element and the cell against the data set, and nothing
+# is stored.
+#
+# s46m5MS0hxu is "BCG doses given" on the demo, Prlt0C1RF0s one cell of its disaggregation, and
+# DiszpKrYNg8 Ngelehun CHC.
+#
+#   dg run --local examples/dhis2/dhis2-data-value.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-data-value
+name: Read and rehearse one data value
+description: |
+  Read one data value, then validate setting it to a new one, writing nothing.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_value
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period of the cell.
+    value:
+      type: string
+      default: "24"
+      description: The value to rehearse writing.
+
+connections:
+  dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
+    kind: dhis2
+    config:
+      base_url: https://play.dhis2.org/2.43
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  read:
+    block: dhis2.data_value
+    config:
+      connection: dhis2-demo
+      action: get
+      data_element: s46m5MS0hxu
+      period: "${params.period}"
+      org_unit: DiszpKrYNg8
+      category_option_combo: Prlt0C1RF0s
+  rehearse:
+    block: dhis2.data_value
+    depends_on: [read]
+    config:
+      connection: dhis2-demo
+      action: set
+      data_element: s46m5MS0hxu
+      period: "${params.period}"
+      org_unit: DiszpKrYNg8
+      category_option_combo: Prlt0C1RF0s
+      value: "${params.value}"
+      dry_run: true
