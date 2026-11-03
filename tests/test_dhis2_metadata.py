@@ -28,7 +28,8 @@ async def test_a_metadata_read_carries_the_collection(ctx: FakeContext, dhis2: D
         ctx,
     )
     assert isinstance(output, Dhis2MetadataOutput)
-    assert output.body == READ
+    assert output.rows == READ["dataElements"]
+    assert output.pager is None
     assert output.duration_ms >= 0
     params = route.last.url.params
     assert params["fields"] == "id,name,valueType"
@@ -150,3 +151,20 @@ def test_every_generated_collection_is_reachable_by_its_dhis2_name(version: str)
 def test_a_resource_name_that_is_not_a_collection_name_is_refused_at_config() -> None:
     with pytest.raises(ValidationError):
         Dhis2MetadataConfig(connection="c", resource="data-elements")
+
+
+async def test_a_paged_read_answers_the_pager(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    page = {
+        "pager": {"page": 1, "pageCount": 40, "total": 40, "pageSize": 1, "nextPage": "http://dhis2.test/next"},
+        "organisationUnits": [{"id": "ImspTQPwCqd"}],
+    }
+    dhis2.get(ORG_UNITS).answers(json(200, page))
+    output = await call_block(
+        Dhis2MetadataOperator(),
+        {"connection": CONNECTION, "resource": "organisationUnits", "paging": True, "page_size": 1},
+        ctx,
+    )
+    assert isinstance(output, Dhis2MetadataOutput)
+    assert output.rows == [{"id": "ImspTQPwCqd"}]
+    assert output.pager is not None
+    assert output.pager.model_dump() == {"page": 1, "page_size": 1, "total": 40, "page_count": 40, "more": True}

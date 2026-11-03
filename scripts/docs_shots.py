@@ -251,7 +251,7 @@ def walk(page: Page, url: str, token: str) -> None:
     # Section 3: the first read.
     first = run(documents["first"], "succeeded")
     _run_on_step(page, url, first, "read")
-    _output_at(page, "organisationUnits")
+    _output_at(page, "rows")
     _shot(page, "run-first")
 
     # Section 4: the schema handed to the instance, and the gate naming it.

@@ -8,6 +8,8 @@ client resolves the canonical URL and reads ``/api/system/info`` before its own 
 served instance scripts those two probes and the test adds the endpoint route it cares about.
 """
 
+import re
+from collections.abc import Callable
 from typing import Any, Self
 
 import httpx2
@@ -34,10 +36,19 @@ class Route:
         self._response: httpx2.Response | None = None
         self._first: list[httpx2.Response] = []
         self._error: Exception | None = None
+        self._handler: Callable[[httpx2.Request], httpx2.Response] | None = None
 
     def answers(self, response: httpx2.Response) -> Self:
         """Answer every request on this route with this response."""
         self._response = response
+        self._error = None
+        self._handler = None
+        return self
+
+    def responds(self, handler: Callable[[httpx2.Request], httpx2.Response]) -> Self:
+        """Answer every request on this route with what the handler builds from it."""
+        self._handler = handler
+        self._response = None
         self._error = None
         return self
 
@@ -66,6 +77,8 @@ class Route:
         self.requests.append(request)
         if self._error is not None:
             raise self._error
+        if self._handler is not None:
+            return self._handler(request)
         response = self._first.pop(0) if self._first else self._response
         if response is None:
             raise AssertionError(f"{request.method} {request.url} has a route but no answer")
@@ -83,6 +96,7 @@ class Dhis2Server:
         """Script the redirect probe and ``/api/system/info`` a fresh client reads before its call."""
         self.get(f"{base_url}/").answers(httpx2.Response(200, text="<html></html>"))
         self.get(f"{base_url}/api/system/info").answers(json(200, {"version": version}))
+        self.get(f"{base_url}/api/metadata").responds(knowing())
 
     def get(self, url: str) -> Route:
         """The route a GET of this URL is answered from, scripting it the first time."""
@@ -106,6 +120,26 @@ class Dhis2Server:
 def _key(url: httpx2.URL) -> str:
     """The origin and path a route matches on: the query string belongs to the assertions."""
     return f"{url.scheme}://{url.netloc.decode()}{url.path}"
+
+
+#: The ``id:in:[...]`` filter a uid existence lookup scopes each collection with.
+_ID_IN = re.compile(r"^id:in:\[(.*)\]$")
+
+
+def knowing(*unknown: str) -> Callable[[httpx2.Request], httpx2.Response]:
+    """Answer a uid existence lookup with every uid it asks for, except the ones named here."""
+
+    def answer(request: httpx2.Request) -> httpx2.Response:
+        body: dict[str, Any] = {}
+        for key, value in request.url.params.multi_items():
+            collection, _, term = key.partition(":")
+            found = _ID_IN.match(value) if term == "filter" else None
+            if found is not None:
+                uids = [uid for uid in found.group(1).split(",") if uid and uid not in unknown]
+                body[collection] = [{"id": uid} for uid in uids]
+        return json(200, body)
+
+    return answer
 
 
 def serve(monkeypatch: pytest.MonkeyPatch, *, base_url: str = BASE_URL, version: str = "2.42.0") -> Dhis2Server:

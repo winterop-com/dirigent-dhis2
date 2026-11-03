@@ -10,9 +10,9 @@
 # indicator per quarter per district, which is a different report and a far larger one. Ask
 # for fewer axes than you need and the numbers silently become totals over what you left out.
 #
-# The rows come back as strings in axis order, followed by the value: [dx, pe, value] here.
-# The grid's headers block names the columns in the same order, and metaData names every uid
-# appearing in it.
+# The rows come back as objects keyed by header name, {dx, pe, value} here, every value a
+# string. The grid as DHIS2 sent it rides beside them under body: its headers type the
+# columns, and its metaData names every uid appearing in them.
 #
 # The periods are written out rather than given as a relative window like LAST_4_QUARTERS,
 # because the demo's data era moves and a relative window walks off the end of it. Against

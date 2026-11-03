@@ -39,6 +39,7 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | --- | --- |
 | [dhis2-export-data-values.yaml](dhis2-export-data-values.yaml) | Read one data set for one period at one organisation unit. |
 | [dhis2-export-with-children.yaml](dhis2-export-with-children.yaml) | The same export widened to the org unit's descendants with `children`. |
+| [dhis2-export-incremental.yaml](dhis2-export-incremental.yaml) | Only the values changed within a window, across two data sets and a subtree, deletions included. |
 | [dhis2-import-dry-run.yaml](dhis2-import-dry-run.yaml) | Send a hand-written data value set with `dry_run` on and read the summary. |
 | [dhis2-import-create.yaml](dhis2-import-create.yaml) | `import_strategy: CREATE` -- fill the gaps, revise nothing. |
 | [dhis2-import-update.yaml](dhis2-import-update.yaml) | `import_strategy: UPDATE` -- revise what is there, invent nothing. |
@@ -75,7 +76,7 @@ Nothing here writes to the demo: every import in this directory is a `dry_run`.
 | [dhis2-tracker-events.yaml](dhis2-tracker-events.yaml) | A page of events for one program and org-unit subtree. |
 | [dhis2-tracker-entities.yaml](dhis2-tracker-entities.yaml) | The people enrolled in a program, read with `ou_mode: DESCENDANTS`. |
 | [dhis2-tracker-enrollments.yaml](dhis2-tracker-enrollments.yaml) | The open enrollments in a program, by `status` and `updated_after`. |
-| [dhis2-tracker-paged.yaml](dhis2-tracker-paged.yaml) | One page of a large collection, with `page` and `page_size` as parameters. |
+| [dhis2-tracker-paged.yaml](dhis2-tracker-paged.yaml) | One page of a large collection with its count, then every page of the recent changes with `all_pages`. |
 | [dhis2-tracker-events-filtered.yaml](dhis2-tracker-events-filtered.yaml) | Status, change window and a data element `filter`, at once. |
 
 ## Metadata

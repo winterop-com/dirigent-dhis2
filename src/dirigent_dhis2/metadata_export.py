@@ -1,7 +1,7 @@
 """``dhis2.metadata_export``: read several metadata collections in one ``GET /api/metadata``."""
 
 import time
-from typing import Annotated, Any, ClassVar, Final, cast
+from typing import Annotated, Any, ClassVar, cast
 
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
 from pydantic import BaseModel, Field, JsonValue
@@ -9,11 +9,9 @@ from pydantic import BaseModel, Field, JsonValue
 from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.metadata import RESOURCE_PATTERN, resource_accessor
+from dirigent_dhis2.reads import METADATA_PATH
 from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
 from dirigent_plugin import ConnectionRef, OperatorSpec, StepContext
-
-#: Where metadata is exported, several collections in one answer.
-METADATA_PATH: Final = "/api/metadata"
 
 #: A DHIS2 collection name, as a key or an item of ``resources``.
 ResourceName = Annotated[str, Field(pattern=RESOURCE_PATTERN)]

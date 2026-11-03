@@ -4,7 +4,7 @@ import httpx2
 import pytest
 from pydantic import JsonValue, ValidationError
 
-from dhis2server import BASE_URL, CONNECTION, Dhis2Server, Route, json
+from dhis2server import BASE_URL, CONNECTION, Dhis2Server, Route, json, knowing
 from dirigent_dhis2.analytics_query import (
     Dhis2AnalyticsQueryConfig,
     Dhis2AnalyticsQueryOperator,
@@ -52,8 +52,9 @@ async def test_an_aggregate_query_reads_the_grid(ctx: FakeContext, dhis2: Dhis2S
         ctx,
     )
     assert isinstance(output, Dhis2AnalyticsQueryOutput)
-    assert isinstance(output.body, dict)
-    assert output.body["rows"] == [["fbfJHSPpUQD", "12"]]
+    assert output.rows == [{"dx": "fbfJHSPpUQD", "value": "12"}]
+    assert output.body == GRID
+    assert output.pager is None
     assert output.duration_ms >= 0
     params = route.last.url.params
     assert params.get_list("dimension") == ["dx:fbfJHSPpUQD", "pe:LAST_12_MONTHS"]
@@ -202,3 +203,35 @@ async def test_a_program_uid_is_still_read(
     route = dhis2.get(url).answers(json(200, GRID))
     await call_block(Dhis2AnalyticsQueryOperator(), {"connection": CONNECTION, **query}, ctx)
     assert route.last.url.path == httpx2.URL(url).path
+
+
+async def test_an_event_query_answers_its_pager(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    body: dict[str, JsonValue] = {
+        "headers": [{"name": "psi"}, {"name": "ou"}],
+        "metaData": {"pager": {"page": 1, "pageSize": 2, "isLastPage": False}},
+        "rows": [["e1", "ou1"], ["e2", "ou2"]],
+    }
+    dhis2.get(f"{BASE_URL}/api/analytics/events/query/IpHINAT79UW.json").answers(json(200, body))
+    output = await call_block(
+        Dhis2AnalyticsQueryOperator(),
+        {"connection": CONNECTION, "mode": "event", "program": "IpHINAT79UW", "page_size": 2},
+        ctx,
+    )
+    assert isinstance(output, Dhis2AnalyticsQueryOutput)
+    assert output.rows == [{"psi": "e1", "ou": "ou1"}, {"psi": "e2", "ou": "ou2"}]
+    assert output.pager is not None
+    assert output.pager.more is True
+
+
+async def test_an_event_query_under_an_unknown_program_is_refused(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.get(f"{BASE_URL}/api/metadata").responds(knowing("IpHINAT79UW"))
+    route = dhis2.get(f"{BASE_URL}/api/analytics/events/query/IpHINAT79UW.json").answers(json(200, GRID))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(
+            Dhis2AnalyticsQueryOperator(),
+            {"connection": CONNECTION, "mode": "event", "program": "IpHINAT79UW"},
+            ctx,
+        )
+    assert refused.value.code == "dhis2.unknown_uids"
+    assert "programs IpHINAT79UW" in refused.value.message
+    assert route.requests == []

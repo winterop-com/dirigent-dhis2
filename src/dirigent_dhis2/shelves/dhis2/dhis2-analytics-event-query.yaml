@@ -18,8 +18,8 @@
 # with a pe axis as well is two answers to the same question.
 #
 # An event query pages, because a line list has no natural size. page and page_size are the
-# controls, and the grid's own metaData carries the total so a reader knows whether one page
-# was the whole answer.
+# controls, and the output's pager, read off the grid's own metaData, says in pager.more
+# whether one page was the whole answer.
 #
 #   dg run --local examples/dhis2/dhis2-analytics-event-query.yaml
 

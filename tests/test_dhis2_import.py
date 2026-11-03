@@ -23,10 +23,8 @@ async def test_a_clean_import_reports_its_counts(ctx: FakeContext, dhis2: Dhis2S
     )
     assert output.model_dump() == {
         "status": "SUCCESS",
-        "imported": 12,
-        "updated": 3,
-        "ignored": 0,
-        "deleted": 0,
+        "sent": 1,
+        "counts": {"imported": 12, "updated": 3, "ignored": 0, "deleted": 0},
         "conflicts": [],
     }
     request = route.last
@@ -137,7 +135,7 @@ async def test_a_tolerant_import_that_ignored_values_still_settles(ctx: FakeCont
         ctx,
     )
     assert output.model_dump()["status"] == "WARNING"
-    assert output.model_dump()["ignored"] == 5
+    assert output.model_dump()["counts"]["ignored"] == 5
 
 
 async def test_a_409_without_a_summary_is_an_ordinary_refusal(ctx: FakeContext, dhis2: Dhis2Server) -> None:
@@ -294,5 +292,62 @@ async def test_a_real_summary_still_stands(ctx: FakeContext, dhis2: Dhis2Server,
     output = await call_block(
         Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": DOCUMENT}, ctx
     )
-    assert output.model_dump()["imported"] == 1
+    assert output.model_dump()["counts"]["imported"] == 1
     assert output.model_dump()["status"] in {"SUCCESS", "WARNING"}
+
+
+@pytest.mark.parametrize(
+    ("document", "said"),
+    [
+        pytest.param({"body": DOCUMENT, "duration_ms": 12}, "its keys: body, duration_ms", id="a-whole-output"),
+        pytest.param({"dataSet": "pBOMPrpg1QX"}, "holds no dataValues", id="no-data-values"),
+        pytest.param({"dataValues": {"dataElement": "de1"}}, "not a list", id="data-values-not-a-list"),
+        pytest.param([{"dataElement": "de1", "value": "7"}], "is a list", id="a-bare-list"),
+        pytest.param("${steps.export.output}", "is a string", id="a-string"),
+    ],
+)
+async def test_a_document_without_a_data_values_list_is_refused_before_it_is_sent(
+    ctx: FakeContext, dhis2: Dhis2Server, document: object, said: str
+) -> None:
+    route = dhis2.post(IMPORT).answers(json(200, summary("SUCCESS")))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(Dhis2DataValueSetImportOperator(), {"connection": CONNECTION, "data_values": document}, ctx)
+    assert refused.value.code == "dhis2.import.no_data_values"
+    assert refused.value.error_class is ErrorClass.REJECTED
+    assert said in refused.value.message
+    assert "steps.<step>.output.body" in refused.value.message
+    assert route.requests == []
+
+
+async def test_an_empty_set_is_sent_and_says_nothing_was_there(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    route = dhis2.post(IMPORT).answers(json(200, summary("SUCCESS")))
+    output = await call_block(
+        Dhis2DataValueSetImportOperator(),
+        {"connection": CONNECTION, "data_values": {**DOCUMENT, "dataValues": []}},
+        ctx,
+    )
+    assert output.model_dump()["sent"] == 0
+    assert output.model_dump()["counts"] == {"imported": 0, "updated": 0, "ignored": 0, "deleted": 0}
+    assert len(route.requests) == 1
+
+
+async def test_require_values_fails_an_import_that_took_none(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.post(IMPORT).answers(json(200, summary("SUCCESS")))
+    with pytest.raises(BlockFailure) as refused:
+        await call_block(
+            Dhis2DataValueSetImportOperator(),
+            {"connection": CONNECTION, "data_values": DOCUMENT, "require_values": True},
+            ctx,
+        )
+    assert refused.value.code == "dhis2.import.no_values_taken"
+    assert refused.value.error_class is ErrorClass.REJECTED
+
+
+async def test_require_values_lets_an_import_that_took_one_stand(ctx: FakeContext, dhis2: Dhis2Server) -> None:
+    dhis2.post(IMPORT).answers(json(200, summary("SUCCESS", updated=1)))
+    output = await call_block(
+        Dhis2DataValueSetImportOperator(),
+        {"connection": CONNECTION, "data_values": DOCUMENT, "require_values": True},
+        ctx,
+    )
+    assert output.model_dump()["counts"]["updated"] == 1

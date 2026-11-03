@@ -277,11 +277,11 @@ steps
 └──────┴────────────────┴───────────┴───────┴──────────┴──────────┴───────┘
 
 outputs
-┏━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ step ┃ output                         ┃
-┡━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ read │ body={1 keys}  duration_ms=963 │
-└──────┴────────────────────────────────┘
+┏━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ step ┃ output                          ┃
+┡━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ read │ rows=[2 items]  duration_ms=963 │
+└──────┴─────────────────────────────────┘
 ```
 
 The answer itself is in the run, not on the screen. Every command writes records when its
@@ -289,29 +289,29 @@ output is not a terminal, so the whole answer is one `jq` away:
 
 ```bash
 uv run dg runs show 01a0ac92-38dc-737a-8ab2-ffa099350a63 --json \
-  | jq '.fields.attempts[] | select(.step_name == "read") | .output.body'
+  | jq '.fields.attempts[] | select(.step_name == "read") | .output.rows'
 ```
 
 ```json
-{
-  "organisationUnits": [
-    {
-      "code": "OU_559",
-      "name": "Ngelehun CHC",
-      "id": "DiszpKrYNg8",
-      "level": 4
-    },
-    {
-      "code": "OU_167609",
-      "name": "Njandama MCHP",
-      "id": "g8upMTyEZGZ",
-      "level": 4
-    }
-  ]
-}
+[
+  {
+    "code": "OU_559",
+    "name": "Ngelehun CHC",
+    "id": "DiszpKrYNg8",
+    "level": 4
+  },
+  {
+    "code": "OU_167609",
+    "name": "Njandama MCHP",
+    "id": "g8upMTyEZGZ",
+    "level": 4
+  }
+]
 ```
 
-Two facilities, each with the four fields `fields=` asked for. The same run is on the Runs
+Two facilities, each with the four fields `fields=` asked for. A read answers its rows under
+`rows` whichever collection it read; a paged read adds a `pager` beside them, which says among
+other things whether more rows match than the page held. The same run is on the Runs
 screen of the UI, and choosing a step opens what it produced:
 
 ![A run in the UI: one step, read, succeeded, its output showing the two organisation units.](images/tutorial/run-first.png)
@@ -331,20 +331,16 @@ A schema is a document section, keyed by code, exactly the way connections are. 
 schemas:
   tutorial-org-units:
     title: Organisation units, as this pipeline reads them
-    type: object
-    required: [organisationUnits]
-    properties:
-      organisationUnits:
-        type: array
-        minItems: 1
-        items:
-          type: object
-          required: [id, code, name, level]
-          properties:
-            id: { type: string, format: dhis2-uid }
-            code: { type: string, format: dhis2-code }
-            name: { type: string }
-            level: { type: integer, minimum: 1 }
+    type: array
+    minItems: 1
+    items:
+      type: object
+      required: [id, code, name, level]
+      properties:
+        id: { type: string, format: dhis2-uid }
+        code: { type: string, format: dhis2-code }
+        name: { type: string }
+        level: { type: integer, minimum: 1 }
 
 steps:
   # ... read, unchanged ...
@@ -353,7 +349,7 @@ steps:
     block: validate.schema
     depends_on: [read]
     config:
-      input: ${steps.read.output.body}
+      input: ${steps.read.output.rows}
       schema: tutorial-org-units
 ```
 
@@ -407,9 +403,9 @@ steps
 ┏━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ step  ┃ block           ┃ outcome   ┃ after ┃ duration ┃ output                      ┃
 ┡━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ read  │ dhis2.metadata  │ succeeded │ -     │ 1.4s     │ body={1 keys}               │
+│ read  │ dhis2.metadata  │ succeeded │ -     │ 1.4s     │ rows=[2 items]              │
 │       │                 │           │       │          │ duration_ms=1367            │
-│ check │ validate.schema │ succeeded │ read  │ 0.0s     │ value={1 keys}              │
+│ check │ validate.schema │ succeeded │ read  │ 0.0s     │ value=[2 items]             │
 └───────┴─────────────────┴───────────┴───────┴──────────┴─────────────────────────────┘
 ```
 
@@ -431,19 +427,19 @@ steps
 ┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓
 ┃ step          ┃ block           ┃ outcome   ┃ after ┃ duration ┃ output              ┃
 ┡━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩
-│ read          │ dhis2.metadata  │ succeeded │ -     │ 1.5s     │ body={1 keys}       │
+│ read          │ dhis2.metadata  │ succeeded │ -     │ 1.5s     │ rows=[2 items]      │
 │               │                 │           │       │          │ duration_ms=1457    │
 │ check  1 warn │ validate.schema │ failed    │ read  │ 0.0s     │ -                   │
 └───────────────┴─────────────────┴───────────┴───────┴──────────┴─────────────────────┘
 
 check failed  validate.schema, attempt 1, rejected
-  at $.organisationUnits[0]: 'code' is a required property
+  at $[0]: 'code' is a required property
   last log lines:
     error: failed
 ```
 
 DHIS2 answered 200. The read succeeded. The answer was simply not the answer this pipeline was
-written against, and the gate says so in one line with the path in it: `$.organisationUnits[0]`,
+written against, and the gate says so in one line with the path in it: `$[0]`, the first row,
 `'code' is a required property`. Note the class: **rejected**. The same value against the same
 schema will never pass, so it is not retried.
 
@@ -474,23 +470,17 @@ its body.
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "tutorial-org-units",
   "title": "Organisation units, as the tutorial reads them",
-  "description": "An organisationUnits read projected to id, code, name and level.",
-  "type": "object",
-  "required": ["organisationUnits"],
-  "properties": {
-    "organisationUnits": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "required": ["id", "code", "name", "level"],
-        "properties": {
-          "id": { "type": "string", "format": "dhis2-uid" },
-          "code": { "type": "string", "format": "dhis2-code" },
-          "name": { "type": "string" },
-          "level": { "type": "integer", "minimum": 1 }
-        }
-      }
+  "description": "The rows of an organisationUnits read projected to id, code, name and level.",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "required": ["id", "code", "name", "level"],
+    "properties": {
+      "id": { "type": "string", "format": "dhis2-uid" },
+      "code": { "type": "string", "format": "dhis2-code" },
+      "name": { "type": "string" },
+      "level": { "type": "integer", "minimum": 1 }
     }
   }
 }
@@ -571,7 +561,7 @@ reads it out of the gate:
         # validated answer says and nowhere else.
         dataSet: BfMAe6Itzgt
         period: ${params.period}
-        orgUnit: ${steps.check.output.value.organisationUnits.0.id}
+        orgUnit: ${steps.check.output.value.0.id}
         dataValues:
           - dataElement: s46m5MS0hxu
             categoryOptionCombo: Prlt0C1RF0s
@@ -586,7 +576,7 @@ reads it out of the gate:
 ```
 
 A reference walks a value with dots, and an array index is a dot too:
-`${steps.check.output.value.organisationUnits.0.id}` is the first validated unit's uid --
+`${steps.check.output.value.0.id}` is the first validated unit's uid --
 Ngelehun CHC, because the read is ordered by name. Every other uid here is a real one on the
 play demo: `BfMAe6Itzgt` is the monthly "Child Health" data set, `s46m5MS0hxu` is "BCG doses
 given", `Prlt0C1RF0s` and `psbwp3CQEhs` are its "Fixed, &lt;1y" and "Fixed, &gt;1y" cells, and
@@ -639,21 +629,21 @@ steps
 └──────────┴─────────────────────────┴───────────┴───────┴──────────┴──────────┴───────┘
 
 outputs
-┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ step     ┃ output                                                      ┃
-┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ read     │ body={1 keys}  duration_ms=1398                             │
-│ check    │ value={1 keys}                                              │
-│ rehearse │ status=SUCCESS  imported=0  updated=2  ignored=0  deleted=0 │
-└──────────┴─────────────────────────────────────────────────────────────┘
+┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ step     ┃ output                                  ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ read     │ rows=[2 items]  duration_ms=1398        │
+│ check    │ value=[2 items]                         │
+│ rehearse │ status=SUCCESS  sent=2  counts={4 keys} │
+└──────────┴─────────────────────────────────────────┘
 ```
 
-DHIS2's import summary is the step's output, parsed: a `status`, the four counts, and the
-conflicts. `updated=2` means the instance resolved both values, checked each against its data
-element's value type, decided it would have revised two existing values -- and then threw the
+DHIS2's import summary is the step's output, parsed: a `status`, how many values were `sent`,
+the four `counts`, and the conflicts. `updated: 2` means the instance resolved both values,
+checked each against its data element's value type, decided it would have revised two existing values -- and then threw the
 result away, because `dry_run` was on. The demo holds only the first of the two, and 2.43 still
-says `updated=2`: a dry run there counts a value it would create as updated. On 2.42 the same
-rehearsal says `imported=1` and `updated=1`, and either way nothing is written. A refused value would be a row in `conflicts` in the
+says `updated: 2`: a dry run there counts a value it would create as updated. On 2.42 the same
+rehearsal says `imported: 1` and `updated: 1`, and either way nothing is written. A refused value would be a row in `conflicts` in the
 instance's own words, and a summary whose status is `ERROR` fails the step rather than
 reporting success with bad news inside it.
 
@@ -665,10 +655,13 @@ uv run dg runs show 01a0ac94-7b90-731d-b6b4-cb36ae764cf5 --json \
 ```json
 {
   "status": "SUCCESS",
-  "imported": 0,
-  "updated": 2,
-  "ignored": 0,
-  "deleted": 0,
+  "sent": 2,
+  "counts": {
+    "imported": 0,
+    "updated": 2,
+    "ignored": 0,
+    "deleted": 0
+  },
   "conflicts": []
 }
 ```
@@ -945,7 +938,7 @@ steps:
     block: validate.schema
     depends_on: [read]
     config:
-      input: ${steps.read.output.body}
+      input: ${steps.read.output.rows}
       schema: tutorial-org-units
 
   rehearse:
@@ -959,7 +952,7 @@ steps:
         # validated answer says and nowhere else.
         dataSet: BfMAe6Itzgt
         period: ${params.period}
-        orgUnit: ${steps.check.output.value.organisationUnits.0.id}
+        orgUnit: ${steps.check.output.value.0.id}
         dataValues:
           - dataElement: s46m5MS0hxu
             categoryOptionCombo: Prlt0C1RF0s

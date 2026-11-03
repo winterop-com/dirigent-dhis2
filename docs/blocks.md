@@ -22,6 +22,31 @@ spends the step's retry budget either way, so this is what to read before writin
 `max_attempts` above 1. No block in this pack runs code on the worker, so none has to be
 allowlisted.
 
+## How an output is shaped
+
+The blocks answer in one shape per kind of work, so a reference reads the same field whichever
+sibling produced it:
+
+- **A read of one collection** answers its rows under `rows`, a list of objects, and a `pager`
+  when the read is paged: `page`, `page_size`, `total` and `page_count` when the instance
+  counted them, and `more`, which says whether rows match past the ones read. That is
+  `dhis2.metadata`, `dhis2.tracker` and `dhis2.analytics_query`.
+- **A read of several collections** answers `collections`, each one's rows under its own name,
+  and `counts`, each one's row count under its name. That is `dhis2.metadata_export`.
+- **`body`** carries a DHIS2 document as the instance wrote it, and only where the document is
+  itself the thing to hand on: the data value set `dhis2.data_value_set_export` reads, which an
+  import takes whole, and the analytics grid beside its `rows`, for its `headers` and
+  `metaData`.
+- **An import** answers its summary's `status`, `counts` holding `imported`, `updated`,
+  `ignored` and `deleted`, and `conflicts`.
+- **Every read** answers `duration_ms`.
+
+A read that names uids to scope itself to -- a data set, data element, org unit or program --
+asks the instance whether each exists first, in one metadata lookup, and fails `rejected` with
+`dhis2.unknown_uids` naming the ones it does not know, rather than answering an empty read for a
+typo. `require_known: false` skips the lookup, for an account that may read the data but not
+the metadata describing it.
+
 | Block | Kind | Group | Summary |
 | --- | --- | --- | --- |
 | [`dhis2.analytics_query`](#dhis2analytics_query) | operator | dhis2 | Run a DHIS2 analytics query. |
@@ -46,7 +71,14 @@ Idempotent.
 Runs one query and hands the grid on: `aggregate` reads `/api/analytics`, and `event` or
 `enrollment` reads `/api/analytics/{events,enrollments}/query` under one program, which is why
 those two modes require a `program`. A `program` that is not a DHIS2 uid fails the step before any
-request is sent, so a value from a run param or a source's input stays inside the query path.
+request is sent, so a value from a run param or a source's input stays inside the query path, and
+one the instance does not know fails it with `dhis2.unknown_uids` unless `require_known` is off.
+
+`rows` is the grid read by name: each row an object keyed by its header's `name`, so an aggregate
+row reads `{dx, pe, ou, value}` rather than a list whose positions follow `dimension`. `body` is
+the grid as DHIS2 answered it, for the `metaData` that names every item and the `headers` that
+type every column. An event or enrollment query's `pager` comes from the grid's own
+`metaData.pager`.
 
 **Config**
 
@@ -62,12 +94,15 @@ request is sent, so a value from a run param or a source's input stays inside th
 | `output_id_scheme` | `string or null` |  | `null` | The DHIS2 `outputIdScheme`, such as `UID` or `NAME`, applied to the answer. |
 | `page` | `integer or null` |  | `null` | The 1-based page to read, for the event and enrollment queries that page. |
 | `page_size` | `integer or null` |  | `null` | How many rows a page holds, for the event and enrollment queries that page. |
+| `require_known` | `boolean` |  | `true` | Whether an `event` or `enrollment` query fails when its program is unknown to the instance, rather than answering an empty grid. One metadata lookup asks for it first. |
 
 **Output**
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `body` | `any or null` |  | `null` | The parsed response: the analytics grid, its headers, metaData, and rows. |
+| `rows` | `object[]` | yes |  | The grid's rows, each an object keyed by its header's name, such as `dx`, `pe`, `ou` and `value`. |
+| `pager` | `object or null` |  | `null` | The page an event or enrollment query read and whether more follow; null for a grid that is not paged. |
+| `body` | `any or null` |  | `null` | The grid as DHIS2 answered it: `headers`, `metaData` with the names of every item, `rows` as lists, `height` and `width`. |
 | `duration_ms` | `integer` | yes |  | How long the query took. |
 
 ### `dhis2.analytics_run`
@@ -119,9 +154,22 @@ Export a DHIS2 data value set.
 
 Idempotent.
 
-Reads one data set, for one period, at one organisation unit, and answers with the parsed
-document as its `body`. A run that has to leave the export behind as a file hands that body to
-`storage.write`, which is the only block that puts a value into storage.
+Reads what `/api/dataValueSets` is asked for and answers with the parsed document as its `body`,
+which a `dhis2.data_value_set_import` takes whole as `data_values: ${steps.<step>.output.body}`.
+A run that has to leave the export behind as a file hands that body to `storage.write`, which is
+the only block that puts a value into storage.
+
+Each selector takes one uid or a list. DHIS2 needs one of each kind, and a config missing one is
+refused before any request: what to read (`data_set`, `data_element` or `data_element_group`),
+where (`org_unit` or `org_unit_group`, with `children` for the descendants), and when (`period`,
+`start_date` with `end_date`, `last_updated`, or `last_updated_duration`). An incremental sync
+reads `last_updated` from the previous run's start, or `last_updated_duration: 1d` on a daily
+schedule. `include_deleted` adds the values deleted since, marked `deleted`, and the id schemes
+write the document's identifiers as codes, names or an attribute's values instead of uids.
+
+Every named data set, data element, group and org unit is looked up first, in one request: a uid
+the instance does not know fails the step with `dhis2.unknown_uids` instead of exporting an
+empty set for it. `require_known: false` skips the lookup.
 
 An answer with no body at all fails the step as `rejected` with `dhis2.export.empty_answer`:
 DHIS2 answers 200 and nothing else for an org unit outside the account's data scope, where an
@@ -142,16 +190,29 @@ write each descendant's values onto the org unit the export was asked for.
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
-| `data_set` | `string` | yes |  | The uid of the data set to export. |
-| `period` | `string` | yes |  | An ISO period identifier, such as 2026Q1. |
-| `org_unit` | `string` | yes |  | The uid of the organisation unit to export for. |
-| `children` | `boolean` |  | `false` | Whether the org unit's descendants are included. The exported document then carries no document-level `orgUnit`, and each value keeps its own. |
+| `data_set` | `string or string[] or null` |  | `null` | The uid of a data set to export, or a list of them. |
+| `data_element` | `string or string[] or null` |  | `null` | The uid of a data element to export, or a list of them. |
+| `data_element_group` | `string or string[] or null` |  | `null` | The uid of a data element group whose members are exported, or a list of them. |
+| `period` | `string or string[] or null` |  | `null` | An ISO period identifier such as 2026Q1, or a list of them. |
+| `start_date` | `string or null` |  | `null` | The ISO start of a date range read in place of periods, taken with `end_date`. |
+| `end_date` | `string or null` |  | `null` | The ISO end of a date range read in place of periods, taken with `start_date`. |
+| `last_updated` | `string or null` |  | `null` | Read only values changed at or after this ISO date or instant, for an incremental sync. |
+| `last_updated_duration` | `string (humane-duration) or null` |  | `null` | Read only values changed within this long before now, such as `1d` or `2h`. |
+| `org_unit` | `string or string[] or null` |  | `null` | The uid of an organisation unit to export for, or a list of them. |
+| `org_unit_group` | `string or string[] or null` |  | `null` | The uid of an organisation unit group whose members are exported for, or a list of them. |
+| `children` | `boolean` |  | `false` | Whether the org units' descendants are included. The exported document then carries no document-level `orgUnit`, and each value keeps its own. |
+| `include_deleted` | `boolean` |  | `false` | Whether values deleted on the instance are exported too, each marked `deleted`. |
+| `id_scheme` | `string or null` |  | `null` | How every identifier in the document is written: `UID`, `CODE`, `NAME`, `ID` or `ATTRIBUTE:<uid>`; the instance's own default, UID, when unset. |
+| `data_element_id_scheme` | `string or null` |  | `null` | How data elements are written, in place of `id_scheme`. |
+| `org_unit_id_scheme` | `string or null` |  | `null` | How org units are written, in place of `id_scheme`. |
+| `category_option_combo_id_scheme` | `string or null` |  | `null` | How category option combos are written, in place of `id_scheme`. |
+| `require_known` | `boolean` |  | `true` | Whether the step fails when a named data set, data element, group or org unit is unknown to the instance, rather than answering an empty set for it. One metadata lookup asks for every named uid before the export. |
 
 **Output**
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `body` | `any or null` |  | `null` | The exported data value set, the value the next step works on. Every value carries its own period, org unit and attribute option combo, whichever version answered. |
+| `body` | `any or null` |  | `null` | The exported data value set, the document a `dhis2.data_value_set_import` takes whole as its `data_values`. Every value carries its own period, org unit and attribute option combo, whichever version answered. |
 | `duration_ms` | `integer` | yes |  | How long the export took. |
 
 ### `dhis2.data_value_set_import`
@@ -161,7 +222,14 @@ Import a data value set into DHIS2.
 Not idempotent.
 
 Sends the document in `data_values`, written in the step or referenced from an upstream
-output (a set held in storage comes in through `storage.read`), and reads the import summary as the instance's verdict: a 409 carrying a summary is that
+output (a set held in storage comes in through `storage.read`). A document that is not an object
+with a `dataValues` list fails `rejected` with `dhis2.import.no_data_values` before anything is
+sent: the usual cause is an export's whole output, `${steps.export.output}`, passed where its
+document, `${steps.export.output.body}`, was meant. An empty `dataValues` list is sent, and the
+output's `sent: 0` says there was nothing to import; `require_values: true` fails the step with
+`dhis2.import.no_values_taken` when the instance took no value at all.
+
+The block reads the import summary as the instance's verdict: a 409 carrying a summary is that
 verdict too, not a transport failure. A summary whose status is `ERROR` fails the step with the
 first conflicts named, and so does a `WARNING` with ignored values under `atomic_mode: ALL`.
 DHIS2 does not honour `ALL` as the rollback it describes: on every supported major the good
@@ -185,20 +253,19 @@ A dry run sends the document without its `completeDate`, and says so in the log.
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
-| `data_values` | `any` | yes |  | The data value set document to send, written in the step or referenced from one; a set held in storage comes in through storage.read. |
+| `data_values` | `any` | yes |  | The data value set document to send, an object with a `dataValues` list, written in the step or referenced from one: an export's document is `${steps.<step>.output.body}`, and a set held in storage comes in through storage.read. A document with no `dataValues` list fails the step before anything is sent. |
 | `dry_run` | `boolean` |  | `false` | Whether the instance validates the import without writing anything. A `completeDate` in the document is left out of a dry run: DHIS2 2.41 and 2.42 register the data set complete even under dryRun, and a rehearsal must persist nothing. |
 | `import_strategy` | `"CREATE" or "UPDATE" or "CREATE_AND_UPDATE" or "DELETE"` |  | `"CREATE_AND_UPDATE"` | What the import may do to existing values: CREATE, UPDATE, CREATE_AND_UPDATE, or DELETE. |
 | `atomic_mode` | `"ALL" or "NONE"` |  | `"ALL"` | ALL asks the instance to refuse the whole import on any conflict; NONE takes what it can. DHIS2 does not always honour ALL and may commit the good values beside the conflicts, so a failure under ALL names what landed. |
+| `require_values` | `boolean` |  | `false` | Whether the step fails when the instance took no value at all: none imported, updated or deleted. Off, an empty `dataValues` list is sent and answers zero counts. |
 
 **Output**
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `status` | `string` | yes |  | The summary's own word: SUCCESS or WARNING. |
-| `imported` | `integer` | yes |  | How many values were created. |
-| `updated` | `integer` | yes |  | How many values were revised. |
-| `ignored` | `integer` | yes |  | How many values the instance did not take. |
-| `deleted` | `integer` | yes |  | How many values were removed. |
+| `sent` | `integer` | yes |  | How many values the document held; zero says nothing was there to import. |
+| `counts` | `object` | yes |  | What happened to the values: imported, updated, ignored and deleted. |
 | `conflicts` | `object[]` | yes |  | Every value the instance refused, empty when the import was clean. |
 
 Each conflict is an object of `object` and `value` in the instance's own words, its `error_code`, and the `indexes` of the refused values.
@@ -261,8 +328,9 @@ collection name as it appears in the API path and a name the instance's version 
 publish is `rejected` rather than retried. `paging` is off by default: a metadata read wants
 the whole collection, not its first page.
 
-It is also how a collection is counted: `paging: true` and `page_size: 1` send one row, and the
-answer's `pager.total` is how many there are. Several collections read whole are one
+The rows come back under `rows`, and a paged read's `pager` says where it stands. It is also
+how a collection is counted: `paging: true` and `page_size: 1` send one row, and the output's
+`pager.total` is how many there are. Several collections read whole are one
 [`dhis2.metadata_export`](#dhis2metadata_export) step instead.
 
 **Config**
@@ -282,7 +350,8 @@ answer's `pager.total` is how many there are. Several collections read whole are
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `body` | `any or null` |  | `null` | The parsed response: the collection under its own key, and a `pager` when paged. |
+| `rows` | `any[]` | yes |  | The collection's rows, each with the fields `fields` selected. |
+| `pager` | `object or null` |  | `null` | The page read, the page size, the collection's total, and whether more pages follow; null when the read is not paged and so answered every row. |
 | `duration_ms` | `integer` | yes |  | How long the read took. |
 
 The instance's own version and system information is not a metadata collection, so it is read
@@ -320,8 +389,8 @@ read it with [`dhis2.metadata`](#dhis2metadata), `paging: true` and `page_size: 
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `collections` | `object` | yes |  | Every collection asked for, keyed by its name, holding the rows the instance answered with; an empty list for a collection with no row that matched. |
-| `counts` | `object` | yes |  | How many rows each collection holds in `collections`, keyed by its name. |
+| `collections` | `object of any[]` | yes |  | Every collection asked for, keyed by its name, holding the rows the instance answered with; an empty list for a collection with no row that matched. |
+| `counts` | `object of integer` | yes |  | How many rows each collection holds in `collections`, keyed by its name. |
 | `duration_ms` | `integer` | yes |  | How long the export took. |
 
 ### `dhis2.system_info`
@@ -358,7 +427,7 @@ string, is carried as the instance wrote it under `other`.
 | `last_analytics_table_success` | `string or null` |  | `null` | When the analytics tables were last generated successfully. |
 | `last_analytics_table_runtime` | `string or null` |  | `null` | How long that last successful analytics table generation took, as the instance words it. |
 | `interval_since_last_analytics_table_success` | `string or null` |  | `null` | How long ago that was, as the instance words it. |
-| `other` | `object` |  | `{}` | Every other key of the answer, as the instance wrote it: the database, the Java runtime, the memory and processor counts, and any of the named keys that did not hold a string. |
+| `other` | `object` |  |  | Every other key of the answer, as the instance wrote it: the database, the Java runtime, the memory and processor counts, and any of the named keys that did not hold a string. |
 | `duration_ms` | `integer` | yes |  | How long the read took. |
 
 ### `dhis2.tracker`
@@ -367,9 +436,20 @@ Read DHIS2 tracker objects.
 
 Idempotent.
 
-Reads one page of one `/api/tracker` collection, scoped by program, organisation unit and
-`ou_mode`, and narrowed by `status`, `updated_after` and `filter` where the collection has
-them.
+Reads one `/api/tracker` collection, scoped by program, organisation unit and `ou_mode`, and
+narrowed by `status`, `updated_after` and `filter` where the collection has them. The rows come
+back under `rows`, whatever key the instance's version filed them under.
+
+By default the read is one page, DHIS2's first 50 rows unless `page` and `page_size` say
+otherwise, and `pager.more` says whether rows match past it: a step that reads one page of a
+larger collection is told so rather than handed the first 50 as if they were all. `total: true`
+asks the instance to count them too, which fills `pager.total` and `pager.page_count`.
+
+`all_pages: true` reads every page, from the first, and answers them as one list. It is bounded
+three ways, by `max_rows`, `max_pages` and `max_total` (the rows' size as JSON), and reaching any
+of them fails the step `rejected` with `dhis2.tracker.cap_reached` rather than answering the part
+read so far. A named program or org unit the instance does not know fails the step with
+`dhis2.unknown_uids` unless `require_known` is off.
 
 **Config**
 
@@ -384,14 +464,21 @@ them.
 | `filter` | `string or string[] or null` |  | `null` | One or more DHIS2 `filter=` expressions on the collection's attributes: one string such as `w75KJ2mc4zz:like:Anna`, or a list such as `[w75KJ2mc4zz:like:Anna, zDhUuAYrxNC:like:Kelly]` that is sent as one `filter=` each. Tracked entities and events take one; the enrollments collection has no attribute filter of its own, so a filter given for it rides through as a plain query parameter the instance may ignore. |
 | `status` | `string or null` |  | `null` | The status to read, where the collection has one: an enrollment or event `status`. |
 | `updated_after` | `string or null` |  | `null` | Read only rows changed at or after this ISO instant. |
-| `page` | `integer or null` |  | `null` | The 1-based page to read. |
-| `page_size` | `integer or null` |  | `null` | How many rows a page holds. |
+| `page` | `integer or null` |  | `null` | The 1-based page to read; the first when unset. The output's `pager.more` says whether more pages follow it. |
+| `page_size` | `integer or null` |  | `null` | How many rows a page holds: the instance's own default, 50, for one page, and 500 when every page is read. |
+| `all_pages` | `boolean` |  | `false` | Whether every page is read, from the first until the instance has no more, and answered as one list. The read is bounded by `max_rows`, `max_pages` and `max_total`, and fails rather than answering part of the collection when one is reached. |
+| `total` | `boolean` |  | `false` | Whether the instance counts every matching row (`totalPages=true`), so that `pager.total` and `pager.page_count` are known. Counting costs the instance a query of its own. |
+| `max_rows` | `integer` |  | `100000` | The most rows reading every page may gather before the step fails. |
+| `max_pages` | `integer` |  | `1000` | The most pages reading every page may request before the step fails. |
+| `max_total` | `string or integer` |  | `"256mb"` | The most the gathered rows may come to, as JSON, before reading every page fails. |
+| `require_known` | `boolean` |  | `true` | Whether the step fails when the named program or org unit is unknown to the instance, rather than answering no rows for it. One metadata lookup asks for both before the read. |
 
 **Output**
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `body` | `any or null` |  | `null` | The parsed response: the objects under `instances` and the `page` block DHIS2 sends. |
+| `rows` | `any[]` | yes |  | The tracked entities, enrollments or events read, every page's in order when every page was read. |
+| `pager` | `object` | yes |  | The page the rows came from, the page size, the totals when counted, and whether more pages follow. |
 | `duration_ms` | `integer` | yes |  | How long the read took. |
 
 ## Sensors
@@ -444,15 +531,19 @@ A refusal's message is the instance's own words when it gave any: a DHIS2 web me
 A refusal is catalogued: it carries a stable dotted code beside the sentence it renders, so a
 stream of run records is selected by code however the English is later reworded --
 `jq 'select(.error_code == "dhis2.import.refused")'`. The code is API and the text is not. The
-last four are what the connection kind refuses at validation.
+codes from `dhis2.analytics_query.no_program` on are what a config refuses at validation.
 
 | Code | Text |
 | --- | --- |
 | `dhis2.answered` | `{where} answered {status}: {remote}` |
 | `dhis2.export.empty_answer` | `{where} answered with an empty body rather than a data value set, which DHIS2 does when {org_unit} is outside the account's data scope; nothing was exported` |
+| `dhis2.unknown_uids` | `{where} is scoped to uids the instance knows no object by: {unknown}; the read would answer nothing for them, so it was not made. Check the uids, or set require_known: false to read anyway` |
+| `dhis2.tracker.cap_reached` | `reading every page of {kind} reached {cap} ({limit}) with rows still to read; nothing is answered rather than a part of the collection. Raise {cap} or narrow the read` |
 | `dhis2.analytics.no_task_reference` | `the analytics job submission answered without a task reference to follow` |
 | `dhis2.analytics.task_disappeared` | `task {task} disappeared before its result could be collected` |
 | `dhis2.analytics.no_result` | `task {task} has no result to collect: the instance holds no terminal notification for it` |
+| `dhis2.import.no_data_values` | `data_values {found}, not a data value set with a dataValues list, so nothing was sent. A step's whole output passed where its document was meant is the usual cause: an export's document is steps.<step>.output.body, not steps.<step>.output` |
+| `dhis2.import.no_values_taken` | `the instance took none of the {sent} values sent, and require_values asks for at least one: {detail}` |
 | `dhis2.import.no_summary` | `{where} answered without an import summary, so nothing says the import took` |
 | `dhis2.import.unknown_status` | `{where} answered a summary whose status is '{status}', so nothing says the import took` |
 | `dhis2.import.refused` | `the import was refused: {detail}` |
@@ -466,6 +557,11 @@ last four are what the connection kind refuses at validation.
 | `dhis2.message.no_recipient` | `a message needs at least one recipient in users, user_groups or org_units` |
 | `dhis2.message.no_conversation` | `{where} took the message but answered without the conversation it created` |
 | `dhis2.analytics_query.no_program` | `a {mode} analytics query needs a program to read under` |
+| `dhis2.export.no_data` | `a data value set export names what to read: a data_set, data_element or data_element_group` |
+| `dhis2.export.no_org_unit` | `a data value set export names where to read: an org_unit or org_unit_group` |
+| `dhis2.export.no_period` | `a data value set export names when to read: a period, a start_date with an end_date, last_updated or last_updated_duration` |
+| `dhis2.export.half_range` | `start_date and end_date bound one range, so a data value set export takes both or neither` |
+| `dhis2.tracker.page_with_all_pages` | `all_pages reads every page from the first, so it takes no page` |
 | `dhis2.connection.both_credentials` | `a dhis2 connection takes an api_token or basic credentials, not both` |
 | `dhis2.connection.no_credential` | `a dhis2 connection needs an api_token or basic credentials` |
 | `dhis2.connection.no_basic_password` | `basic credentials need a basic_password beside the basic_username` |

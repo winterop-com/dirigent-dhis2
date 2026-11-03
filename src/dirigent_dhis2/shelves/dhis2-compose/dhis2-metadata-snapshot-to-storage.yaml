@@ -77,4 +77,4 @@ steps:
       # The collection is in the file name so a snapshot per collection leaves one file each
       # rather than each overwriting the last.
       target: "${run.scratch}/dhis2/${params.resource}.json"
-      value: ${steps.read.output.body}
+      value: ${steps.read.output.rows}

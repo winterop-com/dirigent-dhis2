@@ -13,3 +13,44 @@ changed in the engine under it is in
 An instance installs a matching pair: the pack's version and the dirigent it was released
 with. A pack built against an older dirigent is not supported, because the plugin contract
 changes directly before 1.0 rather than through compatibility shims.
+
+## Next release
+
+The read side's gaps are closed, and the read and import blocks answer in one shape per kind of
+work, [described on the block reference](blocks.md#how-an-output-is-shaped).
+
+### This breaks
+
+A document that references these outputs needs its references changed. There are no aliases
+for the old fields.
+
+| Block | Was | Is |
+| --- | --- | --- |
+| `dhis2.metadata` | `output.body.<resource>`, `output.body.pager` | `output.rows`, `output.pager` (`page`, `page_size`, `total`, `page_count`, `more`), null when not paged |
+| `dhis2.tracker` | `output.body.instances`, the page fields in `output.body` | `output.rows`, `output.pager` |
+| `dhis2.analytics_query` | `output.body.rows`, each row a list in header order | `output.rows`, each row an object keyed by header name; the grid as DHIS2 sent it stays under `output.body` |
+| `dhis2.data_value_set_import` | `output.imported`, `output.updated`, `output.ignored`, `output.deleted` | `output.counts.imported`, `.updated`, `.ignored`, `.deleted`, beside the new `output.sent` |
+
+Three refusals are new, so a step that passed before can fail now:
+
+- An export, a tracker read or an event or enrollment analytics query scoped to a uid the
+  instance does not know fails with `dhis2.unknown_uids` instead of answering empty.
+  `require_known: false` restores the old behaviour.
+- `dhis2.data_value_set_import` refuses `data_values` that is not an object holding a
+  `dataValues` list, with `dhis2.import.no_data_values`, before anything is sent. The usual
+  cause is `${steps.export.output}` where `${steps.export.output.body}` was meant.
+- `dhis2.data_value_set_export` refuses a config without a data, an org unit and a period
+  selector at validation; `data_set`, `period` and `org_unit` are no longer each required,
+  since a list, a group, a date range or a last-updated bound may stand in for them.
+
+### New
+
+- `dhis2.data_value_set_export` takes several data sets, data elements, periods and org units,
+  data element and org unit groups, `start_date` with `end_date`, `last_updated` and
+  `last_updated_duration` for an incremental sync, `include_deleted`, and the four id schemes.
+- `dhis2.tracker` says in `pager.more` whether rows match past the page read, counts them with
+  `total: true`, and reads every page with `all_pages: true`, bounded by `max_rows`,
+  `max_pages` and `max_total` and failing with `dhis2.tracker.cap_reached` rather than
+  answering part.
+- `dhis2.data_value_set_import` answers `sent`, the values the document held, and fails a
+  summary that took none with `require_values: true`.

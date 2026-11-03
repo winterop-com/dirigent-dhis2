@@ -1,7 +1,7 @@
 """``dhis2.analytics_query``: read one analytics query, aggregate or event/enrollment."""
 
 import time
-from typing import Any, ClassVar, Final, Literal
+from typing import Any, ClassVar, Final, Literal, cast
 
 from dhis2w_client import AnalyticsAccessor
 from dhis2w_client.errors import AuthenticationError, Dhis2ApiError
@@ -11,6 +11,7 @@ from dirigent_common import BlockModel
 from dirigent_dhis2.connection import client_for
 from dirigent_dhis2.formats import UID_PATTERN
 from dirigent_dhis2.messages import NO_PROGRAM
+from dirigent_dhis2.reads import Dhis2Pager, pager_of, require_known
 from dirigent_dhis2.web import Dhis2Operator, query_terms, refuse
 from dirigent_plugin import BlockFailure, ConnectionRef, ErrorClass, OperatorSpec, StepContext
 
@@ -57,6 +58,10 @@ class Dhis2AnalyticsQueryConfig(BlockModel):
     page_size: int | None = None
     """How many rows a page holds, for the event and enrollment queries that page."""
 
+    require_known: bool = True
+    """Whether an ``event`` or ``enrollment`` query fails when its program is unknown to the
+    instance, rather than answering an empty grid. One metadata lookup asks for it first."""
+
     @model_validator(mode="after")
     def _program_scopes_the_query_kinds_that_need_it(self) -> "Dhis2AnalyticsQueryConfig":
         """An event or enrollment query reads under one program, so it must be named."""
@@ -66,10 +71,19 @@ class Dhis2AnalyticsQueryConfig(BlockModel):
 
 
 class Dhis2AnalyticsQueryOutput(BlockModel):
-    """The query the analytics endpoint answered, for a downstream step to reference by field."""
+    """The grid the analytics endpoint answered, its rows as objects and as DHIS2 sent them."""
+
+    rows: list[dict[str, JsonValue]]
+    """The grid's rows, each an object keyed by its header's name, such as ``dx``, ``pe``, ``ou``
+    and ``value``."""
+
+    pager: Dhis2Pager | None = None
+    """The page an event or enrollment query read and whether more follow; null for a grid
+    that is not paged."""
 
     body: JsonValue | None = None
-    """The parsed response: the analytics grid, its headers, metaData, and rows."""
+    """The grid as DHIS2 answered it: ``headers``, ``metaData`` with the names of every item,
+    ``rows`` as lists, ``height`` and ``width``."""
 
     duration_ms: int
     """How long the query took."""
@@ -96,6 +110,17 @@ def _params(config: Dhis2AnalyticsQueryConfig) -> dict[str, Any]:
     return params
 
 
+def rows_as_objects(grid: dict[str, Any]) -> list[dict[str, JsonValue]]:
+    """Map each grid row onto its headers' names, so a value is read by name rather than by position."""
+    headers: list[Any] = grid.get("headers") or []
+    names: list[str] = []
+    for index, header in enumerate(headers):
+        named = cast("dict[str, Any]", header).get("name") if isinstance(header, dict) else None
+        names.append(str(named) if named is not None else str(index))
+    rows: list[Any] = grid.get("rows") or []
+    return [dict(zip(names, cast("list[JsonValue]", row), strict=False)) for row in rows if isinstance(row, list)]
+
+
 class Dhis2AnalyticsQueryOperator(Dhis2Operator[Dhis2AnalyticsQueryConfig, Dhis2AnalyticsQueryOutput]):
     """Runs one analytics query -- aggregate, event, or enrollment -- and hands the grid on."""
 
@@ -114,12 +139,20 @@ class Dhis2AnalyticsQueryOperator(Dhis2Operator[Dhis2AnalyticsQueryConfig, Dhis2
             if config.mode == "aggregate":
                 body = await self._aggregate(client.analytics, _params(config))
             else:
+                if config.require_known:
+                    await require_known(
+                        client, {"programs": config.program}, f"GET /api/analytics/{config.mode}s/query"
+                    )
                 body = await self._events(client.analytics, config)
         duration = round((time.monotonic() - started) * 1000)
-        ctx.log.info("analytics query read", mode=config.mode, duration_ms=duration)
-        return Dhis2AnalyticsQueryOutput(body=body, duration_ms=duration)
+        rows = rows_as_objects(body)
+        meta = body.get("metaData")
+        paged = cast("dict[str, Any]", meta).get("pager") if isinstance(meta, dict) else None
+        pager = pager_of(cast("dict[str, Any]", paged), len(rows)) if isinstance(paged, dict) else None
+        ctx.log.info("analytics query read", mode=config.mode, rows=len(rows), duration_ms=duration)
+        return Dhis2AnalyticsQueryOutput(rows=rows, pager=pager, body=body, duration_ms=duration)
 
-    async def _aggregate(self, analytics: AnalyticsAccessor, params: dict[str, Any]) -> JsonValue:
+    async def _aggregate(self, analytics: AnalyticsAccessor, params: dict[str, Any]) -> dict[str, Any]:
         """Read the aggregate grid through the client's analytics accessor."""
         try:
             grid = await analytics.aggregate(endpoint=AGGREGATE_ENDPOINT, extra_params=params)
@@ -127,7 +160,7 @@ class Dhis2AnalyticsQueryOperator(Dhis2Operator[Dhis2AnalyticsQueryConfig, Dhis2
             raise refuse(error, f"GET {AGGREGATE_ENDPOINT}") from error
         return grid.model_dump(mode="json", by_alias=True, exclude_none=True)
 
-    async def _events(self, analytics: AnalyticsAccessor, config: Dhis2AnalyticsQueryConfig) -> JsonValue:
+    async def _events(self, analytics: AnalyticsAccessor, config: Dhis2AnalyticsQueryConfig) -> dict[str, Any]:
         """Read an event or enrollment query grid through the analytics accessor."""
         collection = "events" if config.mode == "event" else "enrollments"
         if config.program is None:
