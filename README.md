@@ -20,14 +20,21 @@ steps, rather than composing them out of raw HTTP:
 | --- | --- | --- |
 | `dhis2.analytics_run` | operator | Submits the analytics tables job and follows its task notifications to the end. |
 | `dhis2.analytics_query` | operator | Runs one analytics query, aggregate or event/enrollment, and hands the grid on. |
+| `dhis2.data_set_completion` | operator | Marks a data set complete, or reopens it, for a period and org unit, reading the import summary. |
+| `dhis2.data_value` | operator | Gets, sets or deletes one data value; a dry run is rehearsed as a one-value data value set import. |
 | `dhis2.data_value_set_export` | operator | Reads a data value set for a data set, period and org unit, and hands the document on. |
 | `dhis2.data_value_set_import` | operator | Imports a data value set, parsing the import summary and its conflicts. |
 | `dhis2.message` | operator | Sends a DHIS2 message to users, user groups or org units, which the instance also emails where SMTP is configured. |
 | `dhis2.metadata` | operator | Reads one metadata collection through the version-bound generic accessor, whole or one page; a page of one counts it. |
 | `dhis2.metadata_export` | operator | Reads several metadata collections in one `/api/metadata` request, every row of each, keyed by collection. |
+| `dhis2.metadata_import` | operator | Creates, updates or deletes metadata from a bundle through `/api/metadata`, one object or many, reading the import report. |
 | `dhis2.system_info` | operator | Reads `/api/system/info`: version, build, server clock and analytics state as named fields. |
 | `dhis2.tracker` | operator | Reads a page of tracked entities, enrollments or events from `/api/tracker`. |
+| `dhis2.tracker_import` | operator | Imports tracked entities, enrollments, events and relationships as a job it follows to the report. |
 | `dhis2.data_set_complete` | sensor | Holds a run until a data set is marked complete for the period. |
+
+Every write takes `dry_run`, which the instance validates and stores nothing for. It defaults
+to off, as DHIS2's own flag does, and every example that writes turns it on.
 
 Where a block takes DHIS2's own query terms, either shape does: `fields`, `filter` and `order`
 each accept one string, spelled as the API spells it -- `id,name,valueType`, `level:eq:2`,

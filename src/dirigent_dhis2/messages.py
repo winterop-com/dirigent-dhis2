@@ -157,3 +157,51 @@ BAD_API_TOKEN = DHIS2.define(
     "connection.bad_api_token",
     "an api_token must be visible ASCII with no whitespace, or it cannot be sent as a header value",
 )
+
+# What the write blocks refuse with. A report's {detail} names its first errors the way an
+# import's does, through import.conflicts_and_more.
+
+METADATA_IMPORT_NOT_A_BUNDLE = DHIS2.define(
+    "metadata_import.not_a_bundle",
+    "a metadata bundle is an object keyed by collection, such as dataElements, and this one is {got}",
+)
+
+METADATA_IMPORT_NO_REPORT = DHIS2.define(
+    "metadata_import.no_report",
+    "{where} answered without an import report, so nothing says the import took",
+)
+
+METADATA_IMPORT_REFUSED = DHIS2.define("metadata_import.refused", "the metadata import was refused: {detail}")
+
+TRACKER_IMPORT_NOT_A_BUNDLE = DHIS2.define(
+    "tracker_import.not_a_bundle",
+    "a tracker bundle is an object of trackedEntities, enrollments, events or relationships, and this one is {got}",
+)
+
+TRACKER_IMPORT_NO_REPORT = DHIS2.define(
+    "tracker_import.no_report",
+    "{where} answered without an import report, so nothing says the import took",
+)
+
+TRACKER_IMPORT_NO_JOB = DHIS2.define(
+    "tracker_import.no_job",
+    "{where} accepted the import as a job but answered without a job id to follow",
+)
+
+TRACKER_IMPORT_REFUSED = DHIS2.define("tracker_import.refused", "the tracker import was refused: {detail}")
+
+DATA_VALUE_NO_VALUE = DHIS2.define("data_value.no_value", "setting a data value needs a value")
+
+DATA_VALUE_HALF_ATTRIBUTE = DHIS2.define(
+    "data_value.half_attribute",
+    "attribute_combo and attribute_options name an attribute option combo together: give both or neither",
+)
+
+DATA_VALUE_UNKNOWN_ATTRIBUTE = DHIS2.define(
+    "data_value.unknown_attribute",
+    "attribute combo {combo} has no option combo made of exactly the options {options}",
+)
+
+DATA_VALUE_REFUSED = DHIS2.define("data_value.refused", "the instance would not take the data value: {detail}")
+
+COMPLETION_REFUSED = DHIS2.define("data_set_completion.refused", "the completion registration was refused: {detail}")

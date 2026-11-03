@@ -51,13 +51,17 @@ the metadata describing it.
 | --- | --- | --- | --- |
 | [`dhis2.analytics_query`](#dhis2analytics_query) | operator | dhis2 | Run a DHIS2 analytics query. |
 | [`dhis2.analytics_run`](#dhis2analytics_run) | operator | dhis2 | Run the DHIS2 analytics tables job. |
+| [`dhis2.data_set_completion`](#dhis2data_set_completion) | operator | dhis2 | Mark a DHIS2 data set complete, or reopen it, for a period and org unit. |
+| [`dhis2.data_value`](#dhis2data_value) | operator | dhis2 | Get, set or delete one DHIS2 data value by data element, period and org unit. |
 | [`dhis2.data_value_set_export`](#dhis2data_value_set_export) | operator | dhis2 | Export a DHIS2 data value set. |
 | [`dhis2.data_value_set_import`](#dhis2data_value_set_import) | operator | dhis2 | Import a data value set into DHIS2. |
 | [`dhis2.message`](#dhis2message) | operator | dhis2 | Send a DHIS2 message to users, user groups or org units. |
 | [`dhis2.metadata`](#dhis2metadata) | operator | dhis2 | Read one DHIS2 metadata collection, whole or one page of it. |
 | [`dhis2.metadata_export`](#dhis2metadata_export) | operator | dhis2 | Read several DHIS2 metadata collections, every row of each, in one request. |
+| [`dhis2.metadata_import`](#dhis2metadata_import) | operator | dhis2 | Create, update or delete DHIS2 metadata from a bundle, one object or many. |
 | [`dhis2.system_info`](#dhis2system_info) | operator | dhis2 | Read a DHIS2 instance's version, build, server clock and analytics state. |
 | [`dhis2.tracker`](#dhis2tracker) | operator | dhis2 | Read DHIS2 tracker objects. |
+| [`dhis2.tracker_import`](#dhis2tracker_import) | operator | dhis2 | Create, update or delete DHIS2 tracked entities, enrollments, events and relationships. |
 | [`dhis2.data_set_complete`](#dhis2data_set_complete) | sensor | dhis2 | Wait for a DHIS2 data set to be marked complete. |
 
 ## Operators
@@ -147,6 +151,100 @@ running analytics job, so a cancelled step leaves the job to finish on the insta
 | `completed_at` | `string or null` |  | `null` | When the task said it was done, in the instance's own timestamp. |
 | `messages` | `string[]` | yes |  | The last few notification messages, oldest first. |
 | `joined` | `boolean` |  | `false` | Whether the step followed a job already running rather than submitting its own. |
+
+### `dhis2.data_set_completion`
+
+Mark a DHIS2 data set complete, or reopen it, for a period and org unit.
+
+Idempotent.
+
+Posts one completion registration to `/api/completeDataSetRegistrations`, the path every supported
+version writes registrations through and the one that takes `dryRun`, and reads the import summary
+as the instance's verdict. `completed: false` reopens the window rather than deleting the
+registration, which is what `dhis2.data_set_complete` reads as a window still open. A summary whose
+status is `ERROR`, or one that ignored the registration, fails the step with
+`dhis2.data_set_completion.refused` and the instance's reason; an answer with no summary in it
+fails with `dhis2.import.no_summary`. Both are `rejected`.
+
+Each conflict carries the instance's `object` and `value`, its `error_code`, and the `indexes` of
+the refused registrations.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `data_set` | `string` | yes |  | The uid of the data set. |
+| `period` | `string` | yes |  | An ISO period identifier, such as 202607 or 2026Q1. |
+| `org_unit` | `string` | yes |  | The uid of the organisation unit. |
+| `attribute_option_combo` | `string or null` |  | `null` | The uid of the attribute option combo, for a data set with an attribute category combo; the default combo when unset. |
+| `completed` | `boolean` |  | `true` | Whether the window is marked complete; false reopens it. |
+| `dry_run` | `boolean` |  | `false` | Whether the instance validates the registration without writing anything. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `status` | `string` | yes |  | The summary's own word: SUCCESS or WARNING. |
+| `completed` | `boolean` | yes |  | Whether the window was marked complete, or reopened. |
+| `dry_run` | `boolean` | yes |  | Whether this was a validation only, with nothing written. |
+| `sent` | `integer` | yes |  | How many registrations were sent: one. |
+| `counts` | `object` | yes |  | What happened to the registration: imported, updated, ignored or deleted. |
+| `conflicts` | `object[]` | yes |  | Every refusal the summary names, empty when the registration was taken. |
+
+### `dhis2.data_value`
+
+Get, set or delete one DHIS2 data value by data element, period and org unit.
+
+Not idempotent.
+
+Addresses one cell through `/api/dataValues`: `get` reads it, `set` posts `value` (and
+`comment`), `delete` removes it. The attribute option combo is named the way that endpoint names
+one, as `attribute_combo` and `attribute_options` together, sent as `cc` and `cp`; the endpoint
+takes no attribute option combo uid and files a value under the default combo when given one.
+Half the pair is refused at apply with `dhis2.data_value.half_attribute`, and a `set` without a
+`value` with `dhis2.data_value.no_value`; a run whose references resolve to either is refused the
+same way before anything is sent.
+
+A `get` of an empty cell is not a failure: the output says `found: false`. DHIS2 2.43 and later
+answer that read 404, and 2.42 answers 409 with "Data value does not exist"; both are read as
+absent, and any other 409 is a refusal.
+
+A dry run never calls `/api/dataValues`, which accepts `dryRun=true` and writes the value anyway.
+It sends the cell as a one-value `/api/dataValueSets` import with `dryRun=true` instead, with
+`importStrategy=DELETE` for a delete, and an attribute option combo is resolved to its uid by
+reading the attribute combo's option combos first. A rehearsal the instance would refuse fails the
+step with `dhis2.data_value.refused` and its reason.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `action` | `"get" or "set" or "delete"` |  | `"get"` | What the step does: `get` reads the value, `set` writes `value`, `delete` removes it. |
+| `data_element` | `string` | yes |  | The uid of the data element. |
+| `period` | `string` | yes |  | An ISO period identifier, such as 202607 or 2026Q1. |
+| `org_unit` | `string` | yes |  | The uid of the organisation unit. |
+| `category_option_combo` | `string or null` |  | `null` | The uid of the category option combo, the disaggregation; the default combo when unset. |
+| `attribute_combo` | `string or null` |  | `null` | The uid of the attribute category combo, given together with `attribute_options`; the default attribute option combo when both are unset. |
+| `attribute_options` | `string[]` |  | `[]` | The uids of the attribute category options that, with `attribute_combo`, name the attribute option combo. |
+| `value` | `string or null` |  | `null` | The value to write, always a string on the wire whatever the value type; `set` needs one. |
+| `comment` | `string or null` |  | `null` | A comment to store with the value, for `set`. |
+| `dry_run` | `boolean` |  | `false` | Whether a `set` or `delete` is only validated, with nothing written. It is sent as a one-value `/api/dataValueSets` import with `dryRun=true`, because `/api/dataValues` accepts `dryRun` and writes the value anyway. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `action` | `"get" or "set" or "delete"` | yes |  | What the step did. |
+| `data_element` | `string` | yes |  | The uid of the data element. |
+| `period` | `string` | yes |  | The ISO period. |
+| `org_unit` | `string` | yes |  | The uid of the organisation unit. |
+| `category_option_combo` | `string or null` |  | `null` | The uid of the category option combo, when one was named. |
+| `attribute_option_combo` | `string or null` |  | `null` | The uid of the attribute option combo a dry run resolved, when one was named. |
+| `value` | `string or null` |  | `null` | The value read or written; null when a read found none, and for a delete. |
+| `found` | `boolean` | yes |  | Whether the value exists: for `get` whether one is stored, otherwise whether the write was taken. |
+| `dry_run` | `boolean` | yes |  | Whether this was a validation only, with nothing written. |
 
 ### `dhis2.data_value_set_export`
 
@@ -393,6 +491,62 @@ read it with [`dhis2.metadata`](#dhis2metadata), `paging: true` and `page_size: 
 | `counts` | `object of integer` | yes |  | How many rows each collection holds in `collections`, keyed by its name. |
 | `duration_ms` | `integer` | yes |  | How long the export took. |
 
+### `dhis2.metadata_import`
+
+Create, update or delete DHIS2 metadata from a bundle, one object or many.
+
+Not idempotent.
+
+Posts one bundle to `/api/metadata`: an object keyed by collection name, each holding the
+objects to write. It is the shape `dhis2.metadata_export` answers under `collections`, and DHIS2's
+own export, so an export's `collections` is a bundle as it stands. One object is a bundle of one:
+`{dataElements: [{...}]}` creates a data element, the same bundle holding only its `id` deletes it
+under `import_strategy: DELETE`, and `import_strategy: UPDATE` with `merge_mode: MERGE` changes the
+fields it names and keeps the rest. There is no separate single-object block, because the
+per-object endpoints have no dry run and answer a different report.
+
+A dry run is sent as `importMode=VALIDATE`, never `dryRun`: the metadata importer accepts
+`dryRun=true` without a word and commits the bundle. `atomic_mode` takes `ALL` or `NONE` only,
+since the importer reads the tracker's `OBJECT`, or any other word, as `ALL`. The report is asked
+for in full, so `objects` names every object with its uid, including one the instance generated.
+
+The report is read whether it came on 200 or on 409. A report whose status is `ERROR` fails the
+step with `dhis2.metadata_import.refused`, naming the first refused objects, unless
+`fail_on_error` is off, when the step succeeds and `conflicts` carries them. A bundle that is not an
+object is refused with `dhis2.metadata_import.not_a_bundle` before anything is sent, and an answer
+with no report in it fails with `dhis2.metadata_import.no_report`. Every one of these is
+`rejected`.
+
+`counts` and each entry of `by_class` are the pack's import counts, with DHIS2's `created`
+answered as `imported`. Each object names its `object_class`, `uid` and `index`; each conflict
+adds the instance's `error_code`, its words as `value`, and the `property` it is about.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `metadata` | `any` | yes |  | The metadata bundle to send: an object keyed by collection name, such as `{dataElements: [...], dataSets: [...]}`, written in the step or referenced from an upstream output. |
+| `dry_run` | `boolean` |  | `false` | Whether the instance validates the bundle without writing anything, sent as `importMode=VALIDATE`: DHIS2's metadata importer ignores `dryRun` and commits. |
+| `import_strategy` | `"CREATE_AND_UPDATE" or "CREATE" or "UPDATE" or "DELETE"` |  | `"CREATE_AND_UPDATE"` | What the import may do to existing objects: CREATE_AND_UPDATE, CREATE, UPDATE, or DELETE. |
+| `atomic_mode` | `"ALL" or "NONE"` |  | `"ALL"` | ALL refuses the whole bundle when any object is refused; NONE writes what it can. |
+| `identifier` | `"UID" or "CODE" or "AUTO"` |  | `"UID"` | Which property objects and references are matched by: UID, CODE, or AUTO for either. |
+| `merge_mode` | `"REPLACE" or "MERGE" or null` |  | `null` | How an update meets the stored object: REPLACE overwrites every field, MERGE keeps the fields the bundle leaves out; the instance's own default, REPLACE, when unset. |
+| `skip_sharing` | `boolean` |  | `false` | Whether the sharing settings in the bundle are left out of the import. |
+| `fail_on_error` | `boolean` |  | `true` | Whether a report whose status is ERROR fails the step; off, the step succeeds and the output carries the errors. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `status` | `string` | yes |  | The report's own word: OK, WARNING, or ERROR when `fail_on_error` is off. |
+| `dry_run` | `boolean` | yes |  | Whether this was a validation only, with nothing written. |
+| `sent` | `integer` | yes |  | How many objects the bundle held, across its collections. |
+| `counts` | `object` | yes |  | What happened to the objects: imported (DHIS2's created), updated, ignored and deleted. |
+| `by_class` | `object of object` | yes |  | The same counts for each class of object in the bundle, keyed by class, such as DataElement. |
+| `objects` | `object[]` | yes |  | Every object the report names, with its uid. |
+| `conflicts` | `object[]` | yes |  | Every object the report refused, empty when the import was clean. |
+
 ### `dhis2.system_info`
 
 Read a DHIS2 instance's version, build, server clock and analytics state.
@@ -481,6 +635,61 @@ read so far. A named program or org unit the instance does not know fails the st
 | `pager` | `object` | yes |  | The page the rows came from, the page size, the totals when counted, and whether more pages follow. |
 | `duration_ms` | `integer` | yes |  | How long the read took. |
 
+### `dhis2.tracker_import`
+
+Create, update or delete DHIS2 tracked entities, enrollments, events and relationships.
+
+Not idempotent. Polls every 10s unless the step says otherwise.
+
+Posts one bundle of `trackedEntities`, `enrollments`, `events` and `relationships` to
+`/api/tracker`. By default the instance runs it as a job, as DHIS2 2.41 and later do on their own,
+and the step hands the job to the engine rather than holding a worker: each probe reads
+`/api/tracker/jobs/{id}`, a notification marked complete ends the wait, and the finished job's
+report is read from `/api/tracker/jobs/{id}/report`. A job the instance answers 404 for is gone,
+and so is one that has written nothing fifteen minutes after submission; a job whose final
+notification is an `ERROR` fails the step. DHIS2 offers no way to stop a running import, so
+cancelling the step leaves it to finish. `async_mode: false` holds one request open and reads the
+report it answers with.
+
+A dry run is sent as `importMode=VALIDATE`. The report is asked for in full and read whether it
+came on 200 or on 409. A report whose status is `ERROR` fails the step with
+`dhis2.tracker_import.refused`, naming the first refused objects, unless `fail_on_error` is off. A
+bundle that is not an object is refused with `dhis2.tracker_import.not_a_bundle`, a job answer
+without a plain job id with `dhis2.tracker_import.no_job`, and an answer with no report in it with
+`dhis2.tracker_import.no_report`, which is `transient` when the finished job's report is not there
+yet and `rejected` otherwise.
+
+`counts` and each entry of `by_tracker_type` are the pack's import counts, with DHIS2's `created`
+answered as `imported`; `by_tracker_type` is keyed by DHIS2's own names: `TRACKED_ENTITY`,
+`ENROLLMENT`, `EVENT` and `RELATIONSHIP`. Each object names its `tracker_type`, `uid` and
+`index`; each conflict and warning adds the instance's `error_code` and its words as `value`.
+
+**Config**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `connection` | `string` | yes |  | The code of the dhis2 connection naming the instance. |
+| `tracker` | `any` | yes |  | The tracker bundle to send: an object of `trackedEntities`, `enrollments`, `events` and `relationships` lists, written in the step or referenced from an upstream output. |
+| `dry_run` | `boolean` |  | `false` | Whether the instance validates the bundle without writing anything, sent as `importMode=VALIDATE`. |
+| `import_strategy` | `"CREATE_AND_UPDATE" or "CREATE" or "UPDATE" or "DELETE"` |  | `"CREATE_AND_UPDATE"` | What the import may do to existing objects: CREATE_AND_UPDATE, CREATE, UPDATE, or DELETE. |
+| `atomic_mode` | `"ALL" or "OBJECT"` |  | `"ALL"` | ALL refuses the whole bundle when any object is refused; OBJECT writes every object that passes on its own. |
+| `async_mode` | `boolean` |  | `true` | Whether the instance runs the import as a job the engine follows, as DHIS2 does by default; off, one request is held open until the report is in. |
+| `fail_on_error` | `boolean` |  | `true` | Whether a report whose status is ERROR fails the step; off, the step succeeds and the output carries the errors. |
+
+**Output**
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `status` | `string` | yes |  | The report's own word: OK, WARNING, or ERROR when `fail_on_error` is off. |
+| `dry_run` | `boolean` | yes |  | Whether this was a validation only, with nothing written. |
+| `job_id` | `string or null` |  | `null` | The id of the job the instance ran the import as, when it ran as one. |
+| `sent` | `integer` | yes |  | How many objects the bundle held, across its four lists. |
+| `counts` | `object` | yes |  | What happened to the objects: imported (DHIS2's created), updated, ignored and deleted. |
+| `by_tracker_type` | `object of object` | yes |  | The same counts for each tracker type in the bundle, such as TRACKED_ENTITY or EVENT. |
+| `objects` | `object[]` | yes |  | Every object the report names, with its uid. |
+| `conflicts` | `object[]` | yes |  | Every error the validation report names, empty when the import was clean. |
+| `warnings` | `object[]` | yes |  | Every warning the validation report names. |
+
 ## Sensors
 
 ### `dhis2.data_set_complete`
@@ -556,6 +765,18 @@ codes from `dhis2.analytics_query.no_program` on are what a config refuses at va
 | `dhis2.metadata.unknown_resource` | `the instance's version knows no metadata resource named '{resource}'` |
 | `dhis2.message.no_recipient` | `a message needs at least one recipient in users, user_groups or org_units` |
 | `dhis2.message.no_conversation` | `{where} took the message but answered without the conversation it created` |
+| `dhis2.metadata_import.not_a_bundle` | `a metadata bundle is an object keyed by collection, such as dataElements, and this one is {got}` |
+| `dhis2.metadata_import.no_report` | `{where} answered without an import report, so nothing says the import took` |
+| `dhis2.metadata_import.refused` | `the metadata import was refused: {detail}` |
+| `dhis2.tracker_import.not_a_bundle` | `a tracker bundle is an object of trackedEntities, enrollments, events or relationships, and this one is {got}` |
+| `dhis2.tracker_import.no_report` | `{where} answered without an import report, so nothing says the import took` |
+| `dhis2.tracker_import.no_job` | `{where} accepted the import as a job but answered without a job id to follow` |
+| `dhis2.tracker_import.refused` | `the tracker import was refused: {detail}` |
+| `dhis2.data_value.no_value` | `setting a data value needs a value` |
+| `dhis2.data_value.half_attribute` | `attribute_combo and attribute_options name an attribute option combo together: give both or neither` |
+| `dhis2.data_value.unknown_attribute` | `attribute combo {combo} has no option combo made of exactly the options {options}` |
+| `dhis2.data_value.refused` | `the instance would not take the data value: {detail}` |
+| `dhis2.data_set_completion.refused` | `the completion registration was refused: {detail}` |
 | `dhis2.analytics_query.no_program` | `a {mode} analytics query needs a program to read under` |
 | `dhis2.export.no_data` | `a data value set export names what to read: a data_set, data_element or data_element_group` |
 | `dhis2.export.no_org_unit` | `a data value set export names where to read: an org_unit or org_unit_group` |

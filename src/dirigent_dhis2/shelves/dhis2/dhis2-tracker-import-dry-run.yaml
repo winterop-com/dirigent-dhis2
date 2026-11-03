@@ -1,0 +1,66 @@
+# Send one event to the tracker importer, as a rehearsal.
+#
+# dhis2.tracker_import posts a tracker bundle -- trackedEntities, enrollments, events and
+# relationships, in DHIS2's own shape -- to /api/tracker. DHIS2 runs the import as a background
+# job, and the step hands that job to the engine to follow: each probe reads the job's
+# notifications, and the finished job's report is read into the step's output. No worker is
+# held while the instance works.
+#
+# dry_run sends importMode=VALIDATE, so the instance runs every validation and writes nothing.
+# A report whose status is ERROR fails the step and names the objects it refused.
+#
+# eBAyeGv0exc is the demo's inpatient event programme, Zj7UnCAulEk its one stage, and
+# DiszpKrYNg8 Ngelehun CHC, which the programme is assigned to. An ACTIVE event is held to the
+# stage's compulsory data elements only once it is completed.
+#
+#   dg run --local examples/dhis2/dhis2-tracker-import-dry-run.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-tracker-import-dry-run
+name: Rehearse a tracker import
+description: |
+  Validate one event against the tracker importer, writing nothing.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.tracker_import
+
+params:
+  type: object
+  properties:
+    occurred_at:
+      type: string
+      default: "2025-07-01"
+      description: The date the event happened.
+
+connections:
+  dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
+    kind: dhis2
+    config:
+      base_url: https://play.dhis2.org/2.43
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  rehearse:
+    block: dhis2.tracker_import
+    poll: 5s
+    config:
+      connection: dhis2-demo
+      tracker:
+        events:
+          - program: eBAyeGv0exc
+            programStage: Zj7UnCAulEk
+            orgUnit: DiszpKrYNg8
+            occurredAt: "${params.occurred_at}"
+            status: ACTIVE
+            dataValues:
+              - dataElement: qrur9Dvnyt5
+                value: "34"
+      dry_run: true

@@ -8,7 +8,7 @@ on five shelves:
 | --- | --- |
 | [`dhis2/`](#the-native-adapter) | The native adapter: exports and their import strategies, the sign-off gate, the analytics reads and rebuilds, the three tracker collections, the metadata reads, a system report. |
 | [`dhis2-compose/`](#composed-with-the-engines-own-blocks) | A `dhis2.*` block beside one of the engine's own: a schema gate, a jq reshape, a fan-out over org units, a write to storage and the read back. |
-| [`dhis2-http/`](#the-generic-http-way) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a completion registration, a stage-scoped event read. |
+| [`dhis2-http/`](#the-generic-http-way) | The generic-HTTP way, for what no adapter covers: a CSV export, a period range, a stage-scoped event read. |
 | [`validate/`](#a-read-held-to-a-shape) | A metadata read held to a shape: a `fields=` projection gated on `validate.schema`, with the schema carried and named. |
 | [`schemas/`](#schemas) | The JSON Schemas that pin the reads the DHIS2 series makes, applied on their own. |
 
@@ -94,6 +94,7 @@ the pack refuses them at the block preflight.
 | `dhis2-import-delete.yaml` | `dhis2-import-delete` | `import_strategy: DELETE` -- remove the values a document names. |
 | `dhis2-import-partial.yaml` | `dhis2-import-partial` | `atomic_mode: NONE` -- take the good values, report the rest as conflicts. |
 | `dhis2-rehearse-import.yaml` | `dhis2-rehearse-import` | Export one month of a data set, then hand it straight back as a dry run. |
+| `dhis2-data-value.yaml` | `dhis2-data-value` | Read one data value, then rehearse setting it with `dhis2.data_value`. |
 
 ### Completeness
 
@@ -101,6 +102,7 @@ the pack refuses them at the block preflight.
 | --- | --- | --- |
 | `dhis2-wait-for-complete.yaml` | `dhis2-wait-for-complete` | Wait until a data set is marked complete for a period and org unit. |
 | `dhis2-complete-then-export.yaml` | `dhis2-complete-then-export` | The sign-off gate, with the export that reads the month behind it. |
+| `dhis2-mark-complete.yaml` | `dhis2-mark-complete` | Sign a data set off for a period and org unit with `dhis2.data_set_completion`, as a dry run. |
 
 ### Analytics
 
@@ -125,6 +127,7 @@ the pack refuses them at the block preflight.
 | `dhis2-tracker-enrollments.yaml` | `dhis2-tracker-enrollments` | The open enrollments in a program, by `status` and `updated_after`. |
 | `dhis2-tracker-paged.yaml` | `dhis2-tracker-paged` | One page of a large collection, with `page` and `page_size` as parameters. |
 | `dhis2-tracker-events-filtered.yaml` | `dhis2-tracker-events-filtered` | Status, change window and a data element `filter`, at once. |
+| `dhis2-tracker-import-dry-run.yaml` | `dhis2-tracker-import-dry-run` | Validate one event against the tracker importer, followed as a job. |
 
 ### Metadata
 
@@ -135,6 +138,8 @@ the pack refuses them at the block preflight.
 | `dhis2-metadata-org-units.yaml` | `dhis2-metadata-org-units` | Read the org units directly beneath one unit, with their hierarchy paths. |
 | `dhis2-metadata-data-set.yaml` | `dhis2-metadata-data-set` | Read one data set's period type, data elements, and their disaggregations. |
 | `dhis2-metadata-paged.yaml` | `dhis2-metadata-paged` | Read one page of organisation units and how many there are in total. |
+| `dhis2-metadata-create-data-element.yaml` | `dhis2-metadata-create-data-element` | Create one data element with `dhis2.metadata_import`, validated only. |
+| `dhis2-metadata-round-trip.yaml` | `dhis2-metadata-round-trip` | Export a few data elements and validate them straight back as an update. |
 | `dhis2-system-report.yaml` | `dhis2-system-report` | System info, a two-collection `dhis2.metadata_export` and an org unit count, rendered as the run's `report:`. |
 
 ## Composed with the engine's own blocks

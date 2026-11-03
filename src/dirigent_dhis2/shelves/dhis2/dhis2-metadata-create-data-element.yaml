@@ -1,0 +1,63 @@
+# Create one data element, as a rehearsal.
+#
+# dhis2.metadata_import posts a metadata bundle to /api/metadata: an object keyed by collection,
+# each holding the objects to write. One object is a bundle of one, so creating a data element
+# is a dataElements list with the element in it. Deleting one is the same bundle holding only
+# its id, with import_strategy DELETE; changing a few of its fields is import_strategy UPDATE
+# with merge_mode MERGE, which keeps every field the bundle leaves out.
+#
+# dry_run sends importMode=VALIDATE: the instance resolves every reference, checks every
+# required property and reports what it would create, then writes nothing. That is the
+# parameter that keeps this safe against the shared demo. DHIS2's metadata importer ignores
+# dryRun and commits, which is why the block never sends it.
+#
+# The report comes back parsed: status, the counts for the bundle and for each class of object,
+# every object with its uid, and every error with its code and the property it is about. A
+# report whose status is ERROR fails the step, unless fail_on_error is off.
+#
+# bjDvmb4bfuf is the default category combination on the demo.
+#
+#   dg run --local examples/dhis2/dhis2-metadata-create-data-element.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-metadata-create-data-element
+name: Create a data element
+description: |
+  Validate a bundle of one data element against DHIS2, writing nothing.
+
+  Turn dry_run off against your own instance to create it.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.metadata_import
+
+connections:
+  dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
+    kind: dhis2
+    config:
+      base_url: https://play.dhis2.org/2.43
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  create:
+    block: dhis2.metadata_import
+    config:
+      connection: dhis2-demo
+      metadata:
+        dataElements:
+          - name: Dirigent example ANC visits
+            shortName: Dirigent ANC visits
+            valueType: NUMBER
+            domainType: AGGREGATE
+            aggregationType: SUM
+            categoryCombo:
+              id: bjDvmb4bfuf
+      import_strategy: CREATE
+      dry_run: true

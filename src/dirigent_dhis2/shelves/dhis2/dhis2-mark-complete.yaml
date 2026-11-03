@@ -1,0 +1,57 @@
+# Sign a data set off for a period and organisation unit, as a rehearsal.
+#
+# dhis2.data_set_completion posts one completion registration to
+# /api/completeDataSetRegistrations: the record that a data set's period at an organisation unit
+# is finished, which completeness reporting rates count and dhis2.data_set_complete waits for.
+# completed false reopens the window instead.
+#
+# dry_run asks the instance to validate the registration and store nothing. The import summary
+# comes back parsed, and a registration the instance did not take fails the step with its
+# reason. attribute_option_combo is left unset here, which is the default combo; a data set with
+# an attribute category combination takes one registration per combination.
+#
+# BfMAe6Itzgt is the demo's Child Health data set and DiszpKrYNg8 Ngelehun CHC, which reports it.
+#
+#   dg run --local examples/dhis2/dhis2-mark-complete.yaml
+
+format: dirigent/v1
+kind: pipeline
+code: dhis2-mark-complete
+name: Mark a data set complete
+description: |
+  Validate signing a data set off for one period and org unit, writing nothing.
+
+tags: [dhis2]
+
+requires:
+  blocks:
+    - dhis2.data_set_completion
+
+params:
+  type: object
+  properties:
+    period:
+      type: string
+      default: "202507"
+      description: The ISO period being signed off.
+
+connections:
+  dhis2-demo:
+    name: DHIS2 play demo
+    description: The public DHIS2 demo at play.dhis2.org, signed in with its documented demo login.
+    kind: dhis2
+    config:
+      base_url: https://play.dhis2.org/2.43
+      basic_username: admin
+      basic_password: district
+      timeout: 60s
+
+steps:
+  sign_off:
+    block: dhis2.data_set_completion
+    config:
+      connection: dhis2-demo
+      data_set: BfMAe6Itzgt
+      period: "${params.period}"
+      org_unit: DiszpKrYNg8
+      dry_run: true

@@ -97,6 +97,12 @@ uv run dg blocks list
 │                             │          │         │ job.                              │
 │ dhis2.data_set_complete     │ sensor   │ dhis2   │ Wait for a DHIS2 data set to be   │
 │                             │          │         │ marked complete.                  │
+│ dhis2.data_set_completion   │ operator │ dhis2   │ Mark a DHIS2 data set complete,   │
+│                             │          │         │ or reopen it, for a period and    │
+│                             │          │         │ org unit.                         │
+│ dhis2.data_value            │ operator │ dhis2   │ Get, set or delete one DHIS2 data │
+│                             │          │         │ value by data element, period and │
+│                             │          │         │ org unit.                         │
 │ dhis2.data_value_set_export │ operator │ dhis2   │ Export a DHIS2 data value set.    │
 │ dhis2.data_value_set_import │ operator │ dhis2   │ Import a data value set into      │
 │                             │          │         │ DHIS2.                            │
@@ -108,20 +114,26 @@ uv run dg blocks list
 │ dhis2.metadata_export       │ operator │ dhis2   │ Read several DHIS2 metadata       │
 │                             │          │         │ collections, every row of each,   │
 │                             │          │         │ in one request.                   │
+│ dhis2.metadata_import       │ operator │ dhis2   │ Create, update or delete DHIS2    │
+│                             │          │         │ metadata from a bundle, one       │
+│                             │          │         │ object or many.                   │
 │ dhis2.system_info           │ operator │ dhis2   │ Read a DHIS2 instance's version,  │
 │                             │          │         │ build, server clock and analytics │
 │                             │          │         │ state.                            │
 │ dhis2.tracker               │ operator │ dhis2   │ Read DHIS2 tracker objects.       │
+│ dhis2.tracker_import        │ operator │ dhis2   │ Create, update or delete DHIS2    │
+│                             │          │         │ tracked entities, enrollments,    │
+│                             │          │         │ events and relationships.         │
 └─────────────────────────────┴──────────┴─────────┴───────────────────────────────────┘
 storage schemes: -   connection kinds: dhis2, docker, email, git, http, kafka, rabbitmq,
 slack, sql, webhook
 ```
 
-Ten blocks in the `dhis2` group, and `dhis2` among the connection kinds. The same catalog is
+Fourteen blocks in the `dhis2` group, and `dhis2` among the connection kinds. The same catalog is
 the Blocks screen in the UI, where each block says how many of the pack's example documents use
 it:
 
-![The Blocks screen filtered to dhis2: ten blocks, nine operators and one sensor, each with how many of the examples use it.](images/tutorial/blocks.png)
+![The Blocks screen filtered to dhis2: fourteen blocks, thirteen operators and one sensor, each with how many of the examples use it.](images/tutorial/blocks.png)
 
 *The blocks the pack contributes, as the instance's own catalog reports them.*
 
