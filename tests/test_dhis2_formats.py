@@ -21,14 +21,60 @@ def test_a_bad_dhis2_uid_is_rejected(value: object) -> None:
     assert not is_uid(value)
 
 
-@pytest.mark.parametrize("value", ["2024", "202401", "20240115", "2024Q1", "2024W1", "2024W03", "2024W53"])
-def test_a_dhis2_period_of_a_common_type_is_accepted(value: str) -> None:
+@pytest.mark.parametrize(
+    "value",
+    [
+        "2024",
+        "202401",
+        "20240115",
+        "2024Q1",
+        "2024W1",
+        "2024W03",
+        "2024W53",
+        "2024BiW4",
+        "2024BiW27",
+        "2024WedW3",
+        "2024ThuW12",
+        "2024SatW1",
+        "2024SunW53",
+        "202403B",
+        "2024S1",
+        "2024AprilS2",
+        "2024NovS1",
+        "2024NovQ1",
+        "2024April",
+        "2024July",
+        "2024Oct",
+        "2024Nov",
+        "2024Sep",
+        "2024Feb",
+        "2024Aug",
+    ],
+)
+def test_a_dhis2_period_of_every_type_is_accepted(value: str) -> None:
     assert is_period(value)
 
 
 @pytest.mark.parametrize(
     "value",
-    ["2024Q5", "202413", "20240132", "2024W0", "2024W00", "2024W54", "24Q1", "2024-01", "notaperiod", 202401],
+    [
+        "2024Q5",
+        "202413",
+        "20240132",
+        "2024W0",
+        "2024W00",
+        "2024W54",
+        "24Q1",
+        "2024-01",
+        "notaperiod",
+        202401,
+        "2024BiW28",
+        "202407B",
+        "2024S3",
+        "2024MonW3",
+        "2024June",
+        "2024AprilQ1",
+    ],
 )
 def test_a_bad_dhis2_period_is_rejected(value: object) -> None:
     assert not is_period(value)

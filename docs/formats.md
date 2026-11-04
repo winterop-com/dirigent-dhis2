@@ -8,7 +8,7 @@ contributes joins the engine's own in that checker.
 | Format | A string that is | Examples |
 | --- | --- | --- |
 | `dhis2-uid` | a DHIS2 UID: one letter, then ten alphanumerics | `ImspTQPwCqd`, `BfMAe6Itzgt` |
-| `dhis2-period` | a DHIS2 ISO period of one of the common types | `2026`, `202601`, `20260115`, `2026Q1`, `2026W03` |
+| `dhis2-period` | a DHIS2 ISO period of any period type | `2026`, `202601`, `2026Q1`, `2026S1`, `2026BiW4` |
 | `dhis2-code` | a DHIS2 code: one to fifty characters, not padded, on one line | `DE_359596`, `OU_222702`, `ANC 1st visit` |
 
 A format only ever narrows a `string`: a value of the wrong type is caught by `type`, and the
@@ -23,22 +23,22 @@ ten-character string, a leading digit, and a UID with a hyphen in it are all ref
 
 ## `dhis2-period`
 
-The common DHIS2 ISO period types, matched whole:
+Every DHIS2 ISO period type, matched whole:
 
 | Type | Shape | Example |
 | --- | --- | --- |
 | Yearly | `YYYY` | `2026` |
+| Financial year | `YYYYFeb`, `YYYYApril`, `YYYYJuly`, `YYYYAug`, `YYYYSep`, `YYYYOct`, `YYYYNov` | `2026April` |
+| Six-monthly | `YYYYSn`, `YYYYAprilSn`, `YYYYNovSn` | `2026S1`, `2026AprilS2` |
+| Quarterly | `YYYYQn`, `YYYYNovQn` | `2026Q1`, `2026NovQ2` |
+| Bi-monthly | `YYYYMMB`, months 01 to 06 | `202603B` |
 | Monthly | `YYYYMM` | `202601` |
+| Bi-weekly | `YYYYBiWn`, 1 to 27 | `2026BiW4` |
+| Weekly | `YYYYWn`, `YYYYWedWn`, `YYYYThuWn`, `YYYYSatWn`, `YYYYSunWn` | `2026W3`, `2026WedW03` |
 | Daily | `YYYYMMDD` | `20260115` |
-| Quarterly | `YYYYQn` | `2026Q1` |
-| Weekly | `YYYYWn`, zero-padded or not | `2026W3`, `2026W03` |
 
-The month, day, quarter and week numbers are bounded, so `202613` and `2026Q5` are refused.
-
-The rarer period types are not covered: bi-weekly (`YYYYBiWn`), the weekly variants that start
-on another day (`YYYYWedWn`, `YYYYThuWn`, `YYYYSatWn`, `YYYYSunWn`), bi-monthly (`YYYYMMB`),
-six-monthly (`YYYYSn`), and the financial-year variants (`YYYYApril`, `YYYYJuly`, `YYYYOct`). A
-schema that has to accept one of those uses `pattern` rather than this format.
+Week and bi-week numbers are zero-padded or not. The month, day, quarter, half and week numbers
+are bounded, so `202613`, `2026Q5`, `2026S3` and `2026BiW28` are refused.
 
 ## `dhis2-code`
 
