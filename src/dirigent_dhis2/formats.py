@@ -24,18 +24,20 @@ _UID = UID_RE
 #: The same UID pattern as a string, for a config field to hold its values to.
 UID_PATTERN: Final = _UID.pattern
 
-#: DHIS2 ISO period strings, common types only: yearly YYYY, monthly YYYYMM, daily YYYYMMDD,
-#: quarterly YYYYQn, and weekly YYYYWn with the week zero-padded or not, the way DHIS2 itself
-#: reads it. The rarer types -- bi-weekly (YYYYBiWn), the weekly variants (YYYYWedWn,
-#: YYYYThuWn, YYYYSatWn, YYYYSunWn), bi-monthly (YYYYMMB), six-monthly (YYYYSn), and the
-#: financial-year variants (YYYYApril, YYYYJuly, YYYYOct) -- are not covered.
+#: A DHIS2 ISO period of any of its period types, the week and bi-week zero-padded or not, the
+#: way DHIS2 itself reads them.
+_WEEK = r"(0?[1-9]|[1-4]\d|5[0-3])"
 _PERIOD = re.compile(
-    r"""
-    \d{4}                                              # YYYY yearly
-    | \d{4}(0[1-9]|1[0-2])                             # YYYYMM monthly
-    | \d{4}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])        # YYYYMMDD daily
-    | \d{4}Q[1-4]                                      # YYYYQn quarterly
-    | \d{4}W(0?[1-9]|[1-4]\d|5[0-3])                   # YYYYWn weekly, 1-53, zero-padded or not
+    rf"""
+    \d{{4}}                                                   # yearly
+    | \d{{4}}(Feb|April|July|Aug|Sep|Oct|Nov)                # financial years
+    | \d{{4}}(0[1-9]|1[0-2])                                 # monthly
+    | \d{{4}}0[1-6]B                                         # bi-monthly
+    | \d{{4}}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])            # daily
+    | \d{{4}}(Nov)?Q[1-4]                                    # quarterly, quarterly from November
+    | \d{{4}}(April|Nov)?S[12]                               # six-monthly, from April, from November
+    | \d{{4}}(Wed|Thu|Sat|Sun)?W{_WEEK}                      # weekly, and weeks starting other days
+    | \d{{4}}BiW(0?[1-9]|1\d|2[0-7])                         # bi-weekly, 1-27
     """,
     re.VERBOSE,
 )
@@ -53,7 +55,7 @@ def is_uid(value: object) -> bool:
 
 
 def is_period(value: object) -> bool:
-    """Whether the value is a DHIS2 ISO period of one of the common types."""
+    """Whether the value is a DHIS2 ISO period of any period type."""
     return isinstance(value, str) and _PERIOD.fullmatch(value) is not None
 
 

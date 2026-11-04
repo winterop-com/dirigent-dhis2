@@ -14,6 +14,14 @@ An instance installs a matching pair: the pack's version and the dirigent it was
 with. A pack built against an older dirigent is not supported, because the plugin contract
 changes directly before 1.0 rather than through compatibility shims.
 
+## Next release
+
+### Fixed
+
+- `dhis2-period` takes every DHIS2 period type: bi-weekly, the weekly variants starting on
+  another day, bi-monthly, six-monthly (and from April or November), quarterly from November,
+  and the financial years. It took yearly, monthly, daily, quarterly and weekly alone.
+
 ## 0.35.0
 
 The imports answer the same keys, and the metadata export counts its rows as totals.
