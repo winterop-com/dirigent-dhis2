@@ -14,7 +14,7 @@ An instance installs a matching pair: the pack's version and the dirigent it was
 with. A pack built against an older dirigent is not supported, because the plugin contract
 changes directly before 1.0 rather than through compatibility shims.
 
-## Next release
+## 0.36.0
 
 ### Fixed
 
