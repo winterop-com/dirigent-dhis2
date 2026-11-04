@@ -33,7 +33,9 @@ sibling produced it:
   `dhis2.metadata`, `dhis2.tracker`, `dhis2.analytics_query` and `dhis2.sql_view`, and
   `dhis2.data_store` answers a namespace's keys the same way.
 - **A read of several collections** answers `collections`, each one's rows under its own name,
-  and `counts`, each one's row count under its name. That is `dhis2.metadata_export`.
+  and `totals`, each one's row count under its name, the way a paged read's `pager.total` counts
+  its rows. That is `dhis2.metadata_export`, and its `collections` is a metadata bundle as it
+  stands, which `dhis2.metadata_import` takes whole.
 - **`body`** carries a DHIS2 document as the instance wrote it, and only where the document is
   itself the thing to hand on: the data value set `dhis2.data_value_set_export` reads, which an
   import takes whole, and the analytics grid beside its `rows`, for its `headers` and
@@ -41,8 +43,11 @@ sibling produced it:
 - **Text** a block does not parse, a data value set exported as CSV, XML or ADX, is written
   whole to the run's storage at `uri`, and its head is inlined as `text`, cut at the instance's
   inline capture size, with `truncated` and `content_bytes` saying how much there is.
-- **An import** answers its summary's `status`, `counts` holding `imported`, `updated`,
-  `ignored` and `deleted`, and `conflicts`.
+- **An import** answers its summary's `status`, whether it was a `dry_run`, how many objects it
+  `sent`, `counts` holding `imported`, `updated`, `ignored` and `deleted`, the `objects` the
+  summary names, and its `conflicts`. That is `dhis2.data_value_set_import`,
+  `dhis2.metadata_import` and `dhis2.tracker_import`; a data value summary names no value it
+  took, so the data value import's `objects` is always empty.
 - **A job** the block follows, the analytics and resource tables runs and `dhis2.task_wait`,
   answers its `task_id`, `completed_at` and the last few `messages` of its notification feed.
 - **Every read** answers `duration_ms`.
@@ -468,8 +473,10 @@ to 2.44 import all four forms.
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `status` | `string` | yes |  | The summary's own word: SUCCESS or WARNING. |
+| `dry_run` | `boolean` | yes |  | Whether this was a validation only, with nothing written. |
 | `sent` | `integer` | yes |  | How many values the document held; zero says nothing was there to import. |
 | `counts` | `object` | yes |  | What happened to the values: imported, updated, ignored and deleted. |
+| `objects` | `any[]` | yes |  | Every value the summary names on its own, always empty: DHIS2's data value summary counts values and names only the refused ones, in `conflicts`. |
 | `conflicts` | `object[]` | yes |  | Every value the instance refused, empty when the import was clean. |
 
 Each conflict is an object of `object` and `value` in the instance's own words, its `error_code`, and the `indexes` of the refused values.
@@ -568,7 +575,7 @@ Read several DHIS2 metadata collections, every row of each, in one request.
 Idempotent.
 
 Reads every collection `resources` names in one `GET /api/metadata`, and answers with each under
-its own name in `collections` and its row count in `counts`. Each name is checked against the
+its own name in `collections` and its row count in `totals`. Each name is checked against the
 version-bound client first, so a name the instance's version does not publish is `rejected`
 before any export is sent. `fields`, `filter` and `order` are shared by every collection; a
 collection written as a mapping key may name its own, which replace the shared ones for it alone.
@@ -594,7 +601,7 @@ read it with [`dhis2.metadata`](#dhis2metadata), `paging: true` and `page_size: 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
 | `collections` | `object of any[]` | yes |  | Every collection asked for, keyed by its name, holding the rows the instance answered with; an empty list for a collection with no row that matched. |
-| `counts` | `object of integer` | yes |  | How many rows each collection holds in `collections`, keyed by its name. |
+| `totals` | `object of integer` | yes |  | How many rows each collection holds in `collections`, keyed by its name. |
 | `duration_ms` | `integer` | yes |  | How long the export took. |
 
 ### `dhis2.metadata_import`

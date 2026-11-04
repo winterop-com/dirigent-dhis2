@@ -666,8 +666,8 @@ outputs
 └──────────┴─────────────────────────────────────────┘
 ```
 
-DHIS2's import summary is the step's output, parsed: a `status`, how many values were `sent`,
-the four `counts`, and the conflicts. `updated: 2` means the instance resolved both values,
+DHIS2's import summary is the step's output, parsed: a `status`, whether it was a `dry_run`,
+how many values were `sent`, the four `counts`, and the conflicts. `updated: 2` means the instance resolved both values,
 checked each against its data element's value type, decided it would have revised two existing values -- and then threw the
 result away, because `dry_run` was on. The demo holds only the first of the two, and 2.43 still
 says `updated: 2`: a dry run there counts a value it would create as updated. On 2.42 the same
@@ -683,6 +683,7 @@ uv run dg runs show 01a0ac94-7b90-731d-b6b4-cb36ae764cf5 --json \
 ```json
 {
   "status": "SUCCESS",
+  "dry_run": true,
   "sent": 2,
   "counts": {
     "imported": 0,
@@ -690,6 +691,7 @@ uv run dg runs show 01a0ac94-7b90-731d-b6b4-cb36ae764cf5 --json \
     "ignored": 0,
     "deleted": 0
   },
+  "objects": [],
   "conflicts": []
 }
 ```

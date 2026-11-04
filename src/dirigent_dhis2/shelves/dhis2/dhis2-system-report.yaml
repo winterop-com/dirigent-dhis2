@@ -96,7 +96,7 @@ report:
 
     | collection | rows |
     | --- | --- |
-    {% for name, count in holdings.counts.items() %}
+    {% for name, count in holdings.totals.items() %}
     | {{ name }} | {{ count }} |
     {% endfor %}
 
