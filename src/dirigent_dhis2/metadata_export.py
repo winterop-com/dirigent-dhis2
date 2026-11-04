@@ -72,7 +72,7 @@ class Dhis2MetadataExportOutput(BlockModel):
     """Every collection asked for, keyed by its name, holding the rows the instance answered
     with; an empty list for a collection with no row that matched."""
 
-    counts: dict[str, int]
+    totals: dict[str, int]
     """How many rows each collection holds in ``collections``, keyed by its name."""
 
     duration_ms: int
@@ -142,7 +142,7 @@ class Dhis2MetadataExportOperator(Dhis2Operator[Dhis2MetadataExportConfig, Dhis2
             rows = body.get(resource)
             collections[resource] = cast("list[JsonValue]", rows) if isinstance(rows, list) else []
         duration = round((time.monotonic() - started) * 1000)
-        counts = {resource: len(rows) for resource, rows in collections.items()}
-        logged: dict[str, JsonValue] = {resource: count for resource, count in counts.items()}
-        ctx.log.info("metadata exported", counts=logged, duration_ms=duration)
-        return Dhis2MetadataExportOutput(collections=collections, counts=counts, duration_ms=duration)
+        totals = {resource: len(rows) for resource, rows in collections.items()}
+        logged: dict[str, JsonValue] = {resource: total for resource, total in totals.items()}
+        ctx.log.info("metadata exported", totals=logged, duration_ms=duration)
+        return Dhis2MetadataExportOutput(collections=collections, totals=totals, duration_ms=duration)

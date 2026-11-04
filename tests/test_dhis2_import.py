@@ -6,7 +6,13 @@ import pytest
 from pydantic import ValidationError
 
 from dhis2server import BASE_URL, CONNECTION, Dhis2Server, json, summary
-from dirigent_dhis2.imports import Dhis2DataValueSetImportConfig, Dhis2DataValueSetImportOperator
+from dirigent_dhis2.imports import (
+    Dhis2DataValueSetImportConfig,
+    Dhis2DataValueSetImportOperator,
+    Dhis2DataValueSetImportOutput,
+)
+from dirigent_dhis2.metadata_import import Dhis2MetadataImportOutput
+from dirigent_dhis2.tracker_import import Dhis2TrackerImportOutput
 from dirigent_plugin import BlockFailure, ErrorClass
 from dirigent_testing import FakeContext, call_block
 
@@ -23,8 +29,10 @@ async def test_a_clean_import_reports_its_counts(ctx: FakeContext, dhis2: Dhis2S
     )
     assert output.model_dump() == {
         "status": "SUCCESS",
+        "dry_run": True,
         "sent": 1,
         "counts": {"imported": 12, "updated": 3, "ignored": 0, "deleted": 0},
+        "objects": [],
         "conflicts": [],
     }
     request = route.last
@@ -32,6 +40,15 @@ async def test_a_clean_import_reports_its_counts(ctx: FakeContext, dhis2: Dhis2S
     assert request.url.params["importStrategy"] == "CREATE_AND_UPDATE"
     assert request.url.params["atomicMode"] == "ALL"
     assert jsonlib.loads(request.content) == DOCUMENT
+
+
+def test_the_three_imports_answer_the_same_summary_keys() -> None:
+    shared = {"status", "dry_run", "sent", "counts", "objects", "conflicts"}
+    for output in (Dhis2DataValueSetImportOutput, Dhis2MetadataImportOutput, Dhis2TrackerImportOutput):
+        assert shared <= set(output.model_fields), output.__name__
+        assert (
+            output.model_fields["counts"].annotation is Dhis2DataValueSetImportOutput.model_fields["counts"].annotation
+        )
 
 
 async def test_a_refused_import_answers_409_with_the_summary_and_is_rejected(

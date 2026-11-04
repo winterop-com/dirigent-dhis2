@@ -30,6 +30,7 @@ for the old fields.
 | `dhis2.tracker` | `output.body.instances`, the page fields in `output.body` | `output.rows`, `output.pager` |
 | `dhis2.analytics_query` | `output.body.rows`, each row a list in header order | `output.rows`, each row an object keyed by header name; the grid as DHIS2 sent it stays under `output.body` |
 | `dhis2.data_value_set_import` | `output.imported`, `output.updated`, `output.ignored`, `output.deleted` | `output.counts.imported`, `.updated`, `.ignored`, `.deleted`, beside the new `output.sent` |
+| `dhis2.metadata_export` | `output.counts.<resource>` | `output.totals.<resource>`; `counts` is an import's alone |
 
 The refusals of a job a block follows are coded for any job rather than for analytics alone:
 `dhis2.analytics.no_task_reference`, `dhis2.analytics.task_disappeared` and
@@ -64,6 +65,9 @@ Three refusals are new, so a step that passed before can fail now:
   answering part.
 - `dhis2.data_value_set_import` answers `sent`, the values the document held, and fails a
   summary that took none with `require_values: true`.
+- `dhis2.data_value_set_import` answers `dry_run` and `objects` beside `status`, `sent`, `counts`
+  and `conflicts`, the keys `dhis2.metadata_import` and `dhis2.tracker_import` answer. A data
+  value summary names no value it took, so its `objects` is always empty.
 - `dhis2.data_value_set_export` and `dhis2.data_value_set_import` take `format`: `json`, `csv`,
   `xml` or `adx`. An export in text is written to storage at `uri` with its head inlined as
   `text`; an import reads text inline or a stored document at `data_values_uri`, and takes the

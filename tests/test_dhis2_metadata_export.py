@@ -29,7 +29,7 @@ async def test_an_export_answers_each_collection_under_its_name(ctx: FakeContext
     )
     assert isinstance(output, Dhis2MetadataExportOutput)
     assert output.collections == {"dataSets": ANSWER["dataSets"], "programs": ANSWER["programs"], "indicators": []}
-    assert output.counts == {"dataSets": 2, "programs": 1, "indicators": 0}
+    assert output.totals == {"dataSets": 2, "programs": 1, "indicators": 0}
     assert len(route.requests) == 1
     params = route.last.url.params
     assert [params[name] for name in ("dataSets", "programs", "indicators")] == ["true", "true", "true"]

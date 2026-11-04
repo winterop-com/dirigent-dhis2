@@ -153,11 +153,18 @@ class Dhis2DataValueSetImportOutput(BlockModel):
     status: str
     """The summary's own word: SUCCESS or WARNING."""
 
+    dry_run: bool
+    """Whether this was a validation only, with nothing written."""
+
     sent: int
     """How many values the document held; zero says nothing was there to import."""
 
     counts: Dhis2ImportCounts
     """What happened to the values: imported, updated, ignored and deleted."""
+
+    objects: list[JsonValue]
+    """Every value the summary names on its own, always empty: DHIS2's data value summary
+    counts values and names only the refused ones, in ``conflicts``."""
 
     conflicts: list[Dhis2ImportConflict]
     """Every value the instance refused, empty when the import was clean."""
@@ -429,5 +436,10 @@ class Dhis2DataValueSetImportOperator(Dhis2Operator[Dhis2DataValueSetImportConfi
                 **counts,
             )
         return Dhis2DataValueSetImportOutput(
-            status=status, sent=sent, counts=Dhis2ImportCounts(**counts), conflicts=conflicts
+            status=status,
+            dry_run=config.dry_run,
+            sent=sent,
+            counts=Dhis2ImportCounts(**counts),
+            objects=[],
+            conflicts=conflicts,
         )
