@@ -164,10 +164,10 @@ def _signed_in(page: Page, url: str) -> None:
     page.get_by_label("Password", exact=True).fill(PASSWORD)
     page.get_by_role("button", name="Sign in", exact=True).click()
     page.wait_for_url(f"{url}/")
-    # Light, in the dirigent palette, as every picture on the page is.
+    # Light, in dirigent's default amber palette, as every picture on the page is.
     page.evaluate(
-        "() => { localStorage.setItem('theme', 'light');"
-        " localStorage.setItem('dirigent.palette', 'dirigent');"
+        "() => { localStorage.setItem('sokkel-ui-scheme', 'light');"
+        " localStorage.setItem('sokkel-ui-appearance', JSON.stringify({ theme: 'amber' }));"
         " localStorage.setItem('dirigent.terminalOpen', 'false') }"
     )
 
