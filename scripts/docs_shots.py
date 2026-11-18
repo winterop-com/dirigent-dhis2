@@ -261,7 +261,7 @@ def walk(page: Page, url: str, token: str) -> None:
     page.get_by_role("heading", name="Schemas").wait_for()
     _shot(page, "schema")
 
-    page.goto(f"{url}/pipelines/{PIPELINE}/edit")
+    page.goto(f"{url}/pipelines/{PIPELINE}/$edit")
     page.locator(".react-flow__node").get_by_text("check", exact=True).click()
     page.locator("aside").get_by_role("heading", name="Config").wait_for()
     page.locator("aside").get_by_text(str(_schema()["title"]), exact=True).first.click()
