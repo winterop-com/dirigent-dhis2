@@ -154,7 +154,7 @@ def _schema() -> Json:
 
 def _settle(page: Page) -> None:
     """Wait until the corner has read the instance, so the topbar in the frame is the settled one."""
-    page.get_by_role("button", name=re.compile(r"^Instance: (healthy|degraded|unhealthy)")).wait_for()
+    page.get_by_role("button", name=re.compile(r"^Instance: .*\b(healthy|degraded|unhealthy)$")).wait_for()
     page.wait_for_timeout(900)
 
 
@@ -188,7 +188,7 @@ def _run_on_step(page: Page, url: str, run_id: str, step: str) -> None:
 
 def _output_at(page: Page, key: str) -> None:
     """Scroll a step's output to one key, past what comes before it."""
-    line = page.get_by_text(f'"{key}"', exact=True).first
+    line = page.get_by_text(re.compile(rf'^\s*"{re.escape(key)}":')).first
     line.wait_for()
     line.evaluate("(line) => line.scrollIntoView({ block: 'start' })")
 
@@ -258,10 +258,10 @@ def walk(page: Page, url: str, token: str) -> None:
     call(lambda dg: dg.schemas.create(_schema()))
     run(documents["gated"], "succeeded")
     page.goto(f"{url}/schemas/{SCHEMA}")
-    page.get_by_role("heading", name="Schemas").wait_for()
+    page.get_by_role("heading", level=1, name=str(_schema()["title"])).wait_for()
     _shot(page, "schema")
 
-    page.goto(f"{url}/pipelines/{PIPELINE}/edit")
+    page.goto(f"{url}/pipelines/{PIPELINE}/$edit")
     page.locator(".react-flow__node").get_by_text("check", exact=True).click()
     page.locator("aside").get_by_role("heading", name="Config").wait_for()
     page.locator("aside").get_by_text(str(_schema()["title"]), exact=True).first.click()
